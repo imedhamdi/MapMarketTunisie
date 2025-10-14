@@ -1961,16 +1961,16 @@
       display: grid;
       gap: 14px;
       grid-template-columns: 1fr;
+      flex: 1;
       overflow: auto;
       overscroll-behavior: contain;
-      flex: 1;
       list-style: none;
       margin: 0;
     }
 
     @media (min-width: 768px) {
       .mm-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
@@ -1997,13 +1997,13 @@
       position: relative;
       aspect-ratio: 1 / 1;
       background: #e5e7eb;
-      flex-shrink: 0;
     }
 
     .mm-thumb img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
     }
 
     .mm-heart {
@@ -2045,47 +2045,42 @@
     }
 
     .mm-body {
-      padding: 12px 14px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      flex: 1;
+      gap: 6px;
       color: var(--mm-text);
     }
 
     .mm-title2 {
-      font-weight: 700;
-      font-size: .98rem;
+      font-weight: 600;
+      line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      line-height: 1.3;
       margin: 0;
     }
 
     .mm-meta {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
       color: var(--mm-muted);
       font-size: .85rem;
-      flex-wrap: wrap;
-      min-height: 24px;
-      margin-top: auto;
     }
 
-    .mm-price {
+    .mm-meta .mm-price {
       margin-left: auto;
       font-weight: 700;
       color: #ef4444;
     }
 
     .mm-state {
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, .06);
-      font-size: .75rem;
-      color: var(--mm-muted);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: .85rem;
+      background: #f2f3f5;
     }
 
     .mm-empty {
@@ -2597,7 +2592,7 @@
         <button id="favMultiSelect" class="mm-chip" aria-pressed="false">Sélectionner</button>
       </div>
     </header>
-    <div id="favList" class="mm-grid" role="list" hidden=""></div>
+    <div id="favList" class="mm-grid" role="list"></div>
     <div id="favEmptyState" class="mm-empty" hidden>
       <div class="mm-empty-illu">💗</div>
       <h3>Aucun favori pour l’instant</h3>
@@ -2637,6 +2632,8 @@
     // ---------- UTIL ----------
     function categoryClass(cat) { return cat === 'Immobilier' ? 'immobilier' : cat === 'Mode' ? 'mode' : cat === 'High-Tech' ? 'hitech' : cat === 'Auto' ? 'auto' : 'maison'; }
     function fmtPrice(n) { return (n >= 1000 ? n.toLocaleString('fr-FR') : n) + ' €'; }
+    function lockBodyScroll() { document.body.style.overflow = 'hidden'; }
+    function unlockBodyScroll() { document.body.style.overflow = ''; }
     function formatDateLong(dateStr) {
       const d = new Date(dateStr);
       if (Number.isNaN(d.getTime())) return dateStr;
@@ -2896,7 +2893,7 @@
       clearFeedback();
       authModal.classList.add('active');
       authModal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
       setTimeout(() => {
         const target = document.getElementById(focusId);
         if (target) target.focus();
@@ -2907,7 +2904,7 @@
       authModal.classList.remove('active');
       authModal.setAttribute('aria-hidden', 'true');
       if (!detailsModal.classList.contains('active') && !favModal.classList.contains('mm-open')) {
-        document.body.style.overflow = '';
+        unlockBodyScroll();
       }
       setTimeout(() => {
         resetAuthForms();
@@ -3418,7 +3415,7 @@
       detailsModal.style.display = 'flex';
       detailsModal.classList.add('active');
       detailsModal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
     }
 
     function closeDetailsModal() {
@@ -3426,7 +3423,7 @@
       detailsModal.classList.remove('active');
       detailsModal.setAttribute('aria-hidden', 'true');
       if (!authModal.classList.contains('active') && !favModal.classList.contains('mm-open')) {
-        document.body.style.overflow = '';
+        unlockBodyScroll();
       }
       if (detailsSkeletonTimeout) {
         clearTimeout(detailsSkeletonTimeout);
@@ -3534,7 +3531,7 @@
       requestAnimationFrame(() => favOverlay.classList.add('mm-show'));
       favModal.classList.add('mm-open');
       favModal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
       const searchEl = document.getElementById('favSearch');
       if (searchEl) setTimeout(() => searchEl.focus(), 30);
     }
@@ -3544,7 +3541,7 @@
       favModal.setAttribute('aria-hidden', 'true');
       favOverlay.classList.remove('mm-show');
       if (!detailsModal.classList.contains('active') && !authModal.classList.contains('active')) {
-        document.body.style.overflow = '';
+        unlockBodyScroll();
       }
       setTimeout(() => { favOverlay.hidden = true; }, 280);
     }
@@ -3616,22 +3613,22 @@
           card.style.animationDelay = `${index * 40}ms`;
           const stateBadge = item.state ? `<span class="mm-state">${item.state}</span>` : '';
           card.innerHTML = `
-            <div class="mm-thumb">
-              <img src="${item.img}" alt="${item.title}" loading="lazy">
-              <button class="mm-heart active" data-id="${item.id}" aria-label="Retirer des favoris">
-                <svg viewBox="0 0 24 24"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-              </button>
-              <div class="mm-burst" aria-hidden="true"></div>
-            </div>
-            <div class="mm-body">
-              <div class="mm-title2">${item.title}</div>
-              <div class="mm-meta">
-                <span>${item.city}</span>
-                ${stateBadge}
-                <span class="mm-price">${fmtPrice(item.price)}</span>
-              </div>
-            </div>
-          `;
+  <div class="mm-thumb">
+    <img src="${item.img}" alt="${item.title}" loading="lazy">
+    <button class="mm-heart active" data-id="${item.id}" aria-label="Retirer des favoris">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    </button>
+    <div class="mm-burst" aria-hidden="true"></div>
+  </div>
+  <div class="mm-body">
+    <div class="mm-title2">${item.title}</div>
+    <div class="mm-meta">
+      <span>${item.city}</span>
+      ${stateBadge}
+      <span class="mm-price">${fmtPrice(item.price)}</span>
+    </div>
+  </div>
+`;
           card.querySelector('.mm-heart').addEventListener('click', (e) => {
             e.stopPropagation();
             const favButton = e.currentTarget;
