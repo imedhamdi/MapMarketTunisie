@@ -1187,6 +1187,42 @@
       transition: fill 0.2s ease;
     }
   </style>
+  <style>
+    [hidden] { display: none !important; }
+    .no-scroll { overflow: hidden; }
+    .mm-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); backdrop-filter: saturate(120%) blur(2px); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 59; }
+    .mm-overlay.active { opacity: 1; pointer-events: auto; }
+    .mm-modal { position: fixed; top: 0; right: 0; height: 100dvh; width: min(720px, 92vw); max-width: 720px; background: #fff; box-shadow: -8px 0 24px rgba(16, 24, 40, .12); transform: translateX(110%); transition: transform .25s ease; display: flex; flex-direction: column; z-index: 60; }
+    .mm-modal.mm-open { transform: translateX(0); }
+    .mm-header { padding: 16px 20px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
+    .mm-header-row { display: flex; align-items: center; gap: 12px; }
+    .mm-header h2 { font-size: 1.25rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 6px; }
+    .mm-count { font-weight: 700; color: #e11d48; }
+    .mm-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .mm-link { background: none; border: 0; color: #0a66c2; cursor: pointer; font-weight: 600; padding: 0; }
+    .mm-link.danger { color: #e11d48; }
+    .mm-icon { border: 0; background: #f3f4f6; width: 32px; height: 32px; border-radius: 999px; cursor: pointer; display: grid; place-items: center; font-size: 16px; }
+    .mm-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .mm-search { position: relative; flex: 1 1 240px; }
+    .mm-search input { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 999px; padding: 0 12px 0 32px; outline: none; font: inherit; }
+    .mm-search-ico { position: absolute; left: 10px; top: 8px; opacity: .6; pointer-events: none; }
+    .mm-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .mm-filters select { height: 36px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0 10px; background: #fff; font: inherit; }
+    .mm-modal .mm-grid { padding: 16px; overflow: auto; flex: 1 1 auto; display: grid; gap: 16px; grid-template-columns: 1fr; }
+    .mm-modal .mm-grid.mm-grid-filter-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    @media (min-width: 860px) { .mm-modal .mm-grid { grid-template-columns: 1fr 1fr; } }
+    .mm-card { position: relative; display: flex; flex-direction: column; height: 420px; min-height: 420px; border-radius: 14px; background: #fff; box-shadow: 0 1px 0 rgba(16, 24, 40, .04), 0 1px 2px rgba(16, 24, 40, .06); overflow: hidden; }
+    .mm-thumb { flex: 0 0 auto; }
+    .mm-thumb img { display: block; width: 100%; height: 230px; object-fit: cover; }
+    .mm-body { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: flex-start; padding: 8px 14px; gap: 6px; min-height: 90px; }
+    .mm-title2 { font-weight: 800; font-size: 1rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .mm-meta { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: .9rem; color: #6b7280; }
+    .mm-price { margin-left: auto; font-weight: 700; color: #e11d48; }
+    .mm-heart { position: absolute; top: 10px; right: 10px; border: 0; background: #fff; border-radius: 999px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); font-size: 18px; }
+    .mm-empty { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px 20px; text-align: center; gap: 10px; color: #111; margin: 0 auto; width: 100%; max-width: 360px; }
+    .mm-empty.mm-empty-filter { justify-content: center; min-height: 160px; }
+    .mm-empty-illu { font-size: 38px; }
+  </style>
   <!-- Styles pour le modal de détails -->
   <style>
     .details-backdrop {
@@ -2187,7 +2223,42 @@
 
   <div class="toast" id="toast">Action enregistrée</div>
 
-  
+  <!-- FAVORITES MODAL (UNIQUE) -->
+  <div id="favOverlay" class="mm-overlay" hidden></div>
+  <aside id="favModal" class="mm-modal" role="dialog" aria-modal="true" aria-labelledby="favTitle" aria-hidden="true">
+    <header class="mm-header">
+      <div class="mm-header-row">
+        <h2 id="favTitle">Favoris <span id="favSheetCount" class="mm-count">0</span></h2>
+        <div class="mm-actions">
+          <button id="clearAllFavs" class="mm-link danger" type="button">Tout retirer</button>
+          <button id="closeFavs" class="mm-icon" aria-label="Fermer" type="button">✕</button>
+        </div>
+      </div>
+      <div class="mm-toolbar">
+        <div class="mm-search">
+          <span class="mm-search-ico">🔎</span>
+          <input id="favSearch" type="search" placeholder="Rechercher un favori…" autocomplete="off" />
+        </div>
+        <div class="mm-filters">
+          <select id="favSortBy" aria-label="Trier">
+            <option value="recent">Plus récent</option>
+            <option value="price_asc">Prix croissant</option>
+            <option value="price_desc">Prix décroissant</option>
+            <option value="title_asc">Titre A→Z</option>
+          </select>
+          <select id="favByCat" aria-label="Catégorie (toutes)">
+            <option value="">Toutes catégories</option>
+          </select>
+        </div>
+      </div>
+    </header>
+    <div id="favList" class="mm-grid" role="list"></div>
+    <div id="favEmptyState" class="mm-empty" hidden>
+      <div class="mm-empty-illu">💗</div>
+      <h3>Aucun favori pour l’instant</h3>
+      <p>Ajoutez des annonces à vos favoris pour les retrouver ici.</p>
+    </div>
+  </aside>
 
   <script>
     // ---------- DATA (mock + géoloc) ----------
@@ -2228,6 +2299,26 @@
     function daysAgo(dateStr) { const d = new Date(dateStr); const diff = Math.max(1, Math.round((Date.now() - d) / 86400000)); return `il y a ${diff} jour${diff > 1 ? 's' : ''}`; }
     function normalize(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 
+    let scrollLockDepth = 0;
+    function lockBodyScroll() {
+      scrollLockDepth = Math.max(0, scrollLockDepth) + 1;
+      document.body.classList.add('no-scroll');
+      document.body.style.overflow = 'hidden';
+    }
+    function unlockBodyScroll() {
+      scrollLockDepth = Math.max(0, scrollLockDepth - 1);
+      if (scrollLockDepth === 0) {
+        document.body.classList.remove('no-scroll');
+        document.body.style.overflow = '';
+      }
+    }
+    window.lockBodyScroll = lockBodyScroll;
+    window.unlockBodyScroll = unlockBodyScroll;
+    function isFavModalOpen() {
+      const panel = document.getElementById('favModal');
+      return !!(panel && panel.classList.contains('mm-open'));
+    }
+
     // ---------- FILTERING ----------
     const search = document.getElementById('search');
     const cat = document.getElementById('cat');
@@ -2263,14 +2354,180 @@
     const openFavsBtn = document.getElementById('openFavs');
     const sentinel = document.getElementById('sentinel');
     const loading = document.getElementById('loading');
+    const favOverlay = document.getElementById('favOverlay');
+    const favModal = document.getElementById('favModal');
+    const favList = document.getElementById('favList');
+    const favEmptyState = document.getElementById('favEmptyState');
+    const favSheetCount = document.getElementById('favSheetCount');
+    const favSearch = document.getElementById('favSearch');
+    const favSortBy = document.getElementById('favSortBy');
+    const favByCat = document.getElementById('favByCat');
+    const clearAllFavsBtn = document.getElementById('clearAllFavs');
+    const closeFavsBtn = document.getElementById('closeFavs');
 
     let page = 0; const PAGE_SIZE = 12; let filteredCache = [];
 
-    if (openFavsBtn) {
-      openFavsBtn.addEventListener('click', () => {
-        showToast('La vue favoris a été désactivée.');
+    function getFavBaseItems() {
+      const favs = favStore.get();
+      const items = [];
+      allItems.forEach(item => {
+        if (favs.has(item.id)) items.push(item);
       });
+      return items;
     }
+
+    function refreshFavCategories(sourceItems) {
+      if (!favByCat) return;
+      const previous = favByCat.value;
+      const cats = Array.from(new Set(sourceItems.map(it => it.cat || it.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+      favByCat.innerHTML = '<option value="">Toutes catégories</option>' + cats.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+      if (previous && cats.includes(previous)) favByCat.value = previous;
+    }
+
+    function applyFavFilters(items) {
+      let result = items.slice();
+      if (favSearch && favSearch.value.trim()) {
+        const q = normalize(favSearch.value);
+        result = result.filter(item => normalize(`${item.title} ${item.city || ''} ${(item.cat || item.category || '')}`).includes(q));
+      }
+      if (favByCat && favByCat.value) {
+        const catFilter = favByCat.value;
+        result = result.filter(item => (item.cat || item.category || '') === catFilter);
+      }
+      if (favSortBy) {
+        switch (favSortBy.value) {
+          case 'price_asc':
+            result.sort((a, b) => (a.price || 0) - (b.price || 0));
+            break;
+          case 'price_desc':
+            result.sort((a, b) => (b.price || 0) - (a.price || 0));
+            break;
+          case 'title_asc':
+            result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            break;
+          default:
+            result.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
+        }
+      }
+      return result;
+    }
+
+    function updateFavEmptyState(totalCount) {
+      const isEmpty = totalCount === 0;
+      if (favList) favList.hidden = isEmpty;
+      if (favEmptyState) favEmptyState.hidden = !isEmpty;
+    }
+
+    function renderFavCard(item) {
+      const priceLabel = typeof item.price === 'string' ? item.price : fmtPrice(item.price || 0);
+      const imageUrl = item.img || item.imageUrl || 'https://via.placeholder.com/400x300?text=Favori';
+      return `
+  <article class="mm-card" role="listitem" data-id="${item.id}">
+    <button class="mm-heart" aria-label="Retirer des favoris" data-id="${item.id}">❤</button>
+    <div class="mm-thumb"><img src="${imageUrl}" alt="${item.title}" loading="lazy"></div>
+    <div class="mm-body">
+      <div class="mm-title2">${item.title}</div>
+      <div class="mm-meta"><span>${item.city || ''}</span><span class="mm-price">${priceLabel}</span></div>
+    </div>
+  </article>`;
+    }
+
+    function renderFavSheet() {
+      if (!favList) return;
+      const baseItems = getFavBaseItems();
+      refreshFavCategories(baseItems);
+      if (favCount) favCount.textContent = baseItems.length;
+      let items = applyFavFilters(baseItems);
+      favList.classList.remove('mm-grid-filter-empty');
+      updateFavEmptyState(baseItems.length);
+      if (favSheetCount) favSheetCount.textContent = items.length;
+      if (!baseItems.length) {
+        favList.innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        favList.classList.add('mm-grid-filter-empty');
+        favList.innerHTML = '<div class="mm-empty mm-empty-filter" role="status"><p>Aucun favori ne correspond aux critères actuels.</p></div>';
+        return;
+      }
+      favList.innerHTML = items.map(renderFavCard).join('');
+    }
+
+    function openFavSheet() {
+      if (!favModal || !favOverlay) return;
+      if (favModal.classList.contains('mm-open')) {
+        renderFavSheet();
+        return;
+      }
+      renderFavSheet();
+      favOverlay.hidden = false;
+      requestAnimationFrame(() => favOverlay.classList.add('active'));
+      favModal.classList.add('mm-open');
+      favModal.setAttribute('aria-hidden', 'false');
+      lockBodyScroll();
+      if (favSearch) setTimeout(() => favSearch.focus(), 50);
+    }
+
+    function closeFavSheet() {
+      if (!favModal || !favOverlay) return;
+      if (!favModal.classList.contains('mm-open')) return;
+      favModal.classList.remove('mm-open');
+      favModal.setAttribute('aria-hidden', 'true');
+      favOverlay.classList.remove('active');
+      setTimeout(() => { if (favOverlay && !favModal.classList.contains('mm-open')) favOverlay.hidden = true; }, 200);
+      unlockBodyScroll();
+    }
+
+    openFavsBtn?.addEventListener('click', openFavSheet);
+    closeFavsBtn?.addEventListener('click', closeFavSheet);
+    favOverlay?.addEventListener('click', (event) => { if (event.target === favOverlay) closeFavSheet(); });
+    if (favSearch) favSearch.addEventListener('input', renderFavSheet);
+    if (favSortBy) favSortBy.addEventListener('change', renderFavSheet);
+    if (favByCat) favByCat.addEventListener('change', renderFavSheet);
+    clearAllFavsBtn?.addEventListener('click', () => {
+      const favs = favStore.get();
+      if (favs.size === 0) {
+        showToast('Aucun favori à retirer.');
+        return;
+      }
+      if (!confirm('Voulez-vous retirer tous vos favoris ?')) return;
+      const ids = [...favs];
+      favStore.set(new Set());
+      if (favCount) favCount.textContent = 0;
+      ids.forEach(id => syncFavoriteButtons(id, false));
+      renderFavSheet();
+      showToast('Tous les favoris ont été retirés.');
+    });
+    favList?.addEventListener('click', (event) => {
+      const heartBtn = event.target.closest('.mm-heart');
+      if (heartBtn) {
+        event.stopPropagation();
+        const id = Number(heartBtn.dataset.id);
+        const favs = favStore.get();
+        if (favs.has(id)) {
+          favs.delete(id);
+          favStore.set(favs);
+          if (favCount) favCount.textContent = favs.size;
+          syncFavoriteButtons(id, false);
+          renderFavSheet();
+          showToast('Retiré des favoris');
+        }
+        return;
+      }
+      const card = event.target.closest('.mm-card');
+      if (!card) return;
+      const id = Number(card.dataset.id);
+      const ad = allItems.find(item => item.id === id);
+      if (ad) {
+        closeFavSheet();
+        openDetailsModal(ad);
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && favModal && favModal.classList.contains('mm-open')) {
+        closeFavSheet();
+      }
+    });
 
     function renderChunk() {
       const favs = favStore.get();
@@ -2312,9 +2569,13 @@
           if (isAdding) {
             s.add(id); showToast('Ajouté aux favoris');
             triggerFavAnimation(btn); // Déclenche l'animation
-          } else { s.delete(id); }
+          } else { s.delete(id); showToast('Retiré des favoris'); }
 
-          favStore.set(s); favCount.textContent = s.size; btn.querySelector('svg').setAttribute('fill', s.has(id) ? '#ef4444' : 'none'); btn.querySelector('svg').setAttribute('stroke', s.has(id) ? '#ef4444' : 'currentColor');
+          favStore.set(s);
+          if (favCount) favCount.textContent = s.size;
+          btn.querySelector('svg').setAttribute('fill', s.has(id) ? '#ef4444' : 'none');
+          btn.querySelector('svg').setAttribute('stroke', s.has(id) ? '#ef4444' : 'currentColor');
+          if (isFavModalOpen()) renderFavSheet();
         })
       })
       page++;
@@ -2486,7 +2747,7 @@
       clearFeedback();
       authModal.classList.add('active');
       authModal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
       setTimeout(() => {
         const target = document.getElementById(focusId);
         if (target) target.focus();
@@ -2496,9 +2757,7 @@
     function closeAuthFn() {
       authModal.classList.remove('active');
       authModal.setAttribute('aria-hidden', 'true');
-      if (!authModal.classList.contains('active') && !detailsModal.classList.contains('active')) {
-        document.body.style.overflow = '';
-      }
+      unlockBodyScroll();
       setTimeout(() => {
         resetAuthForms();
       }, 360);
@@ -3008,16 +3267,14 @@
       detailsModal.style.display = 'flex';
       detailsModal.classList.add('active');
       detailsModal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
     }
 
     function closeDetailsModal() {
       detailsModal.style.display = 'none';
       detailsModal.classList.remove('active');
       detailsModal.setAttribute('aria-hidden', 'true');
-      if (!authModal.classList.contains('active') && !detailsModal.classList.contains('active')) {
-        document.body.style.overflow = '';
-      }
+      unlockBodyScroll();
       if (detailsSkeletonTimeout) {
         clearTimeout(detailsSkeletonTimeout);
         detailsSkeletonTimeout = null;
@@ -3065,6 +3322,7 @@
       favStore.set(favs);
       setDetailsSaveState(!isFav);
       syncFavoriteButtons(id, !isFav);
+      if (isFavModalOpen()) renderFavSheet();
     });
 
     detailsContact.addEventListener('click', () => {
