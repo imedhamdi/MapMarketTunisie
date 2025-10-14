@@ -1228,7 +1228,7 @@
     #map.is-obscured { pointer-events: none; }
     .mm-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); backdrop-filter: saturate(120%) blur(2px); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: var(--z-drawer); }
     .mm-overlay.active { opacity: 1; pointer-events: auto; }
-    .mm-modal { position: fixed; top: 0; right: 0; height: 100dvh; width: min(720px, 92vw); max-width: 720px; background: #fff; box-shadow: -8px 0 24px rgba(16, 24, 40, .12); transform: translateX(110%); transition: transform .25s ease; display: flex; flex-direction: column; z-index: var(--z-drawer); }
+    .mm-modal { position: fixed; top: 0; right: 0; height: 100dvh; width: min(720px, 92vw); max-width: 720px; background: #fff; box-shadow: -8px 0 24px rgba(16, 24, 40, .12); transform: translateX(110%); transition: transform .25s ease; display: flex; flex-direction: column; z-index: var(--z-drawer); overflow: hidden; }
     .mm-modal.mm-open { transform: translateX(0); }
     .mm-header { padding: 16px 20px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
     .mm-header-row { display: flex; align-items: center; gap: 12px; }
@@ -1244,20 +1244,26 @@
     .mm-search-ico { position: absolute; left: 10px; top: 8px; opacity: .6; pointer-events: none; }
     .mm-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .mm-filters select { height: 36px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0 10px; background: #fff; font: inherit; }
-    .mm-modal .mm-grid { padding: 16px; overflow: auto; flex: 1 1 auto; display: grid; gap: 16px; grid-template-columns: 1fr; }
-    .mm-modal .mm-grid.mm-grid-filter-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .mm-modal .mm-grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 16px; overflow: auto; flex: 1 1 auto; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; }
+    .mm-modal .mm-grid.mm-grid-filter-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
     @media (min-width: 860px) { .mm-modal .mm-grid { grid-template-columns: 1fr 1fr; } }
-    .mm-card { position: relative; display: flex; flex-direction: column; min-height: auto; height: auto; border-radius: 14px; background: #fff; box-shadow: 0 1px 0 rgba(16, 24, 40, .04), 0 1px 2px rgba(16, 24, 40, .06); overflow: hidden; }
+    .mm-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 320px; border-radius: 14px; background: #fff; overflow: hidden; box-shadow: 0 1px 0 rgba(16,24,40,.04), 0 1px 2px rgba(16,24,40,.06); transition: transform 0.2s ease, opacity 0.2s ease; border: 1px solid var(--border); }
+    .mm-card:hover { box-shadow: 0 8px 22px rgba(15,23,42,.08); border-color: #dbe0e6; }
     .mm-thumb { flex: 0 0 auto; }
-    .mm-thumb img { display: block; width: 100%; height: 230px; object-fit: cover; }
-    .mm-body { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: flex-start; padding: 8px 14px; gap: 6px; }
+    .mm-thumb img { width: 100%; height: 200px; object-fit: cover; display: block; }
+    .mm-body { flex: 1 0 auto; min-height: 120px; max-height: 120px; display: flex; flex-direction: column; justify-content: space-between; padding: 8px 14px; gap: 6px; }
     .mm-title2 { font-weight: 800; font-size: 1rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     .mm-meta { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: .9rem; color: #6b7280; }
     .mm-price { margin-left: auto; font-weight: 700; color: #e11d48; }
-    .mm-heart { position: absolute; top: 10px; right: 10px; border: 0; background: #fff; border-radius: 999px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); font-size: 18px; }
+    .mm-remove { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; cursor: pointer; border: 1px solid #f3d0d8; background: #fff; color: #e11d48; box-shadow: 0 6px 14px rgba(225, 29, 72, .15); }
+    .mm-remove:hover { background: #fff0f3; border-color: #f7b4c1; }
+    .mm-remove:focus-visible { outline: 2px solid #fda4af; outline-offset: 2px; }
+    .mm-heart { display: none; }
     .mm-empty { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px 20px; text-align: center; gap: 10px; color: #111; margin: 0 auto; width: 100%; max-width: 360px; }
     .mm-empty.mm-empty-filter { justify-content: center; min-height: 160px; }
     .mm-empty-illu { font-size: 38px; }
+    .mm-card.added { opacity: 0; transform: scale(0.95); animation: fadeInCard 0.25s forwards; }
+    @keyframes fadeInCard { to { opacity: 1; transform: scale(1); } }
   </style>
   <!-- Styles pour le modal de détails -->
   <style>
@@ -1443,37 +1449,51 @@
       transform: translateY(-1px);
     }
 
-    .carousel-tools {
+    .details-meta.details-meta-stats {
       position: absolute;
       right: 20px;
-      bottom: 20px;
-      display: flex;
+      bottom: 18px;
+      display: inline-flex;
+      align-items: center;
       gap: 12px;
-      z-index: 2;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 999px;
+      box-shadow: 0 1px 0 rgba(16, 24, 40, .04), 0 1px 2px rgba(16, 24, 40, .06);
+      z-index: 3;
     }
 
-    .tool-btn {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      border: none;
-      background: rgba(255, 255, 255, .9);
-      box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: transform .2s ease, background .2s ease;
-    }
-
-    .tool-btn svg {
-      width: 20px;
-      height: 20px;
+    .details-meta.details-meta-stats .details-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
       color: #111827;
+      background: transparent;
+      border: none;
+      padding: 0;
+      border-radius: 0;
     }
 
-    .tool-btn:hover {
-      transform: translateY(-2px);
-      background: rgba(255, 77, 109, .12);
+    .details-meta.details-meta-stats .details-meta-item .icon {
+      line-height: 1;
+      font-size: 16px;
+    }
+
+    .details-meta.details-meta-stats .details-meta-item .label {
+      color: #374151;
+    }
+
+    .details-meta.details-meta-stats .details-meta-item.fav-meta .icon {
+      filter: saturate(120%);
+    }
+
+    .details-meta.details-meta-stats .details-meta-item.views,
+    .details-meta.details-meta-stats .details-meta-item.fav-meta {
+      background: transparent;
+      border: none;
+      color: #111827;
     }
 
     .details-skeleton {
@@ -1811,9 +1831,9 @@
         height: 36px;
       }
 
-      .carousel-tools {
-        bottom: 14px;
+      .details-meta.details-meta-stats {
         right: 14px;
+        bottom: 14px;
       }
 
       .details-actions {
@@ -2180,24 +2200,15 @@
             <div class="carousel-counter" id="detailsImageCounter">1 / 1</div>
             <div class="carousel-dots" id="detailsCarouselDots"></div>
           </div>
-          <div class="carousel-tools">
-            <button class="tool-btn" id="detailsDownload" aria-label="Télécharger l'image">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </button>
-            <button class="tool-btn" id="detailsFullscreen" aria-label="Voir en plein écran">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-                <path d="M16 3h3a2 2 0 0 1 2 2v3" />
-                <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
-                <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-              </svg>
-            </button>
+          <div class="details-meta details-meta-stats" role="group" aria-label="Statistiques de l'annonce">
+            <span class="details-meta-item views" aria-label="Nombre de vues">
+              <span class="icon" aria-hidden="true">👁️</span>
+              <span class="label"><strong class="count" data-field="views">182</strong> vues</span>
+            </span>
+            <span class="details-meta-item fav-meta" aria-label="Nombre de favoris">
+              <span class="icon" aria-hidden="true">❤️</span>
+              <span class="label"><strong class="count" data-field="favorites">21</strong> favoris</span>
+            </span>
           </div>
         </div>
         <div class="details-skeleton" id="detailsSkeleton"></div>
@@ -2307,17 +2318,467 @@
     function jitter([lat, lng]) { return [lat + (Math.random() - .5) * 0.08, lng + (Math.random() - .5) * 0.12]; }
 
     const allItemsData = [
-      { id: 101, cat: 'Immobilier', title: 'Appartement T3 lumineux - Lyon 7e', price: 345000, desc: 'Superbe T3 de 75m² entièrement rénové en 2022. Traversant, avec balcon et vue dégagée. Proche des transports et commerces. Cave incluse.', chips: ['75 m²', '2 chambres', 'DPE C', 'Balcon'], city: 'Lyon', state: 'Très bon état', views: 245, likes: 28, date: '2025-10-12', img: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1470&auto=format&fit=crop' },
-      { id: 102, cat: 'Auto', title: 'Renault Clio V - Faible kilométrage', price: 14800, desc: 'Clio 5 de 2021, finition Intens. Moteur essence TCe 90. Seulement 35 000 km. Entretien suivi chez Renault. Idéale jeune conducteur.', chips: ['Essence', 'Manuelle', '35 000 km', 'Crit\'Air 1'], city: 'Marseille', state: 'Très bon état', views: 180, likes: 15, date: '2025-10-11', img: 'https://images.unsplash.com/photo-1617469767050-14e523b0e8a3?q=80&w=1470&auto=format&fit=crop' },
-      { id: 103, cat: 'High-Tech', title: 'MacBook Pro 13" M1 - 512Go', price: 950, desc: 'MacBook Pro 13 pouces de fin 2020 avec puce M1. 16Go de RAM, 512Go SSD. État impeccable, aucune rayure. Vendu avec boîte et chargeur d\'origine.', chips: ['16Go RAM', '512Go SSD', 'Puce M1'], city: 'Paris', state: 'Très bon état', views: 310, likes: 42, date: '2025-10-13', img: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1326&auto=format&fit=crop' },
-      { id: 104, cat: 'Maison', title: 'Canapé d\'angle convertible gris', price: 450, desc: 'Grand canapé d\'angle 4 places, convertible en lit d\'appoint. Tissu gris chiné anti-taches. Acheté il y a 2 ans, très peu servi. Maison non-fumeur.', chips: ['4 places', 'Convertible', 'Coffre rangement'], city: 'Lille', state: 'Bon état', views: 95, likes: 8, date: '2025-10-09', img: 'https://images.unsplash.com/photo-1540574163024-5884b0b5b529?q=80&w=1470&auto=format&fit=crop' },
-      { id: 105, cat: 'Mode', title: 'Sac à main en cuir de luxe', price: 280, desc: 'Magnifique sac à main d\'une grande marque française. Cuir de veau pleine fleur. Porté quelques fois, état comme neuf. Vendu avec son dust-bag.', chips: ['Cuir véritable', 'Marque de luxe', 'Vintage'], city: 'Toulouse', state: 'Très bon état', views: 150, likes: 25, date: '2025-10-10', img: 'https://images.unsplash.com/photo-1590739241625-0d407c2f1a2a?q=80&w=1470&auto=format&fit=crop' },
-      { id: 106, cat: 'Immobilier', title: 'Studio meublé proche Comédie', price: 145000, desc: 'Idéal investisseur ou premier achat. Studio de 25m² entièrement meublé et équipé. Situé dans une rue calme à 5min à pied de la place de la Comédie.', chips: ['25 m²', 'Meublé', 'Centre-ville'], city: 'Montpellier', state: 'Bon état', views: 420, likes: 33, date: '2025-10-14', img: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?q=80&w=1470&auto=format&fit=crop' },
-      { id: 107, cat: 'High-Tech', title: 'Appareil photo Sony A7 III', price: 1300, desc: 'Boîtier Sony Alpha 7 III en excellent état. Vendu avec son objectif de kit 28-70mm. Parfait pour se lancer dans la photo plein format. Moins de 15 000 déclenchements.', chips: ['Plein format', '4K', '15k déclench.'], city: 'Paris', state: 'Très bon état', views: 288, likes: 38, date: '2025-10-11', img: 'https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?q=80&w=1352&auto=format&fit=crop' },
-      { id: 108, cat: 'Maison', title: 'Table basse design en chêne massif', price: 180, desc: 'Table basse de style scandinave en chêne massif huilé. Dimensions : 120x70cm. Achetée chez Habitat. Quelques micro-rayures d\'usage mais très bel état général.', chips: ['Chêne massif', 'Design scandinave', 'Habitat'], city: 'Lyon', state: 'Bon état', views: 112, likes: 11, date: '2025-10-08', img: 'https://images.unsplash.com/photo-1611403579683-54e4a837498c?q=80&w=1470&auto=format&fit=crop' },
-      { id: 109, cat: 'Auto', title: 'Volkswagen Golf 7 GTI Performance', price: 22500, desc: 'Golf 7 GTI phase 2, 245ch. Année 2018, 80 000 km. Boîte DSG7, Virtual Cockpit, toit ouvrant. Carnet d\'entretien complet. Temps de chauffe toujours respectés.', chips: ['245ch', 'DSG7', 'Toit ouvrant', '80 000 km'], city: 'Toulouse', state: 'Très bon état', views: 550, likes: 68, date: '2025-10-13', img: 'https://images.unsplash.com/photo-1616455579100-2ceaa4eb2d37?q=80&w=1528&auto=format&fit=crop' },
-      { id: 110, cat: 'Mode', title: 'Baskets Nike Air Max 90 - Neuves', price: 90, desc: 'Paire de Nike Air Max 90, coloris "Infrared". Jamais portées, encore dans la boîte. Taille 43. Erreur de taille à l\'achat.', chips: ['Taille 43', 'Jamais portées', 'Coloris OG'], city: 'Lille', state: 'Neuf', views: 190, likes: 22, date: '2025-10-12', img: 'https://images.unsplash.com/photo-1587563871167-1df9c4010de1?q=80&w=1470&auto=format&fit=crop' }
-    ];
+  {
+    "id": 201,
+    "cat": "Immobilier",
+    "title": "Loft industriel rénové - Lyon Croix-Rousse",
+    "price": 485000,
+    "desc": "Volume lumineux de 120 m² avec poutres apparentes, cuisine ouverte équipée et terrasse de 15 m². Copropriété entretenue, faibles charges.",
+    "chips": [
+      "120 m²",
+      "3 pièces",
+      "Terrasse"
+    ],
+    "city": "Lyon",
+    "state": "Très bon état",
+    "views": 182,
+    "likes": 21,
+    "date": "2025-01-18",
+    "img": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 202,
+    "cat": "Immobilier",
+    "title": "Maison familiale 6 pièces - Bordeaux Caudéran",
+    "price": 639000,
+    "desc": "Maison de 165 m² sur parcelle de 480 m², 4 chambres, bureau, piscine chauffée et garage double. Commodités à pied, tram à 7 minutes.",
+    "chips": [
+      "165 m²",
+      "4 chambres",
+      "Piscine"
+    ],
+    "city": "Bordeaux",
+    "state": "Excellent état",
+    "views": 205,
+    "likes": 34,
+    "date": "2025-01-16",
+    "img": "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 203,
+    "cat": "Immobilier",
+    "title": "Studio meublé 28 m² - Paris Canal Saint-Martin",
+    "price": 289000,
+    "desc": "Idéal investisseur : studio traversant, cuisine séparée, salle d'eau rénovée, vendu meublé et équipé. Métro République à 3 minutes.",
+    "chips": [
+      "28 m²",
+      "Meublé",
+      "4e étage"
+    ],
+    "city": "Paris",
+    "state": "Rénové",
+    "views": 332,
+    "likes": 42,
+    "date": "2025-01-20",
+    "img": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1532323544230-7191fd51bc1b?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 204,
+    "cat": "Immobilier",
+    "title": "Chalet bois 5 pièces - Chamonix Les Bois",
+    "price": 825000,
+    "desc": "Chalet de 135 m² orienté sud, vue Mont-Blanc, 4 chambres, poêle scandinave et jardin arboré. Navette ski et commerces à proximité.",
+    "chips": [
+      "135 m²",
+      "4 chambres",
+      "Vue montagne"
+    ],
+    "city": "Chamonix",
+    "state": "Très bon état",
+    "views": 148,
+    "likes": 29,
+    "date": "2024-12-28",
+    "img": "https://images.unsplash.com/photo-1512914890250-353c77d871ae?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1451976426598-a7593bd6d0b2?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1475948165652-1d106188ff24?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1514320291840-4e0cb04cdc29?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 205,
+    "cat": "Auto",
+    "title": "Tesla Model 3 Grande Autonomie 2022",
+    "price": 42900,
+    "desc": "Model 3 Dual Motor AWD, 38 000 km, carnet Tesla, Autopilot amélioré, garantie batterie 8 ans. Pneus hiver et câbles recharge fournis.",
+    "chips": [
+      "38 000 km",
+      "Autopilot",
+      "Dual Motor"
+    ],
+    "city": "Toulouse",
+    "state": "Excellent état",
+    "views": 198,
+    "likes": 33,
+    "date": "2025-01-12",
+    "img": "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1511390429071-3ae4351ca459?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1471479917193-f00955256257?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 206,
+    "cat": "Auto",
+    "title": "BMW Série 1 118d M Sport 2021",
+    "price": 25990,
+    "desc": "Diesel 150 ch, boîte auto 8 rapports, 52 000 km, pack M complet, entretien concession, pneus neufs janvier 2025.",
+    "chips": [
+      "52 000 km",
+      "BVA8",
+      "Pack M"
+    ],
+    "city": "Lille",
+    "state": "Très bon état",
+    "views": 176,
+    "likes": 24,
+    "date": "2025-01-09",
+    "img": "https://images.unsplash.com/photo-1551816230-ef5deaed4a26?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1549923746-c502d488b3ea?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1552519507-93d6c1b09805?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 207,
+    "cat": "Auto",
+    "title": "Volkswagen California Beach T6.1 2020",
+    "price": 57900,
+    "desc": "Van aménagé 4 couchages, 65 500 km, toit relevable électrique, chauffage stationnaire, révision VW 12/2024.",
+    "chips": [
+      "65 500 km",
+      "4 couchages",
+      "Toit relevable"
+    ],
+    "city": "Nantes",
+    "state": "Très bon état",
+    "views": 242,
+    "likes": 41,
+    "date": "2024-12-30",
+    "img": "https://images.unsplash.com/photo-1517949908111-7220f23a2765?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1465446751832-9f11e2739c61?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1471479917193-f00955256257?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1470246973918-29a93221c455?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 208,
+    "cat": "High-Tech",
+    "title": "MacBook Pro 14\" M3 Pro - 1 To",
+    "price": 2490,
+    "desc": "Modèle 2023 gris sidéral, puce M3 Pro 12 cœurs, 18 Go RAM, SSD 1 To. Facture Apple Store, coque et AppleCare+ inclus.",
+    "chips": [
+      "Puissance M3 Pro",
+      "18 Go RAM",
+      "SSD 1 To"
+    ],
+    "city": "Paris",
+    "state": "Comme neuf",
+    "views": 314,
+    "likes": 58,
+    "date": "2025-01-07",
+    "img": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1527430253228-e93688616381?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 209,
+    "cat": "High-Tech",
+    "title": "Sony A7 IV + 24-70mm f/2.8 GM",
+    "price": 3490,
+    "desc": "Hybride plein format 33 MP, 22 000 déclenchements. Optique G Master, 3 batteries, cage SmallRig. Acheté FNAC 2023.",
+    "chips": [
+      "33 MP",
+      "4K60",
+      "Optique GM"
+    ],
+    "city": "Marseille",
+    "state": "Excellent état",
+    "views": 268,
+    "likes": 47,
+    "date": "2025-01-14",
+    "img": "https://images.unsplash.com/photo-1514320291840-4e0cb04cdc29?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1516728778615-2d590ea18506?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1471440671318-55bdbb772f93?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 210,
+    "cat": "High-Tech",
+    "title": "Setup gaming complet RTX 4080 Super",
+    "price": 3690,
+    "desc": "Tour NZXT i7-14700K, RTX 4080 Super, 32 Go DDR5, SSD 2 To, écran incurvé 34 pouces 165 Hz, clavier méca, souris wireless.",
+    "chips": [
+      "i7-14700K",
+      "RTX 4080S",
+      "Écran 34″"
+    ],
+    "city": "Rennes",
+    "state": "Comme neuf",
+    "views": 401,
+    "likes": 62,
+    "date": "2025-01-11",
+    "img": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1587202372775-98927f7ccfcd?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 211,
+    "cat": "High-Tech",
+    "title": "iPhone 15 Pro Max 256 Go - Bleu Titane",
+    "price": 1320,
+    "desc": "Acheté octobre 2024, garantie Apple en cours. Batterie 100 %, livré avec boîte, câble, AppleCare+ transférable et verre trempé.",
+    "chips": [
+      "256 Go",
+      "AppleCare+",
+      "Batterie 100 %"
+    ],
+    "city": "Nice",
+    "state": "Comme neuf",
+    "views": 355,
+    "likes": 73,
+    "date": "2025-01-15",
+    "img": "https://images.unsplash.com/photo-1695048130329-4b631dccd880?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1695048026064-14f2b90e1091?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1695048026132-7cbdeb18f0bc?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1695048026259-06d9a14abe12?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 212,
+    "cat": "Maison",
+    "title": "Cuisine équipée complète - Schmidt 2022",
+    "price": 6900,
+    "desc": "Cuisine en L 3,60 m x 2,40 m, façades chêne clair + îlot, plan quartz, électroménager Siemens inclus (four vapeur, plaque induction, LV).",
+    "chips": [
+      "Quartz",
+      "Électroménager Siemens",
+      "2022"
+    ],
+    "city": "Strasbourg",
+    "state": "Très bon état",
+    "views": 119,
+    "likes": 18,
+    "date": "2024-12-22",
+    "img": "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 213,
+    "cat": "Maison",
+    "title": "Ensemble salon design - canapé + fauteuil + table",
+    "price": 1890,
+    "desc": "Set Made.com 2023 : canapé 3 places velours bleu, fauteuil assorti, table basse verre fumé. Maison non fumeur, aucun accroc.",
+    "chips": [
+      "Velours",
+      "2023",
+      "Excellent état"
+    ],
+    "city": "Montpellier",
+    "state": "Excellent état",
+    "views": 143,
+    "likes": 26,
+    "date": "2025-01-05",
+    "img": "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 214,
+    "cat": "Maison",
+    "title": "Lit bébé évolutif + commode Quax",
+    "price": 420,
+    "desc": "Lit évolutif 70x140 cm + commode 3 tiroirs Quax Moonshadow. Achetés neufs en 2023, vendus avec matelas latex traité anti-acariens.",
+    "chips": [
+      "70x140",
+      "Matelas latex",
+      "2023"
+    ],
+    "city": "Nantes",
+    "state": "Très bon état",
+    "views": 88,
+    "likes": 15,
+    "date": "2025-01-03",
+    "img": "https://images.unsplash.com/photo-1616594039964-0c9c5edb126e?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1549187774-b4e9b0445b06?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=75"
+    ]
+  },
+  {
+    "id": 215,
+    "cat": "Maison",
+    "title": "Robot tondeuse Husqvarna Automower 430X",
+    "price": 1490,
+    "desc": "Pour jardins jusqu'à 3200 m². Installation pro 2022, entretien annuel. Livré avec base, câbles, 2 jeux de lames. Parfait état.",
+    "chips": [
+      "Jusqu’à 3200 m²",
+      "GPS",
+      "Silencieux"
+    ],
+    "city": "Angers",
+    "state": "Très bon état",
+    "views": 97,
+    "likes": 19,
+    "date": "2024-12-18",
+    "img": "https://images.unsplash.com/photo-1624022353893-c5d5e7593160?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1624009694643-dca3ad37d627?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1624009694846-73f45e15b8ff?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1624009695209-8efbea7f2a7b?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 216,
+    "cat": "Mode",
+    "title": "Veste Acne Studios Velocite oversized XS",
+    "price": 780,
+    "desc": "Veste motard shearling Acne Studios noir, taille XS oversize. Portée trois fois, vendue avec housse d'origine. Valeur boutique 1900 €.",
+    "chips": [
+      "Shearling",
+      "Taille XS",
+      "Quasi neuve"
+    ],
+    "city": "Paris",
+    "state": "Comme neuf",
+    "views": 167,
+    "likes": 51,
+    "date": "2025-01-13",
+    "img": "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1521570265162-6b51f6f7b86f?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 217,
+    "cat": "Mode",
+    "title": "Lot sneakers collection Nike/Adidas - 6 paires",
+    "price": 950,
+    "desc": "Collection personnelle : Air Jordan 1 Obsidian, Nike Dunk Panda, Adidas Yeezy 350 V2, état proche du neuf, tailles 43-44.",
+    "chips": [
+      "6 paires",
+      "Pointure 43-44",
+      "Boîtes incluses"
+    ],
+    "city": "Lyon",
+    "state": "Très bon état",
+    "views": 289,
+    "likes": 63,
+    "date": "2025-01-04",
+    "img": "https://images.unsplash.com/photo-1528701800489-20be3c00c1f5?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 218,
+    "cat": "Mode",
+    "title": "Robe de mariée Laure de Sagazan 2024",
+    "price": 1750,
+    "desc": "Modèle Chagall 2024, taille 38, portée une fois, nettoyée pressing spécialisé. Dentelle de Calais, ceinture en soie, voilage fourni.",
+    "chips": [
+      "Taille 38",
+      "Nettoyée",
+      "Collection 2024"
+    ],
+    "city": "Rennes",
+    "state": "Comme neuf",
+    "views": 124,
+    "likes": 28,
+    "date": "2024-12-26",
+    "img": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1524504388712-1be48574f0d1?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1520854221050-0f4caff449fb?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1520854221050-0f4caff449fb?auto=format&fit=crop&w=1600&q=70"
+    ]
+  },
+  {
+    "id": 219,
+    "cat": "Mode",
+    "title": "Montre Omega Speedmaster Professional 2021",
+    "price": 5400,
+    "desc": "Speedmaster Moonwatch calibre 3861, full set (boîte, cartes, NATO), achetée Bucherer 2021. Révision Omega 2024, bracelet acier neuf.",
+    "chips": [
+      "Calibre 3861",
+      "Full set",
+      "Révisée 2024"
+    ],
+    "city": "Strasbourg",
+    "state": "Excellent état",
+    "views": 212,
+    "likes": 39,
+    "date": "2025-01-02",
+    "img": "https://images.unsplash.com/photo-1518544889280-9c61d6634830?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1524592093325-113f59c8b0e2?auto=format&fit=crop&w=1600&q=80"
+    ]
+  },
+  {
+    "id": 220,
+    "cat": "Mode",
+    "title": "Sac Hermès Kelly 28 Retourne Gold",
+    "price": 8900,
+    "desc": "Kelly 28 cuir Togo Gold, garniture palladium, année 2022, porté occasionnellement, facture Hermès, dust bag, cadenas et bandoulière.",
+    "chips": [
+      "Kelly 28",
+      "Cuir Togo",
+      "Facture Hermès"
+    ],
+    "city": "Paris",
+    "state": "Excellent état",
+    "views": 178,
+    "likes": 45,
+    "date": "2024-12-15",
+    "img": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1400&q=80",
+    "gallery": [
+      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1524504388712-1be48574f0d1?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1600&q=80"
+    ]
+  }
+];
 
     let allItems = allItemsData.map(it => ({ ...it, latlng: jitter(cityPos[it.city] || [46.2, 2.2]) }));
 
@@ -2460,7 +2921,7 @@
       const imageUrl = item.img || item.imageUrl || 'https://via.placeholder.com/400x300?text=Favori';
       return `
   <article class="mm-card" role="listitem" data-id="${item.id}">
-    <button class="mm-heart" aria-label="Retirer des favoris" data-id="${item.id}">❤</button>
+    <button class="mm-remove" aria-label="Retirer ce favori" data-id="${item.id}" title="Retirer">✕</button>
     <div class="mm-thumb"><img src="${imageUrl}" alt="${item.title}" loading="lazy"></div>
     <div class="mm-body">
       <div class="mm-title2">${item.title}</div>
@@ -2536,6 +2997,22 @@
       showToast('Tous les favoris ont été retirés.');
     });
     favList?.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.mm-remove');
+      if (removeBtn) {
+        event.stopPropagation();
+        const id = Number(removeBtn.dataset.id);
+        const favs = favStore.get();
+        if (favs.has(id)) {
+          favs.delete(id);
+          favStore.set(favs);
+          if (favCount) favCount.textContent = favs.size;
+          syncFavoriteButtons(id, false);
+          renderFavSheet();
+          showToast('Retiré des favoris');
+        }
+        return;
+      }
+
       const heartBtn = event.target.closest('.mm-heart');
       if (heartBtn) {
         event.stopPropagation();
@@ -3072,8 +3549,6 @@
     const detailsPrev = document.getElementById('detailsPrev');
     const detailsNext = document.getElementById('detailsNext');
     const detailsImageCounter = document.getElementById('detailsImageCounter');
-    const detailsDownload = document.getElementById('detailsDownload');
-    const detailsFullscreen = document.getElementById('detailsFullscreen');
     const detailsSkeleton = document.getElementById('detailsSkeleton');
     const detailsTitleEl = document.getElementById('detailsTitle');
     const detailsPriceEl = document.getElementById('detailsPrice');
@@ -3216,6 +3691,17 @@
       }).join('');
     }
 
+    function updateDetailsStats(ad) {
+      const root = detailsDialog.querySelector('.details-meta.details-meta-stats');
+      if (!root) return;
+      const resolve = (field, fallback) => (ad && typeof ad[field] !== 'undefined' && ad[field] !== null) ? ad[field] : fallback;
+      const viewsEl = root.querySelector('[data-field="views"]');
+      const favsEl = root.querySelector('[data-field="favorites"]');
+      if (viewsEl) viewsEl.textContent = resolve('views', 182);
+      const favsValue = resolve('likes', resolve('favorites', 21));
+      if (favsEl) favsEl.textContent = favsValue;
+    }
+
     function renderDetailsTags(ad) {
       const tags = Array.isArray(ad.chips) ? ad.chips : [];
       if (tags.length) {
@@ -3293,6 +3779,7 @@
       detailsTitleEl.textContent = adData.title;
       detailsPriceEl.innerHTML = `<strong>${fmtPrice(adData.price)}</strong>`;
       renderDetailsMeta(adData);
+      updateDetailsStats(adData);
       renderDetailsTags(adData);
       setDetailsDescription(adData.desc);
       renderSeller(adData);
@@ -3332,17 +3819,6 @@
     detailsNext.addEventListener('click', () => changeSlide(1));
     closeDetailsBtn.addEventListener('click', closeDetailsModal);
     detailsModal.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetailsModal(); });
-
-    detailsDownload.addEventListener('click', () => {
-      if (!detailsCurrentImages.length) return;
-      window.open(detailsCurrentImages[detailsCurrentIndex], '_blank', 'noopener');
-      showToast('Ouverture de l’image...');
-    });
-
-    detailsFullscreen.addEventListener('click', () => {
-      if (!detailsCurrentImages.length) return;
-      window.open(detailsCurrentImages[detailsCurrentIndex], '_blank', 'noopener');
-    });
 
     detailsSave.addEventListener('click', () => {
       if (!detailsCurrentAd) return;
