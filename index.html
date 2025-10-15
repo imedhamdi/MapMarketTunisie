@@ -4,15 +4,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
+  <meta name="theme-color" content="#0f172a">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
+  <link rel="canonical" href="https://tondomaine.com/">
+  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
   <title>MapMarket — Liste + Carte + Infini</title>
   <!-- Leaflet & MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     :root {
       --primary: #ff4d6d;
@@ -2792,6 +2801,41 @@
     // ---------- UTIL ----------
     function categoryClass(cat) { return cat === 'Immobilier' ? 'immobilier' : cat === 'Mode' ? 'mode' : cat === 'High-Tech' ? 'hitech' : cat === 'Auto' ? 'auto' : 'maison'; }
     function fmtPrice(n) { return (n >= 1000 ? n.toLocaleString('fr-FR') : n) + ' €'; }
+    function buildOptimizedImage(url, width = 480, quality = 70) {
+      if (!url) return '';
+      try {
+        const parsed = new URL(url, window.location.href);
+        if (parsed.hostname.includes('images.unsplash.com')) {
+          parsed.searchParams.set('auto', 'format');
+          parsed.searchParams.set('fit', parsed.searchParams.get('fit') || 'crop');
+          if (width) parsed.searchParams.set('w', String(width));
+          if (quality) parsed.searchParams.set('q', String(quality));
+          if (!parsed.searchParams.has('fm')) parsed.searchParams.set('fm', 'jpg');
+          return parsed.toString();
+        }
+        return url;
+      } catch {
+        if (typeof url === 'string' && url.includes('images.unsplash.com')) {
+          let result = url;
+          if (width) {
+            if (/w=\d+/.test(result)) result = result.replace(/w=\d+/g, `w=${width}`);
+            else result += (result.includes('?') ? '&' : '?') + `w=${width}`;
+          }
+          if (quality) {
+            if (/q=\d+/.test(result)) result = result.replace(/q=\d+/g, `q=${quality}`);
+            else result += (result.includes('?') ? '&' : '?') + `q=${quality}`;
+          }
+          if (!/auto=/.test(result)) result += (result.includes('?') ? '&' : '?') + 'auto=format';
+          if (!/fit=/.test(result)) result += (result.includes('?') ? '&' : '?') + 'fit=crop';
+          if (!/fm=/.test(result)) result += (result.includes('?') ? '&' : '?') + 'fm=jpg';
+          return result;
+        }
+        return url;
+      }
+    }
+    function buildSrcSet(url, widths = [320, 480, 640], quality = 70) {
+      return widths.map(w => `${buildOptimizedImage(url, w, quality)} ${w}w`).join(', ');
+    }
     function formatDateLong(dateStr) {
       const d = new Date(dateStr);
       if (Number.isNaN(d.getTime())) return dateStr;
@@ -2921,11 +2965,13 @@
 
     function renderFavCard(item) {
       const priceLabel = typeof item.price === 'string' ? item.price : fmtPrice(item.price || 0);
-      const imageUrl = item.img || item.imageUrl || 'https://via.placeholder.com/400x300?text=Favori';
+      const imageSource = item.img || item.imageUrl || 'https://via.placeholder.com/640x480?text=Favori';
+      const favThumb = buildOptimizedImage(imageSource, 480, 70);
+      const favSrcSet = buildSrcSet(imageSource, [320, 480, 640], 70);
       return `
   <article class="mm-card" role="listitem" data-id="${item.id}">
     <button class="mm-remove" aria-label="Retirer ce favori" data-id="${item.id}" title="Retirer">✕</button>
-    <div class="mm-thumb"><img src="${imageUrl}" alt="${item.title}" loading="lazy"></div>
+    <div class="mm-thumb"><img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;"></div>
     <div class="mm-body">
       <div class="mm-title2">${item.title}</div>
       <div class="mm-meta"><span>${item.city || ''}</span><span class="mm-price">${priceLabel}</span></div>
@@ -3051,11 +3097,17 @@
       const start = page * PAGE_SIZE, end = start + PAGE_SIZE;
       const slice = filteredCache.slice(start, end);
       for (const a of slice) {
+        const thumbSrc = buildOptimizedImage(a.img, 480, 70);
+        const thumbSrcSet = buildSrcSet(a.img, [320, 480, 640], 70);
         const art = document.createElement('article'); art.className = 'ad';
         art.innerHTML = `
           <div class="ad-content" data-id="${a.id}">
           <div class="thumb">
-            <img loading="lazy" decoding="async" alt="${a.title}" src="${a.img}"/>
+            <img width="370" height="278" loading="lazy" decoding="async" alt="${a.title}"
+              src="${thumbSrc}"
+              srcset="${thumbSrcSet}"
+              sizes="(max-width: 480px) 90vw, 370px"
+              style="aspect-ratio: 4 / 3; width: 100%; height: auto;" />
             <div class="grad"></div>
             <div class="cat ${categoryClass(a.cat)}">${a.cat === 'Immobilier' ? '🏢' : a.cat === 'Mode' ? '👕' : a.cat === 'High-Tech' ? '💻' : a.cat === 'Auto' ? '🚗' : '🏠'} <span>${a.cat}</span></div>
             <div class="stats"><span class="row">👁️ ${a.views}</span><span class="row">❤ ${a.likes}</span></div>
@@ -3117,9 +3169,55 @@
     io.observe(sentinel);
 
     // ---------- MAP (Leaflet + clusters) ----------
+    const MARKER_CLUSTER_SRC = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+    let markerClusterScriptPromise = null;
+    function loadMarkerClusterScript() {
+      if (window.L && window.L.MarkerClusterGroup) return Promise.resolve();
+      if (markerClusterScriptPromise) return markerClusterScriptPromise;
+      markerClusterScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${MARKER_CLUSTER_SRC}"]`);
+        if (existing && existing.hasAttribute('data-loaded')) {
+          resolve();
+          return;
+        }
+        const script = existing || document.createElement('script');
+        script.src = MARKER_CLUSTER_SRC;
+        script.defer = true;
+        script.crossOrigin = 'anonymous';
+        script.onload = () => {
+          script.setAttribute('data-loaded', 'true');
+          resolve();
+        };
+        script.onerror = (err) => {
+          markerClusterScriptPromise = null;
+          reject(err);
+        };
+        if (!existing) document.head.appendChild(script);
+      });
+      return markerClusterScriptPromise;
+    }
+
+    function waitForLeaflet() {
+      if (window.L) return Promise.resolve();
+      return new Promise(resolve => {
+        const check = () => {
+          if (window.L) resolve();
+          else requestAnimationFrame(check);
+        };
+        check();
+      });
+    }
+
     let map, cluster;
-    function ensureMap() {
-      if (map) return; // already created
+    async function ensureMap() {
+      if (map) return map;
+      await waitForLeaflet();
+      try {
+        await loadMarkerClusterScript();
+      } catch (error) {
+        return null;
+      }
+      if (!window.L) return null;
       map = L.map('map', { zoomControl: true, scrollWheelZoom: true }).setView([46.5, 2.3], 6);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
       cluster = L.markerClusterGroup({
@@ -3133,17 +3231,24 @@
         }
       });
       map.addLayer(cluster);
+      return map;
     }
 
-    function renderMap() {
-      ensureMap(); cluster.clearLayers();
+    async function renderMap(options = {}) {
+      if (!map && !options.force && typeof tabMap !== 'undefined' && tabMap && !tabMap.classList.contains('active')) return;
+      const instance = await ensureMap();
+      if (!instance || !cluster) return;
+      cluster.clearLayers();
       const list = getFiltered();
       list.forEach(a => {
-        const m = L.marker(a.latlng, { title: a.title });
-        m.on('click', () => openDetailsModal(a));
-        cluster.addLayer(m);
+        const marker = L.marker(a.latlng, { title: a.title });
+        marker.on('click', () => openDetailsModal(a));
+        cluster.addLayer(marker);
       });
-      if (list.length) { map.fitBounds(L.latLngBounds(list.map(x => x.latlng)).pad(0.2)); }
+      if (options.invalidate) instance.invalidateSize();
+      if (list.length) {
+        instance.fitBounds(L.latLngBounds(list.map(x => x.latlng)).pad(0.2));
+      }
     }
 
     // ---------- TABS (Liste / Carte) ----------
@@ -3165,7 +3270,7 @@
     }
 
     function showList() { tabList.classList.add('active'); tabMap.classList.remove('active'); grid.style.display = 'grid'; mapEl.style.display = 'none'; }
-    function showMap() { tabMap.classList.add('active'); tabList.classList.remove('active'); grid.style.display = 'none'; mapEl.style.display = 'block'; setTimeout(() => { ensureMap(); map.invalidateSize(); renderMap(); }, 50); }
+    function showMap() { tabMap.classList.add('active'); tabList.classList.remove('active'); grid.style.display = 'none'; mapEl.style.display = 'block'; setTimeout(() => { renderMap({ invalidate: true, force: true }); }, 50); }
 
     tabList.addEventListener('click', showList);
     tabMap.addEventListener('click', showMap);
@@ -3665,14 +3770,8 @@
     };
 
     function buildGallery(ad) {
-      if (Array.isArray(ad.gallery) && ad.gallery.length) return ad.gallery;
-      const base = ad.img;
-      const separator = base.includes('?') ? '&' : '?';
-      return [
-        base,
-        `${base}${separator}auto=format&fit=crop&w=1400&q=85`,
-        `${base}${separator}auto=format&fit=crop&w=1400&q=75&sat=90`
-      ];
+      const sources = Array.isArray(ad.gallery) && ad.gallery.length ? ad.gallery : [ad.img];
+      return sources.map((url, index) => buildOptimizedImage(url, index === 0 ? 960 : 1280, index === 0 ? 75 : 70));
     }
 
     function renderGallery(images, title) {
@@ -3694,9 +3793,14 @@
         if (index === 0) slide.classList.add('active');
         const img = document.createElement('img');
         img.decoding = 'async';
-        img.loading = 'lazy';
+        img.loading = index === 0 ? 'eager' : 'lazy';
         img.alt = `${title} - photo ${index + 1}`;
-        img.src = src;
+        img.src = buildOptimizedImage(src, index === 0 ? 960 : 1280, 75);
+        img.srcset = buildSrcSet(src, [640, 960, 1280], 75);
+        img.sizes = '(max-width: 768px) 92vw, min(640px, 60vw)';
+        img.width = 960;
+        img.height = 720;
+        img.style.aspectRatio = '4 / 3';
         img.addEventListener('load', () => {
           if (!firstLoaded) {
             if (detailsSkeletonTimeout) {
@@ -3825,10 +3929,11 @@
     }
 
     function renderSeller(ad) {
-      const avatarUrl = (ad.img || '').replace('w=1200', 'w=200').replace('q=80', 'q=60');
+      const avatarBase = ad.img || '';
+      const avatarThumb = buildOptimizedImage(avatarBase, 160, 60);
       const memberDate = formatDateLong(ad.date);
       detailsSeller.innerHTML = `
-        <img src="${avatarUrl}" alt="Vendeur ${ad.city}">
+        <img src="${avatarThumb}" alt="Vendeur ${ad.city}" loading="lazy" decoding="async" width="52" height="52" style="width:52px;height:52px;">
         <div class="seller-meta">
           <strong>${ad.seller || `Vendeur ${ad.city}`}</strong>
           <span>Membre depuis le ${memberDate}</span>
@@ -3936,10 +4041,10 @@
       if (!detailsCurrentAd) return;
       closeDetailsModal();
       showMap();
-      setTimeout(() => {
-        ensureMap();
-        if (map && detailsCurrentAd.latlng) {
-          map.setView(detailsCurrentAd.latlng, 13, { animate: true });
+      setTimeout(async () => {
+        const instance = await ensureMap();
+        if (instance && detailsCurrentAd.latlng) {
+          instance.setView(detailsCurrentAd.latlng, 13, { animate: true });
         }
       }, 250);
     });
@@ -4006,6 +4111,11 @@
 
     // ---------- INIT ----------
     renderList(true); updateAuthUI();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => { });
+      });
+    }
   </script>
 </body>
 
