@@ -2,8 +2,8 @@
 <html lang="fr">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
@@ -473,7 +473,76 @@
       height: 560px;
       border: 1px solid var(--border);
       border-radius: 16px;
-      display: none
+      width: 100%;
+    }
+
+    .view-wrapper {
+      position: relative;
+      display: grid;
+      grid-template-columns: 100%;
+      width: 100%;
+      overflow: hidden;
+      height: auto;
+    }
+
+    .view {
+      grid-area: 1 / 1;
+      width: 100%;
+      will-change: transform, opacity;
+      transition: transform .4s ease-in-out, opacity .4s ease-in-out;
+    }
+
+    .list-view {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .map-view {
+      transform: translateX(100%);
+      opacity: 0;
+      display: flex;
+      position: relative;
+      min-height: 560px;
+    }
+
+    .map-view #map {
+      flex: 1 1 auto;
+      display: block;
+      width: 100%;
+    }
+
+    .view-wrapper.show-list .list-view {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .view-wrapper.show-list .map-view {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    .view-wrapper.show-map .list-view {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+
+    .view-wrapper.show-map .map-view {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .view-wrapper.is-animating {
+      height: var(--vw-target-h, auto);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .view {
+        transition: none !important;
+      }
+
+      .view-wrapper.is-animating {
+        height: auto !important;
+      }
     }
 
     /* Card item */
@@ -1232,6 +1301,7 @@
     [hidden] { display: none !important; }
     .no-scroll { overflow: hidden; }
     body.modal-open { overflow: hidden; }
+    body.map-scroll-lock { overflow: hidden; }
     #map { position: relative; z-index: var(--z-map); }
     .leaflet-container { z-index: var(--z-map); }
     .leaflet-container .leaflet-top,
@@ -1256,14 +1326,15 @@
     .mm-search-ico { position: absolute; left: 10px; top: 8px; opacity: .6; pointer-events: none; }
     .mm-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .mm-filters select { height: 36px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0 10px; background: #fff; font: inherit; }
-    .mm-modal .mm-grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 16px; overflow: auto; flex: 1 1 auto; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; }
+    .mm-modal .mm-grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 16px; overflow: auto; flex: 1 1 auto; overscroll-behavior: contain; }
     .mm-modal .mm-grid.mm-grid-filter-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
     @media (min-width: 860px) { .mm-modal .mm-grid { grid-template-columns: 1fr 1fr; } }
     .mm-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 320px; border-radius: 14px; background: #fff; overflow: hidden; box-shadow: 0 1px 0 rgba(16,24,40,.04), 0 1px 2px rgba(16,24,40,.06); transition: transform 0.2s ease, opacity 0.2s ease; border: 1px solid var(--border); }
     .mm-card:hover { box-shadow: 0 8px 22px rgba(15,23,42,.08); border-color: #dbe0e6; }
     .mm-thumb { flex: 0 0 auto; }
     .mm-thumb img { width: 100%; height: 200px; object-fit: cover; display: block; }
-    .mm-body { flex: 1 0 auto; min-height: 120px; max-height: 120px; display: flex; flex-direction: column; justify-content: space-between; padding: 8px 14px; gap: 6px; }
+    .mm-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px; border-radius: 14px; background: #fff; overflow: hidden; box-shadow: 0 1px 0 rgba(16,24,40,.04), 0 1px 2px rgba(16,24,40,.06); transition: transform 0.2s ease, opacity 0.2s ease; border: 1px solid var(--border); }
+    .mm-body { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 14px 12px; gap: 8px; background: #fff; }
     .mm-title2 { font-weight: 800; font-size: 1rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     .mm-meta { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: .9rem; color: #6b7280; }
     .mm-price { margin-left: auto; font-weight: 700; color: #e11d48; }
@@ -1497,16 +1568,11 @@
       color: #374151;
     }
 
-    .details-meta.details-meta-stats .details-meta-item.fav-meta .icon {
-      filter: saturate(120%);
-    }
-
-    .details-meta.details-meta-stats .details-meta-item.views,
-    .details-meta.details-meta-stats .details-meta-item.fav-meta {
-      background: transparent;
-      border: none;
-      color: #111827;
-    }
+.details-meta.details-meta-stats .details-meta-item {
+  background: transparent;
+  border: none;
+  color: #111827;
+}
 
     .details-skeleton {
       position: absolute;
@@ -1653,18 +1719,6 @@
       background: rgba(129, 140, 248, .16);
       color: #4338ca;
       border-color: rgba(129, 140, 248, .24);
-    }
-
-    .details-meta-item.views {
-      background: rgba(34, 197, 94, .16);
-      color: #15803d;
-      border-color: rgba(34, 197, 94, .26);
-    }
-
-    .details-meta-item.fav-meta {
-      background: rgba(251, 191, 36, .18);
-      color: #b45309;
-      border-color: rgba(251, 191, 36, .28);
     }
 
     .details-section {
@@ -1948,7 +2002,7 @@
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <input id="search" type="search" placeholder="Titre, description, mots-clés" autocomplete="off" />
+            <input id="search" type="search" placeholder="Titre, description, mots-clés" autocomplete="off">
           </div>
         </div>
 
@@ -2028,7 +2082,7 @@
               <path d="M12 3v18" />
               <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
             </svg>
-            <input id="pmin" type="number" min="0" inputmode="numeric" placeholder="Ex. 100" />
+            <input id="pmin" type="number" min="0" inputmode="numeric" placeholder="Ex. 100">
           </div>
         </div>
 
@@ -2040,7 +2094,7 @@
               <path d="M12 3v18" />
               <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
             </svg>
-            <input id="pmax" type="number" min="0" inputmode="numeric" placeholder="Ex. 500" />
+            <input id="pmax" type="number" min="0" inputmode="numeric" placeholder="Ex. 500">
           </div>
         </div>
 
@@ -2052,7 +2106,7 @@
               <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <input id="city" type="text" placeholder="Ex. Paris" autocomplete="off" />
+            <input id="city" type="text" placeholder="Ex. Paris" autocomplete="off">
           </div>
         </div>
       </div>
@@ -2081,11 +2135,15 @@
       </div>
     </div>
 
-    <!-- Cards grid -->
-    <section class="grid" id="grid"></section>
+    <!-- Cards / Map views -->
+    <div class="view-wrapper show-list" id="viewWrapper" aria-live="polite">
+      <section class="grid view list-view" id="listView" aria-label="Résultats en liste"></section>
+      <div class="view map-view" id="mapView" role="region" aria-labelledby="tab-map">
+        <div id="map"></div>
+      </div>
+    </div>
     <div id="sentinel"></div>
     <div class="loading" id="loading" style="display:none">Chargement…</div>
-    <div id="map"></div>
   </main>
 
   <!-- AUTH MODAL -->
@@ -2212,16 +2270,7 @@
             <div class="carousel-counter" id="detailsImageCounter">1 / 1</div>
             <div class="carousel-dots" id="detailsCarouselDots"></div>
           </div>
-          <div class="details-meta details-meta-stats" role="group" aria-label="Statistiques de l'annonce">
-            <span class="details-meta-item views" aria-label="Nombre de vues">
-              <span class="icon" aria-hidden="true">👁️</span>
-              <span class="label"><strong class="count" data-field="views">182</strong> vues</span>
-            </span>
-            <span class="details-meta-item fav-meta" aria-label="Nombre de favoris">
-              <span class="icon" aria-hidden="true">❤️</span>
-              <span class="label"><strong class="count" data-field="favorites">21</strong> favoris</span>
-            </span>
-          </div>
+          <div class="details-meta details-meta-stats" role="group" aria-label="Statistiques de l'annonce"></div>
         </div>
         <div class="details-skeleton" id="detailsSkeleton"></div>
       </div>
@@ -2285,7 +2334,7 @@
 
   <!-- FAVORITES MODAL (UNIQUE) -->
   <div id="favOverlay" class="mm-overlay" hidden></div>
-  <aside id="favModal" class="mm-modal" role="dialog" aria-modal="true" aria-labelledby="favTitle" aria-hidden="true">
+  <div id="favModal" class="mm-modal" role="dialog" aria-modal="true" aria-labelledby="favTitle" aria-hidden="true">
     <header class="mm-header">
       <div class="mm-header-row">
         <h2 id="favTitle">Favoris <span id="favSheetCount" class="mm-count">0</span></h2>
@@ -2297,7 +2346,7 @@
       <div class="mm-toolbar">
         <div class="mm-search">
           <span class="mm-search-ico">🔎</span>
-          <input id="favSearch" type="search" placeholder="Rechercher un favori…" autocomplete="off" />
+          <input id="favSearch" type="search" placeholder="Rechercher un favori…" autocomplete="off">
         </div>
         <div class="mm-filters">
           <select id="favSortBy" aria-label="Trier">
@@ -2318,7 +2367,7 @@
       <h3>Aucun favori pour l’instant</h3>
       <p>Ajoutez des annonces à vos favoris pour les retrouver ici.</p>
     </div>
-  </aside>
+  </div>
 
   <script>
     // ---------- DATA (mock + géoloc) ----------
@@ -2893,7 +2942,7 @@
     resetBtn.addEventListener('click', () => { [search, cat, etat, sort, pmin, pmax, city].forEach(el => { if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = ''; }); page = 0; renderList(true); renderMap(); })
 
     // ---------- LIST RENDER + INFINITE ----------
-    const grid = document.getElementById('grid');
+    const listView = document.getElementById('listView');
     const count = document.getElementById('count');
     const favCount = document.getElementById('fav-count');
     const openFavsBtn = document.getElementById('openFavs');
@@ -3126,10 +3175,10 @@
             <div class="time">${daysAgo(a.date)}</div>
           </div>
           </div>`; // ad-content wrapper
-        grid.appendChild(art);
+        listView.appendChild(art);
       }
       // bind favs for the newly added ones
-      grid.querySelectorAll('.fav').forEach(btn => {
+      listView.querySelectorAll('.fav').forEach(btn => {
         if (btn._bound) return; btn._bound = true;
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -3154,7 +3203,7 @@
       filteredCache = getFiltered();
       favCount.textContent = favStore.get().size;
       count.textContent = filteredCache.length + (filteredCache.length > 1 ? ' annonces trouvées' : ' annonce trouvée');
-      if (reset) { grid.innerHTML = ''; page = 0; }
+      if (reset) { listView.innerHTML = ''; page = 0; }
       renderChunk();
     }
 
@@ -3208,6 +3257,7 @@
       });
     }
 
+    let currentView = 'list';
     let map, cluster;
     async function ensureMap() {
       if (map) return map;
@@ -3235,7 +3285,7 @@
     }
 
     async function renderMap(options = {}) {
-      if (!map && !options.force && typeof tabMap !== 'undefined' && tabMap && !tabMap.classList.contains('active')) return;
+      if (!map && !options.force && currentView !== 'map') return;
       const instance = await ensureMap();
       if (!instance || !cluster) return;
       cluster.clearLayers();
@@ -3251,10 +3301,135 @@
       }
     }
 
-    // ---------- TABS (Liste / Carte) ----------
+    // ---------- VIEW SWITCHER (Liste / Carte) ----------
+    const viewWrapper = document.getElementById('viewWrapper');
+    const mapView = document.getElementById('mapView');
     const tabList = document.getElementById('tab-list');
     const tabMap = document.getElementById('tab-map');
     const mapEl = document.getElementById('map');
+    const prefersReducedMotion = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : { matches: false };
+    let isTransitioning = false;
+
+    if (listView) listView.setAttribute('aria-hidden', 'false');
+    if (mapView) mapView.setAttribute('aria-hidden', 'true');
+
+    function focusTab(tabEl) {
+      if (!tabEl || typeof tabEl.focus !== 'function') return;
+      tabEl.focus({ preventScroll: true });
+    }
+
+    function updateViewTabs(state) {
+      const isMap = state === 'map';
+      if (tabList) {
+        tabList.classList.toggle('active', !isMap);
+        tabList.setAttribute('aria-selected', String(!isMap));
+      }
+      if (tabMap) {
+        tabMap.classList.toggle('active', isMap);
+        tabMap.setAttribute('aria-selected', String(isMap));
+      }
+    }
+
+    function updateAriaState(state) {
+      const isMap = state === 'map';
+      if (listView) listView.setAttribute('aria-hidden', String(isMap));
+      if (mapView) mapView.setAttribute('aria-hidden', String(!isMap));
+    }
+
+    function setWrapperTargetHeight(targetEl) {
+      if (!viewWrapper || !targetEl) return;
+      const rect = targetEl.getBoundingClientRect();
+      const scrollHeight = targetEl.scrollHeight || rect.height;
+      const height = Math.max(Math.ceil(scrollHeight || 0), Math.ceil(rect.height || 0));
+      if (height > 0) {
+        viewWrapper.style.setProperty('--vw-target-h', `${height}px`);
+      } else {
+        viewWrapper.style.removeProperty('--vw-target-h');
+      }
+    }
+
+    function finalizeTransition() {
+      if (!viewWrapper) return;
+      viewWrapper.classList.remove('is-animating');
+      viewWrapper.style.removeProperty('--vw-target-h');
+      isTransitioning = false;
+      if (currentView === 'map') {
+        renderMap({ force: true, invalidate: true });
+      }
+    }
+
+    function animateTo(state) {
+      const targetState = state === 'map' ? 'map' : 'list';
+      if (!viewWrapper || !listView || !mapView) return;
+      if (targetState === currentView) {
+        focusTab(targetState === 'map' ? tabMap : tabList);
+        return;
+      }
+      if (isTransitioning && !prefersReducedMotion.matches) return;
+      isTransitioning = !prefersReducedMotion.matches;
+      setWrapperTargetHeight(targetState === 'map' ? mapView : listView);
+      viewWrapper.classList.add('is-animating');
+      viewWrapper.classList.toggle('show-map', targetState === 'map');
+      viewWrapper.classList.toggle('show-list', targetState !== 'map');
+      currentView = targetState;
+      updateViewTabs(targetState);
+      updateAriaState(targetState);
+      if (targetState === 'map') {
+        document.body.classList.add('map-scroll-lock');
+      } else {
+        document.body.classList.remove('map-scroll-lock');
+      }
+      if (targetState === 'map') {
+        ensureMap().then(() => renderMap({ force: true, invalidate: prefersReducedMotion.matches }));
+        focusTab(tabMap);
+      } else {
+        focusTab(tabList);
+      }
+      if (prefersReducedMotion.matches) {
+        requestAnimationFrame(() => finalizeTransition());
+      }
+    }
+
+    if (viewWrapper) {
+      viewWrapper.classList.toggle('show-map', currentView === 'map');
+      viewWrapper.classList.toggle('show-list', currentView !== 'map');
+      if (currentView === 'map') document.body.classList.add('map-scroll-lock');
+      else document.body.classList.remove('map-scroll-lock');
+      viewWrapper.addEventListener('transitionend', (event) => {
+        if (prefersReducedMotion.matches) return;
+        if (event.propertyName !== 'transform') return;
+        if (!event.target.classList.contains('view')) return;
+        finalizeTransition();
+      });
+      viewWrapper.addEventListener('transitioncancel', () => {
+        finalizeTransition();
+      });
+    }
+
+    if (tabList) {
+      tabList.addEventListener('click', () => animateTo('list'));
+      tabList.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          animateTo('list');
+        }
+      });
+    }
+    if (tabMap) {
+      tabMap.addEventListener('click', () => animateTo('map'));
+      tabMap.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          animateTo('map');
+        }
+      });
+    }
+
+    updateViewTabs(currentView);
+    updateAriaState(currentView);
+
     let mapObscureCount = 0;
     function obscureMap() {
       if (!mapEl) return;
@@ -3268,12 +3443,6 @@
         mapEl.classList.remove('is-obscured');
       }
     }
-
-    function showList() { tabList.classList.add('active'); tabMap.classList.remove('active'); grid.style.display = 'grid'; mapEl.style.display = 'none'; }
-    function showMap() { tabMap.classList.add('active'); tabList.classList.remove('active'); grid.style.display = 'none'; mapEl.style.display = 'block'; setTimeout(() => { renderMap({ invalidate: true, force: true }); }, 50); }
-
-    tabList.addEventListener('click', showList);
-    tabMap.addEventListener('click', showMap);
 
     // ---------- AUTH MODAL ----------
     const authModal = document.getElementById('authModal');
@@ -3764,9 +3933,7 @@
     const detailsIcons = {
       category: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>`,
       location: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 5-5 10-9 12-4-2-9-7-9-12a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
-      date: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-      views: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
-      fav: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`
+      date: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
     };
 
     function buildGallery(ad) {
@@ -3873,9 +4040,7 @@
       }
       badges.push(
         { class: 'location', icon: detailsIcons.location, text: ad.city },
-        { class: 'date', icon: detailsIcons.date, text: `Publiée le ${formatDateLong(ad.date)}` },
-        { class: 'views', icon: detailsIcons.views, text: `${ad.views} vues` },
-        { class: 'fav-meta', icon: detailsIcons.fav, text: `${ad.likes} favoris` }
+        { class: 'date', icon: detailsIcons.date, text: `Publiée le ${formatDateLong(ad.date)}` }
       );
       detailsMeta.innerHTML = badges.map(b => {
         if (b.type === 'cat') return b.html;
@@ -3886,12 +4051,15 @@
     function updateDetailsStats(ad) {
       const root = detailsDialog.querySelector('.details-meta.details-meta-stats');
       if (!root) return;
-      const resolve = (field, fallback) => (ad && typeof ad[field] !== 'undefined' && ad[field] !== null) ? ad[field] : fallback;
-      const viewsEl = root.querySelector('[data-field="views"]');
-      const favsEl = root.querySelector('[data-field="favorites"]');
-      if (viewsEl) viewsEl.textContent = resolve('views', 182);
-      const favsValue = resolve('likes', resolve('favorites', 21));
-      if (favsEl) favsEl.textContent = favsValue;
+      const stats = [];
+      if (ad && typeof ad.views !== 'undefined') {
+        stats.push(`<span class="details-meta-item views" aria-label="Nombre de vues"><span class="icon" aria-hidden="true">👁️</span><span class="label"><strong class="count">${ad.views}</strong> vues</span></span>`);
+      }
+      const favCountValue = ad && (ad.likes ?? ad.favorites);
+      if (typeof favCountValue !== 'undefined') {
+        stats.push(`<span class="details-meta-item fav-meta" aria-label="Nombre de favoris"><span class="icon" aria-hidden="true">❤️</span><span class="label"><strong class="count">${favCountValue}</strong> favoris</span></span>`);
+      }
+      root.innerHTML = stats.join('');
     }
 
     function renderDetailsTags(ad) {
@@ -3956,7 +4124,7 @@
     }
 
     function syncFavoriteButtons(id, isFav) {
-      grid.querySelectorAll(`.fav[data-id="${id}"]`).forEach(btn => {
+      listView.querySelectorAll(`.fav[data-id="${id}"]`).forEach(btn => {
         btn.setAttribute('aria-pressed', String(isFav));
         const svg = btn.querySelector('svg');
         svg.setAttribute('fill', isFav ? '#ef4444' : 'none');
@@ -4040,13 +4208,13 @@
     detailsVisit.addEventListener('click', () => {
       if (!detailsCurrentAd) return;
       closeDetailsModal();
-      showMap();
+      animateTo('map');
       setTimeout(async () => {
         const instance = await ensureMap();
         if (instance && detailsCurrentAd.latlng) {
           instance.setView(detailsCurrentAd.latlng, 13, { animate: true });
         }
-      }, 250);
+      }, prefersReducedMotion.matches ? 50 : 450);
     });
 
     detailsReadMore.addEventListener('click', () => {
@@ -4061,7 +4229,7 @@
       if (e.key === 'ArrowLeft') changeSlide(-1);
     });
 
-    grid.addEventListener('click', (e) => {
+    listView.addEventListener('click', (e) => {
       const adWrapper = e.target.closest('.ad-content');
       if (!adWrapper || e.target.closest('.fav')) return;
       const adId = +adWrapper.dataset.id;
