@@ -697,7 +697,7 @@
       justify-content: center;
       background: rgba(15, 23, 42, .55);
       backdrop-filter: blur(6px);
-      z-index: 50;
+      z-index: var(--z-modal-overlay);
     }
 
     .modal {
@@ -729,6 +729,7 @@
 
     .auth-dialog {
       position: relative;
+      z-index: var(--z-modal);
       background: #fff;
       border-radius: 24px;
       overflow: hidden;
@@ -1221,11 +1222,13 @@
   <style>
     [hidden] { display: none !important; }
     .no-scroll { overflow: hidden; }
+    body.modal-open { overflow: hidden; }
     #map { position: relative; z-index: var(--z-map); }
     .leaflet-container { z-index: var(--z-map); }
     .leaflet-container .leaflet-top,
     .leaflet-container .leaflet-bottom { z-index: var(--z-map); }
-    #map.is-obscured { pointer-events: none; }
+    #map.is-obscured,
+    .map-wrapper.is-obscured { pointer-events: none; }
     .mm-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); backdrop-filter: saturate(120%) blur(2px); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: var(--z-drawer); }
     .mm-overlay.active { opacity: 1; pointer-events: auto; }
     .mm-modal { position: fixed; top: 0; right: 0; height: 100dvh; width: min(720px, 92vw); max-width: 720px; background: #fff; box-shadow: -8px 0 24px rgba(16, 24, 40, .12); transform: translateX(110%); transition: transform .25s ease; display: flex; flex-direction: column; z-index: var(--z-drawer); overflow: hidden; }
@@ -2800,13 +2803,13 @@
     let scrollLockDepth = 0;
     function lockBodyScroll() {
       scrollLockDepth = Math.max(0, scrollLockDepth) + 1;
-      document.body.classList.add('no-scroll');
+      document.body.classList.add('no-scroll', 'modal-open');
       document.body.style.overflow = 'hidden';
     }
     function unlockBodyScroll() {
       scrollLockDepth = Math.max(0, scrollLockDepth - 1);
       if (scrollLockDepth === 0) {
-        document.body.classList.remove('no-scroll');
+        document.body.classList.remove('no-scroll', 'modal-open');
         document.body.style.overflow = '';
       }
     }
@@ -3147,6 +3150,19 @@
     const tabList = document.getElementById('tab-list');
     const tabMap = document.getElementById('tab-map');
     const mapEl = document.getElementById('map');
+    let mapObscureCount = 0;
+    function obscureMap() {
+      if (!mapEl) return;
+      mapObscureCount = Math.max(0, mapObscureCount) + 1;
+      mapEl.classList.add('is-obscured');
+    }
+    function restoreMap() {
+      if (!mapEl) return;
+      mapObscureCount = Math.max(0, mapObscureCount - 1);
+      if (mapObscureCount === 0) {
+        mapEl.classList.remove('is-obscured');
+      }
+    }
 
     function showList() { tabList.classList.add('active'); tabMap.classList.remove('active'); grid.style.display = 'grid'; mapEl.style.display = 'none'; }
     function showMap() { tabMap.classList.add('active'); tabList.classList.remove('active'); grid.style.display = 'none'; mapEl.style.display = 'block'; setTimeout(() => { ensureMap(); map.invalidateSize(); renderMap(); }, 50); }
@@ -3156,6 +3172,7 @@
 
     // ---------- AUTH MODAL ----------
     const authModal = document.getElementById('authModal');
+    const authDialog = document.getElementById('authDialog');
     const closeAuth = document.getElementById('closeAuth');
     const postBtn = document.getElementById('postBtn');
     const loginTab = document.getElementById('loginTab');
@@ -3171,6 +3188,62 @@
     const forgotTrigger = document.getElementById('forgotTrigger');
     const backToLogin = document.getElementById('backToLogin');
     const passwordToggles = document.querySelectorAll('.password-toggle');
+    const AUTH_FOCUSABLE_SELECTOR = 'a[href], area[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+    let authLastFocus = null;
+    let authTrapActive = false;
+
+    function getAuthFocusableElements() {
+      if (!authDialog) return [];
+      const candidates = Array.from(authDialog.querySelectorAll(AUTH_FOCUSABLE_SELECTOR));
+      return candidates.filter(el => {
+        if (el.closest('[aria-hidden="true"]')) return false;
+        if (el.hasAttribute('disabled')) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 || rect.height > 0;
+      });
+    }
+
+    function handleAuthKeydown(event) {
+      if (!authTrapActive || event.key !== 'Tab') return;
+      const focusables = getAuthFocusableElements();
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !authDialog.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    function handleAuthFocusIn(event) {
+      if (!authTrapActive || !authDialog || !authModal?.classList.contains('active')) return;
+      if (!authDialog.contains(event.target)) {
+        const focusables = getAuthFocusableElements();
+        if (focusables.length) focusables[0].focus();
+      }
+    }
+
+    function activateAuthFocusTrap() {
+      if (authTrapActive || !authDialog) return;
+      authTrapActive = true;
+      document.addEventListener('keydown', handleAuthKeydown, true);
+      document.addEventListener('focusin', handleAuthFocusIn);
+    }
+
+    function deactivateAuthFocusTrap() {
+      if (!authTrapActive) return;
+      document.removeEventListener('keydown', handleAuthKeydown, true);
+      document.removeEventListener('focusin', handleAuthFocusIn);
+      authTrapActive = false;
+    }
 
     const forms = { login: loginForm, signup: signupForm, forgot: forgotForm };
     let currentTab = 'login';
@@ -3259,19 +3332,34 @@
     function openAuth(focusId = 'loginEmail') {
       switchTab('login', { instant: true, force: true, resetSuccess: true });
       clearFeedback();
+      if (!authModal) return;
+      authLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       authModal.classList.add('active');
       authModal.setAttribute('aria-hidden', 'false');
       lockBodyScroll();
+      obscureMap();
+      activateAuthFocusTrap();
       setTimeout(() => {
-        const target = document.getElementById(focusId);
+        const target = document.getElementById(focusId) || getAuthFocusableElements()[0] || null;
         if (target) target.focus();
       }, 220);
     }
 
     function closeAuthFn() {
+      if (!authModal) return;
       authModal.classList.remove('active');
       authModal.setAttribute('aria-hidden', 'true');
+      deactivateAuthFocusTrap();
+      restoreMap();
       unlockBodyScroll();
+      if (authLastFocus && typeof authLastFocus.focus === 'function' && authLastFocus.isConnected !== false) {
+        setTimeout(() => {
+          authLastFocus.focus();
+          authLastFocus = null;
+        }, 0);
+      } else {
+        authLastFocus = null;
+      }
       setTimeout(() => {
         resetAuthForms();
       }, 360);
@@ -3792,7 +3880,7 @@
       detailsModal.classList.add('active');
       detailsModal.setAttribute('aria-hidden', 'false');
       lockBodyScroll();
-      if (mapEl) mapEl.classList.add('is-obscured');
+      obscureMap();
     }
 
     function closeDetailsModal() {
@@ -3800,7 +3888,7 @@
       detailsModal.classList.remove('active');
       detailsModal.setAttribute('aria-hidden', 'true');
       unlockBodyScroll();
-      if (mapEl) mapEl.classList.remove('is-obscured');
+      restoreMap();
       if (detailsSkeletonTimeout) {
         clearTimeout(detailsSkeletonTimeout);
         detailsSkeletonTimeout = null;
