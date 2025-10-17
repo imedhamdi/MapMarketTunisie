@@ -248,6 +248,20 @@
         <div id="map"></div>
         <div class="map-bottom-guard" aria-hidden="true"></div>
         <div class="map-fade-bottom" aria-hidden="true"></div>
+        <!-- Geo Panel (overlay dans la map) -->
+        <div class="geo-panel" id="geoPanel" aria-live="polite">
+          <button class="geo-btn" id="geoLocateBtn" type="button" title="Me localiser">
+            <span class="geo-ico" aria-hidden="true">📍</span>
+            <span class="geo-label">Me localiser</span>
+          </button>
+
+          <div class="geo-row" id="geoRadiusRow" hidden>
+            <label for="geoRadius" class="geo-caption">Rayon&nbsp;<span id="geoRadiusVal">10</span>&nbsp;km</label>
+            <input id="geoRadius" class="geo-range" type="range" min="1" max="100" step="1" value="10" aria-label="Rayon de recherche en kilomètres">
+          </div>
+
+          <div class="geo-toast" id="geoToast" role="status" aria-live="polite" hidden>Position trouvée ✅</div>
+        </div>
       </div>
     </div>
     <div id="sentinel"></div>
@@ -1137,6 +1151,43 @@
     const city = document.getElementById('city');
     const resetBtn = document.getElementById('resetBtn');
     const viewState = { userAdjustedView: false };
+    const geoState = {
+      active: false,
+      lat: null,
+      lng: null,
+      radiusKm: 10,
+      marker: null,
+      circle: null
+    };
+
+    const EARTH_RADIUS_KM = 6371;
+    const toRad = (value) => value * Math.PI / 180;
+    function normalizeLatLng(value) {
+      if (!value) return null;
+      if (Array.isArray(value) && value.length >= 2) {
+        const lat = Number(value[0]);
+        const lng = Number(value[1]);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
+      } else if (typeof value === 'object') {
+        const lat = Number(value.lat ?? value.latitude ?? value[0]);
+        const lng = Number(value.lng ?? value.longitude ?? value[1]);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
+      }
+      return null;
+    }
+
+    function distanceKm(a, b) {
+      if (!a || !b) return Infinity;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const sinLat = Math.sin(dLat / 2);
+      const sinLng = Math.sin(dLng / 2);
+      const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+      const c = 2 * Math.asin(Math.min(1, Math.sqrt(h)));
+      return EARTH_RADIUS_KM * c;
+    }
 
     function getFiltered() {
       let list = allItems.slice();
@@ -1147,6 +1198,14 @@
       if (city.value) list = list.filter(a => normalize(a.city).includes(normalize(city.value)));
       const min = Number(pmin.value || 0), max = Number(pmax.value || Infinity);
       list = list.filter(a => a.price >= min && a.price <= max);
+      if (geoState.active && geoState.lat != null && geoState.lng != null) {
+        const origin = { lat: geoState.lat, lng: geoState.lng };
+        list = list.filter(item => {
+          const coords = normalizeLatLng(item.latlng || item.coords || item.position);
+          if (!coords) return false;
+          return distanceKm(origin, coords) <= geoState.radiusKm;
+        });
+      }
       if (sort.value === 'priceAsc') list.sort((a, b) => a.price - b.price);
       else if (sort.value === 'priceDesc') list.sort((a, b) => b.price - a.price);
       else list.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1798,6 +1857,160 @@
     let currentView = 'list';
     let map, cluster;
     const markerIndex = new Map();
+    let geoToastTimer = null;
+
+    function setGeoButtonLoading(isLoading) {
+      if (!geoLocateBtn) return;
+      geoLocateBtn.classList.toggle('loading', Boolean(isLoading));
+      geoLocateBtn.disabled = Boolean(isLoading);
+    }
+
+    function showGeoToast(message) {
+      if (!geoToast) return;
+      geoToast.textContent = message;
+      geoToast.hidden = false;
+      if (geoToastTimer) clearTimeout(geoToastTimer);
+      geoToastTimer = window.setTimeout(() => {
+        geoToast.hidden = true;
+        geoToastTimer = null;
+      }, 1700);
+    }
+
+    function updateGeoRadiusUI() {
+      if (geoRadiusInput && typeof geoState.radiusKm === 'number') {
+        geoRadiusInput.value = String(geoState.radiusKm);
+      }
+      if (geoRadiusValue) {
+        geoRadiusValue.textContent = geoState.radiusKm;
+      }
+    }
+
+    function refreshGeoUI() {
+      const hasLocation = geoState.active && geoState.lat != null && geoState.lng != null;
+      if (geoRadiusRow) geoRadiusRow.hidden = !hasLocation;
+      if (geoPanelEl) geoPanelEl.classList.toggle('is-active', hasLocation);
+      updateGeoRadiusUI();
+    }
+
+    function removeGeoLayers(mapInstance) {
+      const ctx = mapInstance || map;
+      if (geoState.marker) {
+        ctx?.removeLayer?.(geoState.marker);
+        geoState.marker = null;
+      }
+      if (geoState.circle) {
+        ctx?.removeLayer?.(geoState.circle);
+        geoState.circle = null;
+      }
+    }
+
+    function updateGeoLayers(mapInstance) {
+      const ctx = mapInstance || map;
+      if (!ctx || !window.L) return;
+      const hasLocation = geoState.active && geoState.lat != null && geoState.lng != null;
+      if (!hasLocation) {
+        removeGeoLayers(ctx);
+        return;
+      }
+      const latlng = [geoState.lat, geoState.lng];
+      if (!geoState.marker) {
+        geoState.marker = window.L.marker(latlng, {
+          icon: window.L.divIcon({
+            className: 'geo-user',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          })
+        });
+        geoState.marker.addTo(ctx);
+      } else {
+        geoState.marker.setLatLng(latlng);
+        geoState.marker.addTo(ctx);
+      }
+      const radiusMeters = Math.max(1, Number(geoState.radiusKm) || 10) * 1000;
+      if (!geoState.circle) {
+        geoState.circle = window.L.circle(latlng, {
+          radius: radiusMeters,
+          interactive: false,
+          className: 'geo-radius'
+        });
+        geoState.circle.addTo(ctx);
+      } else {
+        geoState.circle.setLatLng(latlng).setRadius(radiusMeters);
+        geoState.circle.addTo(ctx);
+      }
+      geoState.marker?.bringToFront?.();
+      geoState.circle?.bringToFront?.();
+    }
+
+    function fitGeoRadius(mapInstance, options = {}) {
+      const ctx = mapInstance || map;
+      if (!ctx || !geoState.circle) return;
+      const animate = options.animate !== false;
+      const bounds = geoState.circle.getBounds();
+      if (bounds.isValid()) {
+        ctx.flyToBounds(bounds, {
+          duration: animate ? 0.9 : 0,
+          padding: [32, 32]
+        });
+      } else if (geoState.marker) {
+        ctx.flyTo(geoState.marker.getLatLng(), 14, { duration: animate ? 0.9 : 0 });
+      }
+    }
+
+    async function handleGeoLocateClick() {
+      if (!('geolocation' in navigator)) {
+        showGeoToast('Géolocalisation indisponible');
+        return;
+      }
+      setGeoButtonLoading(true);
+      const mapInstance = await ensureMap();
+      if (!mapInstance) {
+        setGeoButtonLoading(false);
+        showGeoToast('Carte indisponible');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        geoState.active = true;
+        geoState.lat = latitude;
+        geoState.lng = longitude;
+        viewState.userAdjustedView = true;
+        refreshGeoUI();
+        updateGeoLayers(mapInstance);
+        renderList(true);
+        await renderMap({ force: true, invalidate: true, autoFit: false });
+        updateGeoLayers(mapInstance);
+        fitGeoRadius(mapInstance, { animate: true });
+        requestAnimationFrame(() => mapInstance.invalidateSize?.());
+        showGeoToast('Position trouvée ✅');
+        setGeoButtonLoading(false);
+      }, (error) => {
+        console.warn('Geolocation error', error);
+        const message = error && error.code === 1
+          ? 'Permission refusée'
+          : 'Impossible de localiser';
+        showGeoToast(message);
+        setGeoButtonLoading(false);
+      }, {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 60000
+      });
+    }
+
+    function handleGeoRadiusInput() {
+      if (!geoRadiusInput) return;
+      const value = Number(geoRadiusInput.value || 10);
+      geoState.radiusKm = Math.min(100, Math.max(1, value));
+      updateGeoRadiusUI();
+      if (!geoState.active) return;
+      viewState.userAdjustedView = true;
+      const mapInstance = map;
+      updateGeoLayers(mapInstance);
+      fitGeoRadius(mapInstance, { animate: false });
+      renderList(true);
+      renderMap({ force: true, invalidate: false, autoFit: false });
+    }
     async function ensureMap() {
       if (map) return map;
       await waitForLeaflet();
@@ -1851,8 +2064,11 @@
       cluster.clearLayers();
       markerIndex.clear();
       const list = getFiltered();
+      const boundsPoints = [];
       list.forEach(a => {
-        const marker = L.marker(a.latlng, { title: a.title, keyboard: true });
+        const coords = normalizeLatLng(a.latlng || a.coords || a.position);
+        if (!coords) return;
+        const marker = L.marker([coords.lat, coords.lng], { title: a.title, keyboard: true });
         const hoverData = {
           id: a.id,
           title: a.title,
@@ -1867,10 +2083,12 @@
         markerIndex.set(a.id, marker);
         bindHoverCard(marker);
         cluster.addLayer(marker);
+        boundsPoints.push([coords.lat, coords.lng]);
       });
+      updateGeoLayers(instance);
       if (invalidate) instance.invalidateSize();
-      if (list.length && (autoFit || !viewState.userAdjustedView)) {
-        instance.fitBounds(L.latLngBounds(list.map(x => x.latlng)).pad(0.2));
+      if (boundsPoints.length && (autoFit || !viewState.userAdjustedView)) {
+        instance.fitBounds(L.latLngBounds(boundsPoints).pad(0.2));
       }
     }
 
@@ -1933,6 +2151,12 @@
     // ---------- VIEW SWITCHER (Liste / Carte) ----------
     const viewWrapper = document.getElementById('viewWrapper');
     const mapView = document.getElementById('mapView');
+    const geoPanelEl = document.getElementById('geoPanel');
+    const geoLocateBtn = document.getElementById('geoLocateBtn');
+    const geoRadiusRow = document.getElementById('geoRadiusRow');
+    const geoRadiusInput = document.getElementById('geoRadius');
+    const geoRadiusValue = document.getElementById('geoRadiusVal');
+    const geoToast = document.getElementById('geoToast');
     const tabList = document.getElementById('tab-list');
     const tabMap = document.getElementById('tab-map');
     const mapEl = document.getElementById('map');
@@ -2071,6 +2295,9 @@
 
     updateViewTabs(currentView);
     updateAriaState(currentView);
+    refreshGeoUI();
+    if (geoLocateBtn) geoLocateBtn.addEventListener('click', handleGeoLocateClick);
+    if (geoRadiusInput) geoRadiusInput.addEventListener('input', handleGeoRadiusInput);
 
     let mapObscureCount = 0;
     function obscureMap() {
