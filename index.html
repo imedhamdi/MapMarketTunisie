@@ -1684,6 +1684,8 @@
       cluster = L.markerClusterGroup({
         showCoverageOnHover: false,
         chunkedLoading: true,
+        animate: false,
+        animateAddingMarkers: false,
         spiderfyOnMaxZoom: true,
         iconCreateFunction: function (c) {
           const count = c.getChildCount();
@@ -1758,32 +1760,46 @@
     function focusMarkerById(id, attempt = 0) {
       const marker = markerIndex.get(Number(id));
       if (!marker) {
-        if (attempt < 6) setTimeout(() => focusMarkerById(id, attempt + 1), 150);
+        if (attempt < 8) setTimeout(() => focusMarkerById(id, attempt + 1), 150);
+        return;
+      }
+      if (!map || !cluster) {
+        if (attempt < 8) setTimeout(() => focusMarkerById(id, attempt + 1), 120);
+        return;
+      }
+      if (!marker.__parent && attempt < 8) {
+        setTimeout(() => focusMarkerById(id, attempt + 1), 150);
         return;
       }
       const latlng = marker.getLatLng();
-      const zoom = Math.max(map.getZoom(), 16);
+      if (!latlng) return;
+      const mapHasBounds = typeof map.getBounds === 'function';
+      const maxZoom = typeof map.getMaxZoom === 'function' ? map.getMaxZoom() : (map.options && typeof map.options.maxZoom === 'number' ? map.options.maxZoom : 18);
+      const preferredZoom = Math.max(map.getZoom(), Math.min(16, maxZoom));
+      const targetZoom = Math.min(maxZoom, preferredZoom);
 
-      const finalize = () => {
-        const targetZoom = Math.max(map.getZoom(), zoom);
-        if (typeof map.flyTo === 'function' && !prefersReducedMotion.matches) {
-          map.flyTo(latlng, targetZoom, { duration: 0.6 });
-        } else {
-          map.setView(latlng, targetZoom, { animate: true });
-        }
+      const revealMarker = () => {
         openHoverFor(marker);
         setTimeout(() => bounceMarker(marker), prefersReducedMotion.matches ? 0 : 120);
       };
 
-      if (cluster && cluster.getVisibleParent) {
-        const parent = cluster.getVisibleParent(marker);
-        if (parent && parent !== marker) {
-          cluster.zoomToShowLayer(marker, finalize);
-          return;
+      const needsPan = !mapHasBounds || !map.getBounds().pad(0.05).contains(latlng);
+      const needsZoom = map.getZoom() < targetZoom;
+      if (needsPan || needsZoom) {
+        const finish = () => {
+          map.off('moveend', finish);
+          revealMarker();
+        };
+        map.once('moveend', finish);
+        const animationOptions = { animate: !prefersReducedMotion.matches };
+        if (typeof map.flyTo === 'function' && !prefersReducedMotion.matches) {
+          map.flyTo(latlng, targetZoom, { duration: 0.6 });
+        } else {
+          map.setView(latlng, targetZoom, animationOptions);
         }
+      } else {
+        revealMarker();
       }
-
-      finalize();
     }
 
     // ---------- VIEW SWITCHER (Liste / Carte) ----------
