@@ -3462,3 +3462,126 @@ main.container {
     align-items: center;
   }
 }
+
+/* === GEO PANEL (overlay dans la carte) =================================== */
+.geo-panel {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+  z-index: var(--z-map);
+}
+
+.geo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: rgba(var(--color-surface-rgb), .85);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 22px rgba(var(--color-ink-rgb), .12);
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+}
+
+.geo-btn:hover {
+  border-color: var(--color-border-accent);
+}
+
+.geo-btn.loading {
+  opacity: .6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.geo-ico {
+  font-size: 16px;
+}
+
+.geo-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border-strong);
+  background: rgba(var(--color-surface-rgb), .85);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 22px rgba(var(--color-ink-rgb), .12);
+}
+
+.geo-caption {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.geo-range {
+  width: 220px;
+  accent-color: var(--primary);
+}
+
+.geo-toast {
+  justify-self: end;
+  background: var(--color-text-primary);
+  color: var(--color-text-contrast);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* === USER POSITION MARKER =============================================== */
+.leaflet-marker-icon.geo-user {
+  background: radial-gradient(circle at 50% 50%, #fff 0 28%, var(--primary) 30% 55%, rgba(255, 255, 255, .9) 58% 62%, transparent 64% 100%);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(var(--color-brand-rgb), .35);
+}
+
+.leaflet-marker-icon.geo-user::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--color-brand-rgb), .35);
+  animation: geo-pulse 1.8s ease-out infinite;
+}
+
+@keyframes geo-pulse {
+  0% {
+    transform: scale(.7);
+    opacity: .7;
+  }
+
+  70% {
+    transform: scale(1.4);
+    opacity: .2;
+  }
+
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Cercle de rayon (Leaflet Circle) */
+.leaflet-interactive.geo-radius {
+  fill: rgba(var(--color-sky-500-rgb), .10);
+  stroke: rgba(var(--color-sky-500-rgb), .75);
+  stroke-width: 2;
+}
+
+@media (max-width: 640px) {
+  .geo-panel {
+    right: 12px;
+    top: 12px;
+  }
+
+  .geo-range {
+    width: 180px;
+  }
+}
