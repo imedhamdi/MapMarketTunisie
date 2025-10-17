@@ -1,0 +1,117 @@
+:root {
+  /* Brand */
+  --color-brand-500: #ff4d6d;
+  --color-brand-400: #ff5875;
+  --color-brand-600: #ff3f62;
+  --color-brand-700: #e11d48;
+  --color-brand-gradient-end: #ff6b8a;
+  --color-brand-bg: #fff0f3;
+  --color-brand-border: #f7b4c1;
+  --color-brand-border-soft: #f3d0d8;
+  --color-brand-outline: #fda4af;
+  --color-brand-tint: #ffeef2;
+  --color-brand-contrast: #ff3b6b;
+
+  /* Base */
+  --color-background: #f6f7fb;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f3f4f6;
+  --color-surface-muted: #f2f3f7;
+  --color-surface-ghost: #f1f5f9;
+  --color-surface-soft: #f8f9fa;
+  --color-surface-tint: #f7fafc;
+  --color-surface-raised: #f3f5f7;
+  --color-surface-info: #eff6ff;
+  --color-surface-cloud: #f5f6fa;
+  --color-surface-mist: #ecf1f7;
+  --color-surface-snow: #f8fafc;
+  --color-info-soft: #eeeeff;
+
+  /* Text */
+  --color-text-primary: #111827;
+  --color-text-strong: #0f172a;
+  --color-text-secondary: #374151;
+  --color-text-subtle: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-tertiary: #475569;
+  --color-text-alt: #64748b;
+  --color-text-cool: #718096;
+  --color-text-dim: #425066;
+  --color-text-heading: #2d3748;
+  --color-neutral-800: #1f2937;
+  --color-text-contrast: #ffffff;
+  --color-text-contrast-strong: #111111;
+  --color-text-link: #1d4ed8;
+  --color-text-link-hover: #4338ca;
+  --color-text-linkedin: #0a66c2;
+  --color-text-success: #22543d;
+
+  /* Borders */
+  --color-border-default: #e5e7eb;
+  --color-border-subtle: #e5e5e5;
+  --color-border-soft: #e2e8f0;
+  --color-border-info: #bfdbfe;
+  --color-border-success: #9ae6b4;
+  --color-border-strong: #dbe0e6;
+  --color-border-accent: #ffa1b2;
+  --color-border-faint: #eeeeee;
+  --color-success-bg: #f0fff4;
+
+  /* Accents */
+  --color-placeholder: #9ca3af;
+  --color-filter-icon: #d43c58;
+  --color-overlay: rgba(0, 0, 0, 0.45);
+  --color-overlay-strong: rgba(17, 24, 39, 0.88);
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #f97316;
+  --color-info-500: #6366f1;
+  --color-info-600: #818cf8;
+  --color-info-accent: #3b82f6;
+  --color-purple-500: #8b5cf6;
+  --color-purple-600: #a78bfa;
+  --color-pink-500: #ec4899;
+  --color-pink-600: #f472b6;
+  --color-favorite: #ef4444;
+  --color-outline-focus: #1f55e4;
+  --color-danger: #e53e3e;
+  --color-sky-500: #0ea5e9;
+
+  /* Derived */
+  --color-brand-rgb: 255, 77, 109;
+  --color-brand-tint-rgb: 255, 238, 242;
+  --color-brand-700-rgb: 225, 29, 72;
+  --color-danger-rgb: 229, 62, 62;
+  --color-success-rgb: 34, 197, 94;
+  --color-success-600-rgb: 22, 163, 74;
+  --color-warning-rgb: 245, 158, 11;
+  --color-info-rgb: 99, 102, 241;
+  --color-info-400-rgb: 59, 130, 246;
+  --color-info-600-rgb: 129, 140, 248;
+  --color-surface-rgb: 255, 255, 255;
+  --color-text-primary-rgb: 17, 24, 39;
+  --color-surface-cloud-rgb: 245, 246, 250;
+  --color-surface-mist-rgb: 236, 241, 247;
+  --color-surface-ghost-rgb: 241, 245, 249;
+  --color-surface-snow-rgb: 248, 250, 252;
+  --color-ink-rgb: 15, 23, 42;
+  --color-slate-rgb: 30, 41, 59;
+  --color-slate-300-rgb: 148, 163, 184;
+  --color-border-soft-rgb: 226, 232, 240;
+  --color-sky-500-rgb: 14, 165, 233;
+  --color-deep-rgb: 16, 24, 40;
+
+  /* Legacy aliases for existing styles */
+  --primary: var(--color-brand-500);
+  --primary-600: var(--color-brand-400);
+  --primary-700: var(--color-brand-600);
+  --bg: var(--color-background);
+  --card: var(--color-surface);
+  --muted: var(--color-text-muted);
+  --text: var(--color-text-primary);
+  --border: var(--color-border-default);
+  --chip: var(--color-surface-info);
+  --chip-text: var(--color-text-link);
+}
