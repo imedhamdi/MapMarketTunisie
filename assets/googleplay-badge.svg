@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="135" height="40" viewBox="0 0 135 40" role="img" aria-label="Disponible sur Google Play">
+  <rect width="135" height="40" rx="10" fill="#111827" />
+  <text x="20" y="24" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#ffffff">Google Play</text>
+  <polygon points="12,10 24,20 12,30" fill="#ff4d6d" />
+</svg>

@@ -3462,3 +3462,74 @@ main.container {
     align-items: center;
   }
 }
+
+/* === FOOTER MAPMARKET ==================================================== */
+.mm-footer { margin-top: 64px; background: rgba(var(--color-surface-rgb), .85); backdrop-filter: blur(8px); border-top: 1px solid var(--color-border-strong); box-shadow: 0 -10px 22px rgba(var(--color-ink-rgb), .06) }
+.mm-footer__grid { max-width: 1200px; margin: 0 auto; padding: 36px 20px; display: grid; grid-template-columns: 1fr; gap: 28px }
+@media (min-width: 640px) { .mm-footer__grid { grid-template-columns: 1fr 1fr } }
+@media (min-width: 1024px) { .mm-footer__grid { grid-template-columns: 1.25fr 1fr 1fr 1.25fr } }
+.mm-footer__col { display: flex; flex-direction: column; gap: 10px }
+.mm-footer__brand { gap: 12px }
+.mm-footer__logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: var(--color-text-primary); text-decoration: none }
+.mm-logo-svg { width: 20px; height: 20px; fill: var(--primary) }
+.mm-footer__brandname { font-size: 18px }
+.mm-footer__about { font-size: 13px; color: var(--color-text-muted); max-width: 46ch }
+
+.mm-footer__title { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); margin-top: 6px }
+.mm-footer__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px }
+.mm-footer__list a { color: var(--color-text-primary); text-decoration: none; border-radius: 10px; padding: 2px 0 }
+.mm-footer__list a:hover { text-decoration: underline }
+
+.mm-footer__news { gap: 14px }
+.mm-footer__form { display: flex; gap: 8px; align-items: flex-start }
+.mm-footer__form input { flex: 1; min-height: 40px; border: 1px solid var(--color-border-strong); border-radius: 12px; padding: 8px 12px; background: rgba(var(--color-surface-rgb), .92); color: var(--color-text-primary); outline: none }
+.mm-footer__form input:focus { border-color: var(--color-border-accent); box-shadow: 0 0 0 3px rgba(var(--color-brand-rgb), .12) }
+.mm-footer__cta { min-height: 40px; border-radius: 12px; padding: 8px 14px; border: 1px solid var(--color-border-strong); background: var(--primary-50, #ff5a6f); color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(var(--color-ink-rgb), .12) }
+.mm-footer__cta:hover { filter: brightness(.95) }
+.mm-footer__form-msg { min-height: 18px; font-size: 12px; color: var(--color-text-muted) }
+
+.mm-footer__utils { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.mm-footer__btn { min-height: 34px; border-radius: 10px; padding: 6px 10px; border: 1px solid var(--color-border-strong); background: rgba(var(--color-surface-rgb), .92); cursor: pointer }
+.mm-footer__btn:hover { border-color: var(--color-border-accent) }
+.mm-footer__social { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid transparent; color: var(--color-text-primary) }
+.mm-footer__social:hover { border-color: var(--color-border-strong) }
+.mm-footer__sep { color: var(--color-text-muted); padding: 0 2px }
+
+.mm-footer__stores { display: flex; gap: 10px; margin-top: 4px }
+.mm-footer__stores img { height: 36px }
+
+.mm-subfooter { border-top: 1px solid var(--color-border-strong); display: flex; justify-content: center; align-items: center; padding: 12px 20px; font-size: 12px; color: var(--color-text-muted) }
+
+/* === PAGES LÉGALES ======================================================= */
+body.doc { background: rgba(var(--color-surface-rgb), .98); color: var(--color-text-primary) }
+.legal { max-width: 900px; margin: 48px auto; padding: 0 20px 56px }
+.legal h1 { font-size: 32px; margin-bottom: 8px }
+.legal h2 { font-size: 18px; margin-top: 22px }
+.legal p, .legal li { line-height: 1.55 }
+.legal-meta { font-size: 12px; color: var(--color-text-muted); margin-bottom: 20px }
+.legal a { color: var(--primary); text-decoration: none }
+.legal a:hover { text-decoration: underline }
+
+/* === MODAL GÉNÉRIQUE (dialog) =========================================== */
+.mm-modal { padding: 0; border: none; background: transparent }
+.mm-modal::backdrop { background: rgba(0, 0, 0, .3) }
+.mm-modal[open] { display: grid; place-items: center }
+.mm-modal__backdrop { position: fixed; inset: 0; background: transparent }
+
+.mm-modal__card { width: min(920px, 92vw); max-height: 84vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 16px; border: 1px solid var(--color-border-strong); background: rgba(var(--color-surface-rgb), .98); box-shadow: 0 20px 60px rgba(var(--color-ink-rgb), .25) }
+.mm-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--color-border-strong) }
+.mm-modal__title { font-size: 18px; margin: 0 }
+.mm-modal__close { border: none; background: transparent; font-size: 18px; cursor: pointer; border-radius: 10px; padding: 6px }
+.mm-modal__close:hover { background: rgba(var(--color-ink-rgb), .04) }
+.mm-modal__content { padding: 16px 18px; overflow: auto }
+.mm-modal__footer { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--color-border-strong) }
+.mm-modal__btn { min-height: 36px; border-radius: 10px; padding: 6px 12px; border: 1px solid var(--color-border-strong); background: rgba(var(--color-surface-rgb), .92); cursor: pointer }
+.mm-modal__btn:hover { border-color: var(--color-border-accent) }
+.mm-modal__link { align-self: center; color: var(--primary); text-decoration: none }
+.mm-modal__link:hover { text-decoration: underline }
+
+/* Focus visible */
+.mm-footer a:focus, .mm-footer button:focus, .mm-modal a:focus, .mm-modal button:focus, .legal a:focus { outline: 3px solid rgba(var(--color-brand-rgb), .35); outline-offset: 2px; border-radius: 10px }
+
+/* Utilitaire */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0 }
