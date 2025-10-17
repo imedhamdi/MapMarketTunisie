@@ -1960,6 +1960,11 @@
       isTransitioning = false;
       if (currentView === 'map') {
         renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
+        requestAnimationFrame(() => {
+          if (map && typeof map.invalidateSize === 'function') {
+            map.invalidateSize();
+          }
+        });
       }
     }
 
@@ -1986,7 +1991,16 @@
       updateViewTabs(targetState);
       updateAriaState(targetState);
       if (targetState === 'map') {
-        ensureMap().then(() => renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView }));
+        ensureMap().then((instance) => {
+          renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
+          requestAnimationFrame(() => {
+            if (instance && typeof instance.invalidateSize === 'function') {
+              instance.invalidateSize();
+            } else if (map && typeof map.invalidateSize === 'function') {
+              map.invalidateSize();
+            }
+          });
+        });
         if (!opts.skipSameStateFocus) focusTab(tabMap);
       } else {
         if (!opts.skipSameStateFocus) focusTab(tabList);

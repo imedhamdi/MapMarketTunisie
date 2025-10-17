@@ -532,6 +532,7 @@ button.nav-link {
 }
 
 .list-view {
+  position: relative;
   transform: translateX(0);
   opacity: 1;
 }
@@ -566,6 +567,13 @@ button.nav-link {
 .view-wrapper.show-map .list-view {
   transform: translateX(-100%);
   opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .view-wrapper.show-map .map-view {
@@ -2291,6 +2299,10 @@ main.container {
   flex: 0 0 auto;
   height: 0 !important;
   pointer-events: none;
+}
+
+.view-wrapper.show-map .map-bottom-guard {
+  height: 16px !important;
 }
 
 .map-fade-bottom {
