@@ -626,7 +626,7 @@
       <div class="mm-modal__content" id="legalModalContent" tabindex="0"></div>
       <footer class="mm-modal__footer">
         <button class="mm-modal__btn" id="legalModalOk">Fermer</button>
-        <a class="mm-modal__link" id="legalModalOpenPage" href="#" target="_blank" rel="noopener">Ouvrir la page complète</a>
+        <a class="mm-modal__link" id="legalModalOpenPage" href="#" target="_blank" rel="noopener noreferrer">Ouvrir la page complète</a>
       </footer>
     </div>
     <form method="dialog" class="mm-modal__backdrop" aria-hidden="true"></form>
@@ -3263,115 +3263,159 @@
     })();
 
     (function () {
-      // Année dynamique
-      var y = document.getElementById('mmYear'); if (y) y.textContent = new Date().getFullYear();
+      if (window.__mmFooterEnhancementsInitialized) return;
+      window.__mmFooterEnhancementsInitialized = true;
 
-      // Newsletter (front-only)
-      var f = document.getElementById('mmFooterNewsletter'), i = document.getElementById('mmFooterEmail'), m = document.getElementById('mmFooterFormMsg');
-      if (f && i) {
-        f.addEventListener('submit', function (e) {
-          e.preventDefault();
-          var v = (i.value || '').trim();
-          var ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-          if (!ok) {
-            i.setAttribute('aria-invalid', 'true');
-            if (m) m.textContent = 'Email invalide';
+      const yearEl = document.getElementById('mmYear');
+      if (yearEl) {
+        yearEl.textContent = String(new Date().getFullYear());
+      }
+
+      const newsletterForm = document.getElementById('mmFooterNewsletter');
+      const emailInput = document.getElementById('mmFooterEmail');
+      const feedbackEl = document.getElementById('mmFooterFormMsg');
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (newsletterForm && emailInput) {
+        const setFeedback = (message, state) => {
+          if (!feedbackEl) return;
+          feedbackEl.textContent = message;
+          feedbackEl.dataset.state = state || '';
+        };
+
+        newsletterForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          const value = (emailInput.value || '').trim();
+          if (!emailPattern.test(value)) {
+            emailInput.setAttribute('aria-invalid', 'true');
+            setFeedback('Adresse email invalide.');
+            emailInput.focus({ preventScroll: true });
             return;
           }
-          i.removeAttribute('aria-invalid');
-          if (m) m.textContent = 'Merci ! Vérifiez votre boîte mail.';
-          /* TODO: appeler API */
+          emailInput.removeAttribute('aria-invalid');
+          setFeedback('Merci ! Vérifiez votre boîte mail.');
         });
       }
 
-      // Thème
-      var themeBtn = document.getElementById('mmThemeToggle');
+      const themeBtn = document.getElementById('mmThemeToggle');
       if (themeBtn) {
-        themeBtn.addEventListener('click', function () {
-          var root = document.documentElement;
-          var dark = root.classList.toggle('theme-dark');
-          themeBtn.setAttribute('aria-pressed', String(dark));
+        const root = document.documentElement;
+        const syncPressed = () => themeBtn.setAttribute('aria-pressed', String(root.classList.contains('theme-dark')));
+        themeBtn.addEventListener('click', () => {
+          root.classList.toggle('theme-dark');
+          syncPressed();
+        });
+        syncPressed();
+      }
+
+      const langBtn = document.getElementById('mmLangToggle');
+      if (langBtn && !langBtn.dataset.mmLangBound) {
+        langBtn.dataset.mmLangBound = 'true';
+        langBtn.addEventListener('click', () => {
+          alert('Sélecteur de langue à venir.');
         });
       }
 
-      // Langue (placeholder)
-      var langBtn = document.getElementById('mmLangToggle');
-      if (langBtn) {
-        langBtn.addEventListener('click', function () {
-          alert('Sélecteur de langue à brancher (FR/EN)');
+      const dialogEl = document.getElementById('legalModal');
+      const dialogContent = document.getElementById('legalModalContent');
+      const dialogTitle = document.getElementById('legalModalTitle');
+      const dialogCloseBtn = document.getElementById('legalModalClose');
+      const dialogFooterClose = document.getElementById('legalModalOk');
+      const dialogOpenPage = document.getElementById('legalModalOpenPage');
+      const legalLinks = Array.from(document.querySelectorAll('a[data-legal-modal]'));
+      const supportsDialog = !!(window.HTMLDialogElement && dialogEl?.showModal);
+
+      const cache = {};
+      const titles = {
+        terms: 'Conditions d’utilisation',
+        privacy: 'Confidentialité',
+        cookies: 'Cookies'
+      };
+      const paths = {
+        terms: '/terms.html',
+        privacy: '/privacy.html',
+        cookies: '/cookies.html'
+      };
+
+      const openFallback = (href) => {
+        if (!href) return;
+        window.open(href, '_blank', 'noopener,noreferrer');
+      };
+
+      const extractLegal = (html) => {
+        try {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const main = doc.querySelector('main.legal');
+          return main ? main.innerHTML : html;
+        } catch (error) {
+          return html;
+        }
+      };
+
+      const showDialog = (kind, markup) => {
+        if (!supportsDialog || !dialogEl || !dialogContent) return;
+        dialogTitle && (dialogTitle.textContent = titles[kind] || 'Informations légales');
+        if (dialogOpenPage) {
+          dialogOpenPage.href = paths[kind] || '#';
+          dialogOpenPage.target = '_blank';
+          dialogOpenPage.rel = 'noopener noreferrer';
+        }
+        dialogContent.innerHTML = markup;
+        dialogContent.scrollTop = 0;
+        try {
+          dialogEl.showModal();
+          requestAnimationFrame(() => dialogContent.focus({ preventScroll: true }));
+        } catch (error) {
+          openFallback(paths[kind]);
+        }
+      };
+
+      const openLegal = (kind) => {
+        const href = paths[kind];
+        if (!href) return;
+        if (!supportsDialog) {
+          openFallback(href);
+          return;
+        }
+        if (cache[kind]) {
+          showDialog(kind, cache[kind]);
+          return;
+        }
+        fetch(href, { credentials: 'same-origin' })
+          .then((response) => response.text())
+          .then((html) => {
+            const markup = extractLegal(html);
+            cache[kind] = markup;
+            showDialog(kind, markup);
+          })
+          .catch(() => openFallback(href));
+      };
+
+      legalLinks.forEach((link) => {
+        if (link.dataset.mmLegalBound) return;
+        link.dataset.mmLegalBound = 'true';
+        link.addEventListener('click', (event) => {
+          const kind = link.getAttribute('data-legal-modal');
+          if (!kind) return;
+          event.preventDefault();
+          openLegal(kind);
         });
-      }
+      });
 
-      // Modals légaux (lazy)
-      var dlg = document.getElementById('legalModal');
-      var content = document.getElementById('legalModalContent');
-      var title = document.getElementById('legalModalTitle');
-      var btnClose = document.getElementById('legalModalClose');
-      var btnOk = document.getElementById('legalModalOk');
-      var openPage = document.getElementById('legalModalOpenPage');
-      if (dlg && content) {
-        var cache = Object.create(null);
-        var titles = { terms: 'Conditions d\u2019utilisation', privacy: 'Confidentialité', cookies: 'Cookies' };
-        var paths = { terms: '/terms.html', privacy: '/privacy.html', cookies: '/cookies.html' };
-
-        function extract(html) {
+      if (supportsDialog && dialogEl) {
+        const closeDialog = () => {
           try {
-            var doc = new DOMParser().parseFromString(html, 'text/html');
-            var main = doc.querySelector('main.legal') || doc.body;
-            return main.innerHTML;
-          } catch (e) {
-            return html;
+            dialogEl.close();
+          } catch (error) {
+            /* noop */
           }
-        }
+        };
 
-        function openLegal(kind) {
-          var href = paths[kind];
-          if (!('HTMLDialogElement' in window)) {
-            window.open(href, '_blank');
-            return;
-          }
-          title.textContent = titles[kind] || 'Informations';
-          openPage.href = href;
-          var show = function (inner) {
-            content.innerHTML = inner;
-            try {
-              dlg.showModal();
-              content.focus();
-            } catch (e) {
-              window.location.href = href;
-            }
-          };
-          if (cache[kind]) {
-            show(cache[kind]);
-            return;
-          }
-          fetch(href, { credentials: 'same-origin' })
-            .then(function (r) { return r.text(); })
-            .then(function (h) {
-              var inner = extract(h);
-              cache[kind] = inner;
-              show(inner);
-            })
-            .catch(function () {
-              window.location.href = href;
-            });
-        }
-
-        document.querySelectorAll('a[data-legal-modal]').forEach(function (a) {
-          a.addEventListener('click', function (e) {
-            var k = a.getAttribute('data-legal-modal');
-            if (!k) return;
-            e.preventDefault();
-            openLegal(k);
-          });
-        });
-
-        function close() { try { dlg.close(); } catch (e) { } }
-        btnClose && btnClose.addEventListener('click', close);
-        btnOk && btnOk.addEventListener('click', close);
-        dlg.addEventListener('cancel', function (e) {
-          e.preventDefault();
-          close();
+        dialogCloseBtn?.addEventListener('click', closeDialog);
+        dialogFooterClose?.addEventListener('click', closeDialog);
+        dialogEl.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          closeDialog();
         });
       }
     })();
