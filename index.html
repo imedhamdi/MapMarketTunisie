@@ -246,6 +246,28 @@
       </section>
       <div class="view map-view" id="mapView" role="region" aria-labelledby="tab-map">
         <div id="map"></div>
+        <div class="geo-panel" id="geoPanel" aria-live="polite">
+          <div class="geo-split">
+            <button class="geo-btn" id="geoLocateBtn" type="button" title="Me localiser"
+              aria-controls="geoRadiusRow" aria-expanded="false">
+              <span class="geo-ico" id="geoIco" aria-hidden="true">📍</span>
+              <span class="geo-label" id="geoLabel">Me localiser</span>
+              <span class="geo-dots" id="geoDots" aria-hidden="true" hidden>…</span>
+            </button>
+            <button class="geo-caret" id="geoCaretBtn" type="button" aria-label="Afficher le rayon"
+              aria-controls="geoRadiusRow" aria-expanded="false"><span aria-hidden="true">▾</span></button>
+          </div>
+          <div class="geo-row" id="geoRadiusRow" role="region" aria-label="Filtre de rayon" hidden>
+            <label for="geoRadius" class="geo-caption">Rayon&nbsp;<span id="geoRadiusVal">10</span>&nbsp;km</label>
+            <input id="geoRadius" class="geo-range" type="range" min="1" max="100" step="1" value="10"
+              aria-label="Rayon de recherche en kilomètres">
+            <div class="geo-row-actions">
+              <label class="geo-switch"><input type="checkbox" id="geoRadiusEnabled" checked>
+                <span>Activer le filtrage par rayon</span></label>
+              <button id="geoClearRadius" class="geo-clear" type="button">Aucun filtre</button>
+            </div>
+          </div>
+        </div>
         <div class="map-bottom-guard" aria-hidden="true"></div>
         <div class="map-fade-bottom" aria-hidden="true"></div>
       </div>
@@ -1797,6 +1819,268 @@
 
     let currentView = 'list';
     let map, cluster;
+    let geoDropdownOpen = false;
+    const geoState = window.__geoState || (window.__geoState = {
+      active: false,
+      useRadius: true,
+      radiusKm: 10,
+      lat: null,
+      lng: null,
+      marker: null,
+      circle: null,
+    });
+
+    const geoLocateBtn = document.getElementById('geoLocateBtn');
+    const geoIco = document.getElementById('geoIco');
+    const geoLabel = document.getElementById('geoLabel');
+    const geoDots = document.getElementById('geoDots');
+    const geoCaretBtn = document.getElementById('geoCaretBtn');
+    const geoRadiusRow = document.getElementById('geoRadiusRow');
+    const geoRadiusInput = document.getElementById('geoRadius');
+    const geoRadiusValue = document.getElementById('geoRadiusVal');
+    const geoRadiusToggle = document.getElementById('geoRadiusEnabled');
+    const geoClearRadius = document.getElementById('geoClearRadius');
+
+    function setGeoButtonState(state) {
+      if (!geoLocateBtn) return;
+      geoLocateBtn.dataset.state = state;
+      if (state === 'loading') {
+        geoLocateBtn.disabled = true;
+        if (geoIco) {
+          geoIco.hidden = false;
+          geoIco.className = 'geo-ico geo-spinner';
+          geoIco.textContent = '';
+        }
+        if (geoLabel) geoLabel.textContent = 'Localisation';
+        if (geoDots) {
+          geoDots.hidden = false;
+          geoDots.textContent = '';
+        }
+      } else if (state === 'success') {
+        geoLocateBtn.disabled = false;
+        if (geoIco) {
+          geoIco.className = 'geo-ico';
+          geoIco.textContent = '';
+          geoIco.hidden = true;
+        }
+        if (geoLabel) geoLabel.textContent = 'Position trouvée ✅';
+        if (geoDots) {
+          geoDots.hidden = true;
+          geoDots.textContent = '';
+        }
+      } else {
+        geoLocateBtn.disabled = false;
+        if (geoIco) {
+          geoIco.hidden = false;
+          geoIco.className = 'geo-ico';
+          geoIco.textContent = '📍';
+        }
+        if (geoLabel) geoLabel.textContent = 'Me localiser';
+        if (geoDots) {
+          geoDots.hidden = true;
+          geoDots.textContent = '';
+        }
+      }
+    }
+
+    function setDropdownState(open) {
+      geoDropdownOpen = Boolean(open);
+      if (geoRadiusRow) geoRadiusRow.hidden = !geoDropdownOpen;
+      if (geoLocateBtn) geoLocateBtn.setAttribute('aria-expanded', String(geoDropdownOpen));
+      if (geoCaretBtn) {
+        geoCaretBtn.setAttribute('aria-expanded', String(geoDropdownOpen));
+        geoCaretBtn.setAttribute('aria-label', geoDropdownOpen ? 'Masquer le rayon' : 'Afficher le rayon');
+      }
+    }
+
+    function toggleGeoDropdown(force) {
+      const next = typeof force === 'boolean' ? force : !geoDropdownOpen;
+      setDropdownState(next);
+    }
+
+    function updateGeoRadiusUI() {
+      if (geoRadiusInput && typeof geoState.radiusKm === 'number') {
+        geoRadiusInput.value = String(geoState.radiusKm);
+      }
+      if (geoRadiusValue) geoRadiusValue.textContent = geoState.radiusKm;
+      if (geoRadiusToggle) geoRadiusToggle.checked = !!geoState.useRadius;
+    }
+
+    function upsertGeoLayers(ctx) {
+      const mapCtx = ctx || map;
+      if (!mapCtx || !window.L) return;
+      const { lat, lng, radiusKm, useRadius } = geoState;
+      if (lat == null || lng == null) return;
+      const latlng = [lat, lng];
+      if (!geoState.marker) {
+        geoState.marker = L.marker(latlng, { icon: L.divIcon({ className: 'geo-user', iconSize: [22, 22], iconAnchor: [11, 11] }) });
+        geoState.marker.addTo(mapCtx);
+      } else {
+        geoState.marker.setLatLng(latlng);
+        if (!mapCtx.hasLayer(geoState.marker)) geoState.marker.addTo(mapCtx);
+      }
+      if (useRadius) {
+        const meters = radiusKm * 1000;
+        if (!geoState.circle) {
+          geoState.circle = L.circle(latlng, { radius: meters, interactive: false, className: 'geo-radius' });
+          geoState.circle.addTo(mapCtx);
+        } else {
+          geoState.circle.setLatLng(latlng).setRadius(meters);
+          if (!mapCtx.hasLayer(geoState.circle)) geoState.circle.addTo(mapCtx);
+        }
+      } else if (geoState.circle) {
+        mapCtx.removeLayer(geoState.circle);
+        geoState.circle = null;
+      }
+    }
+
+    function fitToUser(ctx) {
+      const mapCtx = ctx || map;
+      if (!mapCtx) return;
+      if (geoState.useRadius && geoState.circle) {
+        mapCtx.flyToBounds(geoState.circle.getBounds(), { duration: .8, padding: [30, 30] });
+        return;
+      }
+      if (geoState.marker) {
+        mapCtx.flyTo(geoState.marker.getLatLng(), 14, { animate: true, duration: .8 });
+      }
+    }
+
+    window.mmFilterByRadius = function (items) {
+      if (!geoState.active || geoState.lat == null || geoState.lng == null || !geoState.useRadius) return items;
+      const R = 6371;
+      const toRad = (x) => x * Math.PI / 180;
+      const origin = { lat: geoState.lat, lng: geoState.lng };
+      return items.filter(it => {
+        const p = it.latlng || it.coords || (it.lat != null && it.lng != null ? { lat: it.lat, lng: it.lng } : null);
+        if (!p) return false;
+        const lat = p.lat ?? p[0];
+        const lng = p.lng ?? p[1];
+        const dLat = toRad(lat - origin.lat);
+        const dLng = toRad(lng - origin.lng);
+        const sa = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(origin.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+        const distKm = 2 * R * Math.asin(Math.sqrt(sa));
+        return distKm <= geoState.radiusKm;
+      });
+    };
+
+    function applyGeoFilterPatch() {
+      if (!window.__geoPatched) {
+        const base = typeof window.__geoBaseGetFiltered === 'function'
+          ? window.__geoBaseGetFiltered
+          : (typeof getFiltered === 'function' ? getFiltered : (typeof window.getFiltered === 'function' ? window.getFiltered : null));
+        if (typeof base !== 'function') return;
+        const wrapped = function (...args) {
+          const result = base.apply(this, args);
+          return window.mmFilterByRadius(result);
+        };
+        window.__geoBaseGetFiltered = base;
+        window.getFiltered = wrapped;
+        getFiltered = wrapped;
+        window.__geoPatched = true;
+      } else if (typeof window.getFiltered === 'function') {
+        getFiltered = window.getFiltered;
+      }
+    }
+
+    function refreshViews(options = { autoFit: false }) {
+      const listFn = typeof window.renderList === 'function' ? window.renderList : (typeof renderList === 'function' ? renderList : null);
+      const mapFn = typeof window.renderMap === 'function' ? window.renderMap : (typeof renderMap === 'function' ? renderMap : null);
+      if (listFn) listFn(true);
+      if (mapFn) mapFn({ autoFit: options.autoFit, force: true });
+    }
+
+    function onRadiusInput() {
+      if (!geoRadiusInput) return;
+      geoState.radiusKm = Number(geoRadiusInput.value || geoState.radiusKm || 10);
+      updateGeoRadiusUI();
+      upsertGeoLayers();
+      if (geoState.active) fitToUser();
+      refreshViews({ autoFit: false });
+    }
+
+    function onRadiusToggle() {
+      if (!geoRadiusToggle) return;
+      geoState.useRadius = !!geoRadiusToggle.checked;
+      updateGeoRadiusUI();
+      upsertGeoLayers();
+      if (geoState.active) fitToUser();
+      refreshViews({ autoFit: false });
+    }
+
+    function onRadiusClear() {
+      if (geoRadiusToggle) geoRadiusToggle.checked = false;
+      geoState.useRadius = false;
+      updateGeoRadiusUI();
+      upsertGeoLayers();
+      refreshViews({ autoFit: false });
+      toggleGeoDropdown(false);
+    }
+
+    function onLocate() {
+      if (!geoLocateBtn) return;
+      if (!('geolocation' in navigator)) {
+        setGeoButtonState('idle');
+        return;
+      }
+      setGeoButtonState('loading');
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        geoState.active = true;
+        geoState.lat = lat;
+        geoState.lng = lng;
+        if (geoState.useRadius == null) geoState.useRadius = true;
+        updateGeoRadiusUI();
+        upsertGeoLayers();
+        const ensure = Promise.resolve(ensureMap()).catch(() => null);
+        ensure.then((instance) => {
+          if (instance) {
+            upsertGeoLayers(instance);
+            fitToUser(instance);
+          } else {
+            fitToUser();
+          }
+        }).finally(() => {
+          refreshViews({ autoFit: false });
+          setGeoButtonState('success');
+          // setTimeout(() => setGeoButtonState('idle'), 2500);
+        });
+      }, (err) => {
+        console.warn('Geolocation error', err);
+        setGeoButtonState('idle');
+      }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+    }
+
+    if (geoLocateBtn && !geoLocateBtn.__bound) {
+      geoLocateBtn.addEventListener('click', onLocate);
+      geoLocateBtn.__bound = true;
+    }
+    if (geoCaretBtn && !geoCaretBtn.__bound) {
+      geoCaretBtn.addEventListener('click', () => toggleGeoDropdown());
+      geoCaretBtn.__bound = true;
+    }
+    if (geoRadiusInput && !geoRadiusInput.__bound) {
+      geoRadiusInput.addEventListener('input', onRadiusInput);
+      geoRadiusInput.__bound = true;
+    }
+    if (geoRadiusToggle && !geoRadiusToggle.__bound) {
+      geoRadiusToggle.addEventListener('change', onRadiusToggle);
+      geoRadiusToggle.__bound = true;
+    }
+    if (geoClearRadius && !geoClearRadius.__bound) {
+      geoClearRadius.addEventListener('click', onRadiusClear);
+      geoClearRadius.__bound = true;
+    }
+
+    const residualToast = document.getElementById('geoToast');
+    if (residualToast && residualToast.parentNode) {
+      residualToast.parentNode.removeChild(residualToast);
+    }
+
+    setGeoButtonState('idle');
+    setDropdownState(false);
+    updateGeoRadiusUI();
+    applyGeoFilterPatch();
     const markerIndex = new Map();
     async function ensureMap() {
       if (map) return map;
