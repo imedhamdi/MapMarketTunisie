@@ -502,6 +502,32 @@
     </div>
   </div>
 
+  <div class="lightbox" id="imageLightbox" aria-hidden="true" hidden>
+    <div class="lightbox__backdrop" data-action="dismiss"></div>
+    <div class="lightbox__dialog" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle" tabindex="-1">
+      <button type="button" class="lightbox__close" data-action="close" aria-label="Fermer l'image">✕</button>
+      <div class="lightbox__stage">
+        <button type="button" class="lightbox__nav lightbox__nav--prev" data-action="prev" aria-label="Image précédente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <img id="lightboxImage" alt="" draggable="false">
+        <button type="button" class="lightbox__nav lightbox__nav--next" data-action="next" aria-label="Image suivante">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+      <div class="lightbox__footer">
+        <span class="lightbox__title" id="lightboxTitle"></span>
+        <span class="lightbox__counter" id="lightboxCounter"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast">Action enregistrée</div>
 
   <!-- FAVORITES MODAL (UNIQUE) -->
@@ -2596,6 +2622,15 @@
     const detailsVisitBtn = document.getElementById('detailsVisit');
     const detailsTags = document.getElementById('detailsTags');
     const detailsBodyEl = document.querySelector('.details-body');
+    const imageLightbox = document.getElementById('imageLightbox');
+    const lightboxDialog = imageLightbox?.querySelector('.lightbox__dialog');
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxTitleEl = document.getElementById('lightboxTitle');
+    const lightboxCounterEl = document.getElementById('lightboxCounter');
+    const lightboxPrev = imageLightbox?.querySelector('[data-action="prev"]');
+    const lightboxNext = imageLightbox?.querySelector('[data-action="next"]');
+    const lightboxCloseBtn = imageLightbox?.querySelector('[data-action="close"]');
+    const lightboxBackdrop = imageLightbox?.querySelector('[data-action="dismiss"]');
 
     let detailsCurrentImages = [];
     let detailsCurrentIndex = 0;
@@ -2603,6 +2638,8 @@
     let detailsDescFull = '';
     let detailsDescExpanded = false;
     let detailsSkeletonTimeout = null;
+    let lightboxActive = false;
+    let lightboxLastFocus = null;
 
     const detailsIcons = {
       category: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>`,
@@ -2632,6 +2669,17 @@
         const slide = document.createElement('div');
         slide.className = 'carousel-slide';
         if (index === 0) slide.classList.add('active');
+        slide.dataset.index = String(index);
+        slide.setAttribute('role', 'button');
+        slide.setAttribute('aria-label', `Agrandir l'image ${index + 1}`);
+        slide.tabIndex = index === 0 ? 0 : -1;
+        slide.addEventListener('click', () => openLightbox(index));
+        slide.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            openLightbox(index);
+          }
+        });
         const img = document.createElement('img');
         img.decoding = 'async';
         img.loading = index === 0 ? 'eager' : 'lazy';
@@ -2675,7 +2723,12 @@
 
     function updateCarouselUI() {
       const slides = Array.from(detailsCarouselTrack.children);
-      slides.forEach((slide, idx) => slide.classList.toggle('active', idx === detailsCurrentIndex));
+      slides.forEach((slide, idx) => {
+        const isActive = idx === detailsCurrentIndex;
+        slide.classList.toggle('active', isActive);
+        if (isActive) slide.setAttribute('tabindex', '0');
+        else slide.setAttribute('tabindex', '-1');
+      });
       const dots = Array.from(detailsCarouselDots.children);
       dots.forEach((dot, idx) => dot.classList.toggle('active', idx === detailsCurrentIndex));
       const total = detailsCurrentImages.length || 1;
@@ -2696,6 +2749,87 @@
       if (!detailsCurrentImages.length) return;
       detailsCurrentIndex = index % detailsCurrentImages.length;
       updateCarouselUI();
+    }
+
+    function getLightboxFocusables() {
+      if (!imageLightbox) return [];
+      return Array.from(imageLightbox.querySelectorAll('button:not([disabled])')).filter(el => {
+        if (!el) return false;
+        if (typeof el.offsetParent === 'undefined') return true;
+        return el.offsetParent !== null && el.tabIndex !== -1;
+      });
+    }
+
+    function updateLightboxView() {
+      if (!lightboxActive || !detailsCurrentImages.length || !lightboxImage) return;
+      const total = detailsCurrentImages.length;
+      const index = ((detailsCurrentIndex % total) + total) % total;
+      const baseSrc = detailsCurrentImages[index];
+      const hdSrc = buildOptimizedImage(baseSrc, 1600, 82);
+      lightboxImage.src = hdSrc;
+      lightboxImage.srcset = buildSrcSet(baseSrc, [1024, 1280, 1600, 1920], 82);
+      lightboxImage.sizes = '(min-width: 1024px) 70vw, 92vw';
+      lightboxImage.alt = `${detailsCurrentAd?.title || 'Photo'} — ${index + 1} / ${total}`;
+      lightboxImage.style.cursor = total > 1 ? 'pointer' : 'default';
+      if (lightboxTitleEl) {
+        lightboxTitleEl.textContent = detailsCurrentAd?.title || 'Photo';
+      }
+      if (lightboxCounterEl) {
+        lightboxCounterEl.textContent = `${index + 1}/${total}`;
+      }
+      if (lightboxPrev) {
+        const visible = total > 1;
+        lightboxPrev.style.visibility = visible ? 'visible' : 'hidden';
+        lightboxPrev.tabIndex = visible ? 0 : -1;
+        lightboxPrev.setAttribute('aria-hidden', String(!visible));
+        lightboxPrev.disabled = !visible;
+      }
+      if (lightboxNext) {
+        const visible = total > 1;
+        lightboxNext.style.visibility = visible ? 'visible' : 'hidden';
+        lightboxNext.tabIndex = visible ? 0 : -1;
+        lightboxNext.setAttribute('aria-hidden', String(!visible));
+        lightboxNext.disabled = !visible;
+      }
+      if (lightboxDialog) {
+        lightboxDialog.setAttribute('aria-label', detailsCurrentAd?.title || 'Image agrandie');
+      }
+      if (lightboxActive) {
+        const slides = detailsCarouselTrack?.children;
+        if (slides && slides[detailsCurrentIndex]) {
+          lightboxLastFocus = slides[detailsCurrentIndex];
+        }
+      }
+    }
+
+    function openLightbox(index = detailsCurrentIndex) {
+      if (!imageLightbox || !detailsCurrentImages.length) return;
+      goToSlide(index);
+      lightboxActive = true;
+      lightboxLastFocus = document.activeElement;
+      imageLightbox.hidden = false;
+      imageLightbox.classList.add('is-open');
+      imageLightbox.setAttribute('aria-hidden', 'false');
+      lockBodyScroll();
+      updateLightboxView();
+      requestAnimationFrame(() => lightboxDialog?.focus?.({ preventScroll: true }));
+    }
+
+    function closeLightbox(options = {}) {
+      if (!lightboxActive || !imageLightbox) return;
+      const { restoreFocus = true } = options;
+      lightboxActive = false;
+      imageLightbox.classList.remove('is-open');
+      imageLightbox.setAttribute('aria-hidden', 'true');
+      lightboxPrev?.blur();
+      lightboxNext?.blur();
+      lightboxCloseBtn?.blur();
+      setTimeout(() => { if (!lightboxActive) imageLightbox.hidden = true; }, 200);
+      unlockBodyScroll();
+      if (restoreFocus && lightboxLastFocus && typeof lightboxLastFocus.focus === 'function') {
+        lightboxLastFocus.focus({ preventScroll: true });
+      }
+      lightboxLastFocus = null;
     }
 
     function categorySymbol(cat) {
@@ -2807,6 +2941,7 @@
     }
 
     function openDetailsModal(adData) {
+      if (lightboxActive) closeLightbox({ restoreFocus: false });
       detailsCurrentAd = adData;
       detailsCurrentImages = buildGallery(adData);
       detailsCurrentIndex = 0;
@@ -2833,6 +2968,7 @@
     }
 
     function closeDetailsModal() {
+      if (lightboxActive) closeLightbox({ restoreFocus: false });
       detailsModal.style.display = 'none';
       detailsModal.classList.remove('active');
       detailsModal.setAttribute('aria-hidden', 'true');
@@ -2852,10 +2988,25 @@
       }
     }
 
-    detailsPrev.addEventListener('click', () => changeSlide(-1));
-    detailsNext.addEventListener('click', () => changeSlide(1));
+    detailsPrev.addEventListener('click', () => {
+      changeSlide(-1);
+      if (lightboxActive) updateLightboxView();
+    });
+    detailsNext.addEventListener('click', () => {
+      changeSlide(1);
+      if (lightboxActive) updateLightboxView();
+    });
     closeDetailsBtn.addEventListener('click', closeDetailsModal);
     detailsModal.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetailsModal(); });
+    lightboxPrev?.addEventListener('click', () => { changeSlide(-1); updateLightboxView(); });
+    lightboxNext?.addEventListener('click', () => { changeSlide(1); updateLightboxView(); });
+    lightboxCloseBtn?.addEventListener('click', () => closeLightbox());
+    lightboxBackdrop?.addEventListener('click', () => closeLightbox());
+    lightboxImage?.addEventListener('click', () => {
+      if (!lightboxActive || detailsCurrentImages.length <= 1) return;
+      changeSlide(1);
+      updateLightboxView();
+    });
 
     detailsSave.addEventListener('click', () => {
       if (!detailsCurrentAd) return;
@@ -2905,8 +3056,49 @@
     });
 
     document.addEventListener('keydown', (e) => {
+      if (lightboxActive) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeLightbox();
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          changeSlide(1);
+          updateLightboxView();
+          return;
+        }
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          changeSlide(-1);
+          updateLightboxView();
+          return;
+        }
+        if (e.key === 'Tab') {
+          const focusables = getLightboxFocusables();
+          if (!focusables.length) return;
+          const activeEl = document.activeElement;
+          const currentIndex = focusables.indexOf(activeEl);
+          if (e.shiftKey) {
+            if (currentIndex <= 0) {
+              e.preventDefault();
+              focusables[focusables.length - 1]?.focus?.({ preventScroll: true });
+            }
+          } else {
+            if (currentIndex === focusables.length - 1) {
+              e.preventDefault();
+              focusables[0]?.focus?.({ preventScroll: true });
+            }
+          }
+          return;
+        }
+      }
       if (detailsModal.style.display !== 'flex') return;
-      if (e.key === 'Escape') closeDetailsModal();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDetailsModal();
+        return;
+      }
       if (e.key === 'ArrowRight') changeSlide(1);
       if (e.key === 'ArrowLeft') changeSlide(-1);
     });
