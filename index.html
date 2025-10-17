@@ -487,6 +487,21 @@
     </div>
   </div>
 
+  <div class="mm-confirm" id="confirmModal" aria-hidden="true" hidden>
+    <div class="mm-confirm__backdrop" data-action="dismiss"></div>
+    <div class="mm-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="mm-confirm__icon" aria-hidden="true">💭</div>
+      <div class="mm-confirm__copy">
+        <h3 id="confirmTitle" class="mm-confirm__title">Confirmation</h3>
+        <p id="confirmMessage" class="mm-confirm__message">Êtes-vous sûr ?</p>
+      </div>
+      <div class="mm-confirm__actions">
+        <button type="button" class="mm-confirm__btn mm-confirm__btn--ghost" data-action="cancel">Annuler</button>
+        <button type="button" class="mm-confirm__btn mm-confirm__btn--primary" data-action="confirm">Oui</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast">Action enregistrée</div>
 
   <!-- FAVORITES MODAL (UNIQUE) -->
@@ -1271,13 +1286,100 @@
     if (favSearch) favSearch.addEventListener('input', renderFavSheet);
     if (favSortBy) favSortBy.addEventListener('change', renderFavSheet);
     if (favByCat) favByCat.addEventListener('change', renderFavSheet);
-    clearAllFavsBtn?.addEventListener('click', () => {
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmTitleEl = document.getElementById('confirmTitle');
+    const confirmMessageEl = document.getElementById('confirmMessage');
+    const confirmCancelBtn = confirmModal?.querySelector('[data-action="cancel"]');
+    const confirmConfirmBtn = confirmModal?.querySelector('[data-action="confirm"]');
+    const confirmBackdrop = confirmModal?.querySelector('[data-action="dismiss"]');
+    let confirmLastFocus = null;
+    let confirmActive = false;
+
+    function showConfirmDialog({ title = 'Confirmation', message = 'Êtes-vous sûr ?', confirmLabel = 'Confirmer', cancelLabel = 'Annuler' } = {}) {
+      if (!confirmModal || !confirmCancelBtn || !confirmConfirmBtn || !confirmTitleEl || !confirmMessageEl) {
+        return Promise.resolve(true);
+      }
+      return new Promise((resolve) => {
+        confirmActive = true;
+        confirmLastFocus = document.activeElement;
+        confirmModal.hidden = false;
+        confirmModal.classList.add('is-open');
+        confirmModal.setAttribute('aria-hidden', 'false');
+        confirmTitleEl.textContent = title;
+        confirmMessageEl.textContent = message;
+        confirmCancelBtn.textContent = cancelLabel;
+        confirmConfirmBtn.textContent = confirmLabel;
+        lockBodyScroll();
+
+        const focusTarget = confirmConfirmBtn;
+        setTimeout(() => focusTarget?.focus?.({ preventScroll: true }), 30);
+
+        const cleanup = (result) => {
+          if (!confirmActive) return;
+          confirmActive = false;
+          confirmModal.classList.remove('is-open');
+          confirmModal.setAttribute('aria-hidden', 'true');
+          confirmCancelBtn.removeEventListener('click', onCancel);
+          confirmConfirmBtn.removeEventListener('click', onConfirm);
+          confirmBackdrop?.removeEventListener('click', onBackdrop);
+          document.removeEventListener('keydown', onKeyDown);
+          setTimeout(() => { if (!confirmActive) confirmModal.hidden = true; }, 180);
+          unlockBodyScroll();
+          if (confirmLastFocus && typeof confirmLastFocus.focus === 'function') {
+            confirmLastFocus.focus({ preventScroll: true });
+          }
+          resolve(result);
+        };
+
+        const onCancel = () => cleanup(false);
+        const onConfirm = () => cleanup(true);
+        const onBackdrop = (event) => {
+          if (event?.target?.dataset?.action === 'dismiss') cleanup(false);
+        };
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            cleanup(false);
+            return;
+          }
+          if (event.key === 'Tab') {
+            const focusables = [confirmCancelBtn, confirmConfirmBtn].filter(Boolean);
+            if (!focusables.length) return;
+            const currentIndex = focusables.indexOf(document.activeElement);
+            if (event.shiftKey) {
+              if (currentIndex <= 0) {
+                event.preventDefault();
+                focusables[focusables.length - 1]?.focus?.({ preventScroll: true });
+              }
+            } else {
+              if (currentIndex === focusables.length - 1) {
+                event.preventDefault();
+                focusables[0]?.focus?.({ preventScroll: true });
+              }
+            }
+          }
+        };
+
+        confirmCancelBtn.addEventListener('click', onCancel);
+        confirmConfirmBtn.addEventListener('click', onConfirm);
+        confirmBackdrop?.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKeyDown);
+      });
+    }
+
+    clearAllFavsBtn?.addEventListener('click', async () => {
       const favs = favStore.get();
       if (favs.size === 0) {
         showToast('Aucun favori à retirer.');
         return;
       }
-      if (!confirm('Voulez-vous retirer tous vos favoris ?')) return;
+      const accepted = await showConfirmDialog({
+        title: 'Vider vos favoris ?',
+        message: 'Cette action retirera toutes les annonces de vos favoris. Vous pourrez les ajouter de nouveau plus tard.',
+        confirmLabel: 'Tout retirer',
+        cancelLabel: 'Annuler'
+      });
+      if (!accepted) return;
       const ids = [...favs];
       favStore.set(new Set());
       if (favCount) favCount.textContent = 0;

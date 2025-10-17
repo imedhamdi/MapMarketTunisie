@@ -1900,6 +1900,117 @@ body.modal-open {
   outline-offset: 2px;
 }
 
+.mm-confirm {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  z-index: var(--z-toast);
+}
+
+.mm-confirm.is-open {
+  display: grid;
+}
+
+.mm-confirm__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.mm-confirm__dialog {
+  position: relative;
+  width: min(360px, calc(100% - 32px));
+  border-radius: 18px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 26px 45px rgba(var(--color-ink-rgb), 0.18);
+  padding: 24px 24px 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.mm-confirm__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--color-brand-bg);
+  color: var(--color-brand-700);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.mm-confirm__copy {
+  display: grid;
+  gap: 8px;
+}
+
+.mm-confirm__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.mm-confirm__message {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.mm-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.mm-confirm__btn {
+  min-width: 110px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.mm-confirm__btn:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+.mm-confirm__btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+}
+
+.mm-confirm__btn--ghost:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+}
+
+.mm-confirm__btn--primary {
+  background: var(--color-brand-600);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(var(--color-brand-700-rgb), 0.24);
+}
+
+.mm-confirm__btn--primary:hover {
+  background: var(--color-brand-700);
+  transform: translateY(-1px);
+}
+
+.mm-confirm__btn--primary:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 18px rgba(var(--color-brand-700-rgb), 0.28);
+}
+
 .mm-heart {
   display: none;
 }
