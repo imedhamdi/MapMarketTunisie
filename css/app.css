@@ -2341,13 +2341,19 @@ main.container {
   box-shadow: 0 30px 50px rgba(var(--color-ink-rgb), 0.3);
   display: grid;
   place-items: center;
-  min-height: clamp(280px, 60vh, 720px);
+  height: clamp(360px, 70vh, 820px);
 }
 
-.lightbox__stage img {
+.lightbox__stage img,
+#lightboxImage {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  display: block;
+  box-sizing: border-box;
+}
+
+.lightbox__stage img {
   padding: 18px;
   background: rgba(var(--color-surface-rgb), 0.94);
   cursor: pointer;
@@ -2431,6 +2437,11 @@ main.container {
   color: #fff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   padding: 0 6px;
+  min-height: 40px;
+}
+
+.lightbox__header {
+  min-height: 44px;
 }
 
 .lightbox__title {
@@ -3464,14 +3475,208 @@ main.container {
 }
 
 /* === GEO PANEL (overlay dans la carte) =================================== */
-.geo-panel{position:absolute;right:18px;top:18px;display:grid;gap:10px;z-index:var(--z-map);}
-.geo-btn{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:9px 14px;border-radius:999px;border:1px solid var(--color-border-strong);background:rgba(var(--color-surface-rgb),.85);backdrop-filter:blur(8px);box-shadow:0 10px 22px rgba(var(--color-ink-rgb),.12);font-weight:700;cursor:pointer;}
-.geo-btn:hover{border-color:var(--color-border-accent);}
-.geo-ico{font-size:16px}
-.geo-row{display:grid;gap:6px;padding:10px 12px;border-radius:14px;border:1px solid var(--color-border-strong);background:rgba(var(--color-surface-rgb),.85);backdrop-filter:blur(8px);box-shadow:0 10px 22px rgba(var(--color-ink-rgb),.12);}
-.geo-caption{font-size:12px;color:var(--color-text-muted);font-weight:600}
-.geo-range{width:220px;accent-color:var(--primary)}
-.geo-toast{justify-self:end;background:var(--color-text-primary);color:var(--color-text-contrast);border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:var(--shadow)}
+.geo-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  gap: 8px;
+  z-index: var(--z-map);
+}
+
+.geo-btn {
+  --geo-btn-w: 212px;
+  --geo-btn-h: 44px;
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-template-columns: 24px 1fr 20px 28px;
+  align-items: center;
+  gap: 8px;
+  width: var(--geo-btn-w);
+  height: var(--geo-btn-h);
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 6px 16px rgba(var(--color-brand-rgb), 0.12);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.geo-btn:hover {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 12px 26px rgba(var(--color-brand-rgb), 0.16);
+}
+
+.geo-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.geo-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.geo-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.geo-ico {
+  width: 18px;
+  text-align: center;
+  opacity: 0.9;
+  font-size: 16px;
+}
+
+.geo-label {
+  grid-column: 2;
+  grid-row: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  justify-self: start;
+  align-self: center;
+  transition: opacity 160ms ease;
+}
+
+.geo-spinner {
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+.geo-spinner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--color-text-primary-rgb), 0.18);
+  border-top-color: var(--primary);
+  animation: geo-spin 1s linear infinite;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.geo-btn[aria-busy="true"] .geo-spinner::after {
+  opacity: 1;
+}
+
+@keyframes geo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.geo-caret {
+  width: 28px;
+  height: 28px;
+  margin-right: -2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 160ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  justify-self: end;
+}
+
+.geo-caret:hover {
+  background: rgba(var(--color-ink-rgb), 0.08);
+}
+
+.geo-caret:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.geo-caret[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.geo-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 280px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 16px 32px rgba(var(--color-ink-rgb), 0.12);
+  display: grid;
+  gap: 12px;
+}
+
+.geo-dropdown[hidden] {
+  display: none;
+}
+
+.geo-row {
+  display: grid;
+  gap: 6px;
+}
+
+.geo-row.is-disabled {
+  opacity: 0.5;
+}
+
+.geo-caption {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.geo-range {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.geo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.geo-toggle input {
+  accent-color: var(--primary);
+}
+
+.geo-toast {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  align-self: center;
+  font-weight: 700;
+  font-size: inherit;
+  color: var(--primary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  white-space: nowrap;
+  transform: translateY(4px);
+}
+
+.geo-btn.show-toast .geo-label {
+  opacity: 0;
+}
+
+.geo-btn.show-toast .geo-toast {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 /* === USER POSITION MARKER =============================================== */
 .leaflet-marker-icon.geo-user{background:radial-gradient(circle at 50% 50%, #fff 0 28%, var(--primary) 30% 55%, rgba(255,255,255,.9) 58% 62%, transparent 64% 100%);border-radius:999px;box-shadow:0 6px 18px rgba(var(--color-brand-rgb),.35)}
@@ -3481,4 +3686,13 @@ main.container {
 /* Cercle de rayon (Leaflet Circle) */
 .leaflet-interactive.geo-radius{fill:rgba(var(--color-sky-500-rgb),.10);stroke:rgba(var(--color-sky-500-rgb),.75);stroke-width:2}
 
-@media (max-width:640px){.geo-panel{right:12px;top:12px}.geo-range{width:180px}}
+@media (max-width: 640px) {
+  .geo-panel {
+    top: 10px;
+    right: 10px;
+  }
+
+  .geo-dropdown {
+    min-width: 240px;
+  }
+}

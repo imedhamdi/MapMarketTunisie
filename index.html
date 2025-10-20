@@ -3107,15 +3107,21 @@
       detailsCarouselDots.style.display = multiple ? 'flex' : 'none';
     }
 
+    function normalizeIndex(index, total) {
+      if (!Number.isFinite(index) || total <= 0) return 0;
+      const normalized = index % total;
+      return (normalized + total) % total;
+    }
+
     function changeSlide(delta) {
       if (!detailsCurrentImages.length) return;
-      detailsCurrentIndex = (detailsCurrentIndex + delta + detailsCurrentImages.length) % detailsCurrentImages.length;
+      detailsCurrentIndex = normalizeIndex(detailsCurrentIndex + delta, detailsCurrentImages.length);
       updateCarouselUI();
     }
 
     function goToSlide(index) {
       if (!detailsCurrentImages.length) return;
-      detailsCurrentIndex = index % detailsCurrentImages.length;
+      detailsCurrentIndex = normalizeIndex(index, detailsCurrentImages.length);
       updateCarouselUI();
     }
 
@@ -3131,12 +3137,18 @@
     function updateLightboxView() {
       if (!lightboxActive || !detailsCurrentImages.length || !lightboxImage) return;
       const total = detailsCurrentImages.length;
-      const index = ((detailsCurrentIndex % total) + total) % total;
+      const index = normalizeIndex(detailsCurrentIndex, total);
+      detailsCurrentIndex = index;
       const baseSrc = detailsCurrentImages[index];
       const hdSrc = buildOptimizedImage(baseSrc, 1600, 82);
-      lightboxImage.src = hdSrc;
-      lightboxImage.srcset = buildSrcSet(baseSrc, [1024, 1280, 1600, 1920], 82);
-      lightboxImage.sizes = '(min-width: 1024px) 70vw, 92vw';
+      const setImagePayload = () => {
+        lightboxImage.src = hdSrc;
+        lightboxImage.srcset = buildSrcSet(baseSrc, [1024, 1280, 1600, 1920], 82);
+        lightboxImage.sizes = '(min-width: 1024px) 70vw, 92vw';
+      };
+      lightboxImage.removeAttribute('src');
+      lightboxImage.removeAttribute('srcset');
+      lightboxImage.removeAttribute('sizes');
       lightboxImage.alt = `${detailsCurrentAd?.title || 'Photo'} — ${index + 1} / ${total}`;
       lightboxImage.style.cursor = total > 1 ? 'pointer' : 'default';
       if (lightboxTitleEl) {
@@ -3145,6 +3157,7 @@
       if (lightboxCounterEl) {
         lightboxCounterEl.textContent = `${index + 1}/${total}`;
       }
+      requestAnimationFrame(setImagePayload);
       if (lightboxPrev) {
         const visible = total > 1;
         lightboxPrev.style.visibility = visible ? 'visible' : 'hidden';
@@ -3170,9 +3183,10 @@
       }
     }
 
-    function openLightbox(index = detailsCurrentIndex) {
+    function openLightbox(index = 0) {
       if (!imageLightbox || !detailsCurrentImages.length) return;
-      goToSlide(index);
+      const targetIndex = normalizeIndex(Number.isFinite(index) ? index : 0, detailsCurrentImages.length);
+      goToSlide(targetIndex);
       lightboxActive = true;
       lightboxLastFocus = document.activeElement;
       imageLightbox.hidden = false;
@@ -3187,6 +3201,7 @@
       if (!lightboxActive || !imageLightbox) return;
       const { restoreFocus = true } = options;
       lightboxActive = false;
+      detailsCurrentIndex = 0;
       imageLightbox.classList.remove('is-open');
       imageLightbox.setAttribute('aria-hidden', 'true');
       lightboxPrev?.blur();
@@ -3194,6 +3209,7 @@
       lightboxCloseBtn?.blur();
       setTimeout(() => { if (!lightboxActive) imageLightbox.hidden = true; }, 200);
       unlockBodyScroll();
+      updateCarouselUI();
       if (restoreFocus && lightboxLastFocus && typeof lightboxLastFocus.focus === 'function') {
         lightboxLastFocus.focus({ preventScroll: true });
       }
@@ -3313,6 +3329,13 @@
       detailsCurrentAd = adData;
       detailsCurrentImages = buildGallery(adData);
       detailsCurrentIndex = 0;
+      lightboxActive = false;
+      if (lightboxImage) {
+        lightboxImage.removeAttribute('src');
+        lightboxImage.removeAttribute('srcset');
+        lightboxImage.removeAttribute('sizes');
+        lightboxImage.alt = '';
+      }
       detailsTitleEl.textContent = adData.title;
       detailsPriceEl.innerHTML = `<strong>${fmtPrice(adData.price)}</strong>`;
       renderDetailsMeta(adData);
