@@ -591,6 +591,61 @@
     </div>
   </div>
 
+  <footer class="mm-footer" id="appFooter" role="contentinfo">
+    <div class="mm-footer__grid">
+      <div class="mm-footer__brand">
+        <div class="mm-footer__logo">📍 <strong>MapMarket</strong></div>
+        <p class="mm-footer__baseline">Trouvez, comparez et localisez les meilleures offres près de vous.</p>
+      </div>
+
+      <nav class="mm-footer__col" aria-label="Produits">
+        <h3 class="mm-footer__title">Produits</h3>
+        <ul class="mm-footer__links">
+          <li><a href="#" data-nav="map">Carte</a></li>
+          <li><a href="#" data-nav="list">Liste</a></li>
+          <li><a href="#" data-nav="pro">Professionnels</a></li>
+        </ul>
+      </nav>
+
+      <nav class="mm-footer__col" aria-label="Légal">
+        <h3 class="mm-footer__title">Légal</h3>
+        <ul class="mm-footer__links">
+          <li><a href="#" data-legal="terms">Conditions d’utilisation</a></li>
+          <li><a href="#" data-legal="privacy">Confidentialité</a></li>
+          <li><a href="#" data-legal="cookies">Cookies</a></li>
+        </ul>
+      </nav>
+
+      <div class="mm-footer__col">
+        <h3 class="mm-footer__title">Restez informé</h3>
+        <form id="newsletterForm" class="mm-news" novalidate>
+          <label class="sr-only" for="newsletterEmail">Votre e-mail</label>
+          <input id="newsletterEmail" class="mm-news__input" type="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="mm-news__btn" type="submit">S’inscrire</button>
+          <p class="mm-news__msg" id="newsletterMsg" aria-live="polite"></p>
+          <p class="mm-footer__hint">En vous inscrivant, vous acceptez de recevoir nos actualités. Consultez notre <a href="#"
+              data-legal="privacy">Politique de confidentialité</a>.</p>
+        </form>
+      </div>
+    </div>
+    <div class="mm-footer__copy">© <span id="yearNow"></span> MapMarket. Tous droits réservés.</div>
+  </footer>
+
+  <div id="legalModal" class="mm-modal mm-modal--legal" role="dialog" aria-modal="true" aria-labelledby="legalTitle"
+    aria-describedby="legalBody" hidden>
+    <div class="mm-modal__backdrop" data-close="true"></div>
+    <div class="mm-modal__dialog" role="document">
+      <header class="mm-modal__header">
+        <h2 id="legalTitle" class="mm-modal__title">Titre</h2>
+        <button class="mm-modal__close" type="button" aria-label="Fermer" data-close="true">✕</button>
+      </header>
+      <section id="legalBody" class="mm-modal__content" tabindex="0"></section>
+      <footer class="mm-modal__footer">
+        <button class="mm-btn" type="button" data-close="true">Fermer</button>
+      </footer>
+    </div>
+  </div>
+
   <script>
     (() => {
     // ---------- DATA (mock + géoloc) ----------
@@ -1216,6 +1271,13 @@
     const clearAllFavsBtn = document.getElementById('clearAllFavs');
     const closeFavsBtn = document.getElementById('closeFavs');
 
+    if (favModal) {
+      favModal._stickyOpen = false;
+      favModal._favScrollTop = 0;
+      favModal._lastSelectedFavId = null;
+      favModal._lastSelectedCard = null;
+    }
+
     const pagination = { index: 0 }; const PAGE_SIZE = 12; let filteredCache = [];
 
     function getFavBaseItems() {
@@ -1275,7 +1337,7 @@
       const favThumb = buildOptimizedImage(imageSource, 480, 70);
       const favSrcSet = buildSrcSet(imageSource, [320, 480, 640], 70);
       return `
-  <article class="mm-card" role="listitem" data-id="${item.id}">
+  <article class="mm-card" role="listitem" data-id="${item.id}" tabindex="-1">
     <button class="mm-remove" aria-label="Retirer ce favori" data-id="${item.id}" title="Retirer">✕</button>
     <div class="mm-thumb"><img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;"></div>
     <div class="mm-body">
@@ -1304,6 +1366,17 @@
         return;
       }
       favList.innerHTML = items.map(renderFavCard).join('');
+      if (favModal?._stickyOpen && typeof favModal._favScrollTop === 'number') {
+        requestAnimationFrame(() => {
+          if (favList) {
+            favList.scrollTop = favModal._favScrollTop || 0;
+            if (favModal._lastSelectedFavId != null) {
+              const candidate = favList.querySelector(`.mm-card[data-id="${favModal._lastSelectedFavId}"]`);
+              if (candidate) favModal._lastSelectedCard = candidate;
+            }
+          }
+        });
+      }
     }
 
     function openFavSheet() {
@@ -1325,6 +1398,10 @@
     function closeFavSheet() {
       if (!favModal || !favOverlay) return;
       if (!favModal.classList.contains('mm-open')) return;
+      favModal._stickyOpen = false;
+      favModal._favScrollTop = 0;
+      favModal._lastSelectedFavId = null;
+      favModal._lastSelectedCard = null;
       favModal.classList.remove('mm-open');
       favModal.setAttribute('aria-hidden', 'true');
       favOverlay.classList.remove('active');
@@ -1440,6 +1517,12 @@
       renderFavSheet();
       showToast('Tous les favoris ont été retirés.');
     });
+    favList?.addEventListener('scroll', () => {
+      if (favModal?._stickyOpen) {
+        favModal._favScrollTop = favList.scrollTop || 0;
+      }
+    });
+
     favList?.addEventListener('click', (event) => {
       const removeBtn = event.target.closest('.mm-remove');
       if (removeBtn) {
@@ -1477,12 +1560,19 @@
       const id = Number(card.dataset.id);
       const ad = allItems.find(item => item.id === id);
       if (ad) {
-        closeFavSheet();
+        if (favModal) {
+          if (!favModal._stickyOpen) favModal._stickyOpen = true;
+          if (favList) favModal._favScrollTop = favList.scrollTop || 0;
+          favModal._lastSelectedFavId = id;
+          favModal._lastSelectedCard = card;
+        }
         openDetailsModal(ad);
       }
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && favModal && favModal.classList.contains('mm-open')) {
+      if (e.key !== 'Escape') return;
+      const detailsOpen = detailsModal && detailsModal.classList.contains('active');
+      if (favModal && favModal.classList.contains('mm-open') && !detailsOpen) {
         closeFavSheet();
       }
     });
@@ -3336,6 +3426,10 @@
         lightboxImage.removeAttribute('sizes');
         lightboxImage.alt = '';
       }
+      if (detailsModal) {
+        const activeEl = document.activeElement;
+        detailsModal._lastTrigger = activeEl instanceof HTMLElement ? activeEl : null;
+      }
       detailsTitleEl.textContent = adData.title;
       detailsPriceEl.innerHTML = `<strong>${fmtPrice(adData.price)}</strong>`;
       renderDetailsMeta(adData);
@@ -3353,6 +3447,11 @@
       detailsModal.setAttribute('aria-hidden', 'false');
       lockBodyScroll();
       obscureMap();
+      if (favModal?._stickyOpen && favList) {
+        favModal._favScrollTop = favList.scrollTop || favModal._favScrollTop || 0;
+      }
+      const focusTarget = closeDetailsBtn || detailsDialog;
+      setTimeout(() => focusTarget?.focus?.({ preventScroll: true }), 40);
       if (detailsBodyEl) {
         detailsBodyEl.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       }
@@ -3360,6 +3459,11 @@
 
     function closeDetailsModal() {
       if (lightboxActive) closeLightbox({ restoreFocus: false });
+      const stickyOpen = !!favModal?._stickyOpen;
+      const stickyScrollTop = typeof favModal?._favScrollTop === 'number' ? favModal._favScrollTop : 0;
+      const stickyId = favModal?._lastSelectedFavId ?? null;
+      const stickyCard = favModal?._lastSelectedCard ?? null;
+      const lastTrigger = detailsModal?._lastTrigger;
       detailsModal.style.display = 'none';
       detailsModal.classList.remove('active');
       detailsModal.setAttribute('aria-hidden', 'true');
@@ -3377,6 +3481,33 @@
       if (detailsPriceEl) {
         detailsPriceEl.innerHTML = '<strong>—</strong>';
       }
+      if (stickyOpen) {
+        requestAnimationFrame(() => {
+          if (favList) {
+            favList.scrollTop = stickyScrollTop || 0;
+            let focusTarget = stickyCard && document.body.contains(stickyCard) ? stickyCard : null;
+            if ((!focusTarget || !focusTarget.isConnected) && stickyId != null) {
+              focusTarget = favList.querySelector(`.mm-card[data-id="${stickyId}"]`);
+            }
+            focusTarget?.focus?.({ preventScroll: true });
+            if (!focusTarget && favList.firstElementChild instanceof HTMLElement) {
+              favList.firstElementChild.focus({ preventScroll: true });
+            }
+          }
+        });
+      } else if (lastTrigger && typeof lastTrigger.focus === 'function') {
+        requestAnimationFrame(() => lastTrigger.focus({ preventScroll: true }));
+      }
+      if (favModal) {
+        if (stickyOpen) {
+          favModal._lastSelectedCard = stickyCard && stickyCard.isConnected ? stickyCard : null;
+        } else {
+          favModal._lastSelectedCard = null;
+          favModal._lastSelectedFavId = null;
+          favModal._favScrollTop = 0;
+        }
+      }
+      if (detailsModal) detailsModal._lastTrigger = null;
     }
 
     detailsPrev.addEventListener('click', () => {
@@ -3541,6 +3672,261 @@
     // ---------- TOAST ----------
     const toast = document.getElementById('toast');
     function showToast(msg) { toast.textContent = msg; toast.style.display = 'block'; setTimeout(() => toast.style.display = 'none', 1800); }
+
+    // ---------- FOOTER & LEGAL ----------
+    (function footerAndLegal() {
+      const footer = document.getElementById('appFooter');
+      if (!footer) return;
+
+      const yearEl = document.getElementById('yearNow');
+      if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+      const newsletterForm = document.getElementById('newsletterForm');
+      const newsletterEmail = document.getElementById('newsletterEmail');
+      const newsletterMsg = document.getElementById('newsletterMsg');
+      const newsletterBtn = newsletterForm?.querySelector('.mm-news__btn');
+      if (newsletterForm) {
+        newsletterForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          if (newsletterMsg) newsletterMsg.textContent = '';
+          if (!newsletterEmail?.checkValidity()) {
+            newsletterMsg.textContent = 'Veuillez saisir un e-mail valide.';
+            newsletterEmail?.focus?.();
+            return;
+          }
+          if (newsletterBtn) newsletterBtn.disabled = true;
+          setTimeout(() => {
+            newsletterMsg.textContent = 'Merci ! Vous recevrez prochainement nos actualités.';
+            newsletterForm.reset();
+            if (newsletterBtn) newsletterBtn.disabled = false;
+          }, 600);
+        });
+      }
+
+      footer.querySelectorAll('[data-nav]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          const target = link.getAttribute('data-nav');
+          if (target === 'map') {
+            animateTo('map', { skipSameStateFocus: true });
+          } else if (target === 'list') {
+            animateTo('list', { skipSameStateFocus: true });
+          } else {
+            showToast('Fonctionnalité bientôt disponible ✨');
+          }
+        });
+      });
+
+      const legalModal = document.getElementById('legalModal');
+      const legalBody = document.getElementById('legalBody');
+      const legalTitle = document.getElementById('legalTitle');
+      const legalDialog = legalModal?.querySelector('.mm-modal__dialog');
+      const focusSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+      let legalLastFocus = null;
+
+      const legalContent = {
+        terms: { title: 'Conditions d’utilisation', html: buildTermsHtml },
+        privacy: { title: 'Politique de confidentialité', html: buildPrivacyHtml },
+        cookies: { title: 'Politique relative aux cookies', html: buildCookiesHtml }
+      };
+
+      function getLegalFocusables() {
+        if (!legalModal || legalModal.hidden) return [];
+        const nodes = Array.from(legalModal.querySelectorAll(focusSelectors));
+        return nodes.filter((el) => {
+          if (el.hasAttribute('disabled')) return false;
+          if (el.getAttribute('aria-hidden') === 'true') return false;
+          if (el === legalDialog || el === legalBody) return true;
+          return el.offsetParent !== null;
+        });
+      }
+
+      function handleTrapKeydown(event) {
+        if (!legalModal?.classList.contains('mm-open')) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeLegalModal();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusables = getLegalFocusables();
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey) {
+          if (document.activeElement === first || !focusables.includes(document.activeElement)) {
+            event.preventDefault();
+            last.focus({ preventScroll: true });
+          }
+        } else {
+          if (document.activeElement === last) {
+            event.preventDefault();
+            first.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      function openLegalModal(key) {
+        if (!legalModal || !legalBody || !legalTitle) return;
+        const data = legalContent[key];
+        if (!data) return;
+        const alreadyOpen = legalModal.classList.contains('mm-open') && !legalModal.hidden;
+        legalBody.scrollTop = 0;
+        legalTitle.textContent = data.title;
+        legalBody.innerHTML = data.html();
+        if (alreadyOpen) {
+          requestAnimationFrame(() => {
+            const focusables = getLegalFocusables();
+            (focusables[0] || legalDialog)?.focus?.({ preventScroll: true });
+          });
+          return;
+        }
+        legalLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        legalModal.hidden = false;
+        legalModal.setAttribute('aria-hidden', 'false');
+        lockBodyScroll();
+        requestAnimationFrame(() => {
+          legalModal.classList.add('mm-open');
+          const focusables = getLegalFocusables();
+          (focusables[0] || legalDialog)?.focus?.({ preventScroll: true });
+        });
+        document.addEventListener('keydown', handleTrapKeydown, true);
+      }
+
+      function closeLegalModal() {
+        if (!legalModal || legalModal.hidden) return;
+        legalModal.classList.remove('mm-open');
+        legalModal.setAttribute('aria-hidden', 'true');
+        document.removeEventListener('keydown', handleTrapKeydown, true);
+        unlockBodyScroll();
+        setTimeout(() => {
+          legalModal.hidden = true;
+          legalBody.scrollTop = 0;
+          legalBody.innerHTML = '';
+          if (legalLastFocus && typeof legalLastFocus.focus === 'function') {
+            legalLastFocus.focus({ preventScroll: true });
+          }
+          legalLastFocus = null;
+        }, 200);
+      }
+
+      legalModal?.addEventListener('click', (event) => {
+        const closeTrigger = event.target.closest('[data-close]');
+        if (closeTrigger) {
+          event.preventDefault();
+          closeLegalModal();
+        }
+      });
+
+      legalBody?.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-legal]');
+        if (!link) return;
+        event.preventDefault();
+        openLegalModal(link.getAttribute('data-legal'));
+      });
+
+      footer.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-legal]');
+        if (!link) return;
+        event.preventDefault();
+        openLegalModal(link.getAttribute('data-legal'));
+      });
+
+      function buildTermsHtml() {
+        const date = new Date().toLocaleDateString('fr-FR');
+        return `
+          <p><em>Dernière mise à jour : ${date}</em></p>
+          <h3>1. Objet</h3>
+          <p>MapMarket est une plateforme permettant de rechercher, comparer et localiser des offres près de vous. Les présentes conditions régissent l’accès et l’utilisation du service.</p>
+          <h3>2. Compte &amp; éligibilité</h3>
+          <ul>
+            <li>Vous devez avoir au moins 16 ans pour utiliser MapMarket.</li>
+            <li>Vous êtes responsable de la confidentialité de vos identifiants.</li>
+            <li>Vous nous informez sans délai de tout accès non autorisé.</li>
+          </ul>
+          <h3>3. Utilisation acceptable</h3>
+          <ul>
+            <li>Ne pas perturber ou contourner la sécurité du service.</li>
+            <li>Ne pas extraire massivement les données (scraping) sans autorisation écrite.</li>
+            <li>Respecter les lois applicables et les droits des tiers.</li>
+          </ul>
+          <h3>4. Contenus &amp; annonces</h3>
+          <p>Les contenus publiés par des tiers (annonces, visuels, prix) engagent leurs auteurs. MapMarket peut retirer tout contenu illicite, trompeur ou contraire aux présentes.</p>
+          <h3>5. Données &amp; confidentialité</h3>
+          <p>Nous traitons vos données conformément à notre <a href="#" data-legal="privacy">Politique de confidentialité</a>.</p>
+          <h3>6. Propriété intellectuelle</h3>
+          <p>MapMarket et ses éléments sont protégés. Toute reproduction non autorisée est interdite.</p>
+          <h3>7. Disponibilité &amp; modification du service</h3>
+          <p>Nous pouvons modifier ou interrompre tout ou partie du service pour maintenance, évolution ou cas de force majeure.</p>
+          <h3>8. Responsabilité</h3>
+          <p>Le service est fourni « en l’état ». MapMarket ne peut être tenue responsable des pertes indirectes ou immatérielles résultant de l’usage du service.</p>
+          <h3>9. Résiliation</h3>
+          <p>Nous pouvons suspendre ou résilier l’accès en cas de violation des présentes.</p>
+          <h3>10. Droit applicable</h3>
+          <p>Les présentes sont régies par le droit français. En cas de litige, compétence des tribunaux de Paris, sous réserve de dispositions impératives.</p>
+          <h3>11. Contact</h3>
+          <p>Contact : <a href="mailto:support@mapmarket.app">support@mapmarket.app</a></p>
+        `;
+      }
+
+      function buildPrivacyHtml() {
+        const date = new Date().toLocaleDateString('fr-FR');
+        return `
+          <p><em>Dernière mise à jour : ${date}</em></p>
+          <h3>1. Responsable du traitement</h3>
+          <p>MapMarket (éditeur) est responsable du traitement des données collectées via l’application.</p>
+          <h3>2. Données collectées</h3>
+          <ul>
+            <li>Données de compte : e-mail, nom (si fourni), préférences.</li>
+            <li>Données d’usage : pages visitées, recherches, actions (logs).</li>
+            <li>Géolocalisation (si consentie) pour afficher des résultats proches.</li>
+            <li>Cookies et identifiants techniques (voir Politique cookies).</li>
+          </ul>
+          <h3>3. Finalités</h3>
+          <ul>
+            <li>Fourniture du service, personnalisation des résultats.</li>
+            <li>Mesure d’audience, prévention de la fraude, sécurité.</li>
+            <li>Communication (newsletter si consentement).</li>
+          </ul>
+          <h3>4. Base légale</h3>
+          <p>Exécution du contrat (service), intérêt légitime (sécurité/analytics), consentement (newsletter, géolocalisation, cookies non essentiels).</p>
+          <h3>5. Durées de conservation</h3>
+          <p>Données de compte : pendant l’utilisation + 3 ans d’archivage limité. Logs : 12 mois max. Cookies : selon leur finalité (voir Politique cookies).</p>
+          <h3>6. Partage</h3>
+          <p>Prestataires (hébergement, e-mailing, analytics) dans l’UE ou pays adéquats. Aucune vente de données.</p>
+          <h3>7. Vos droits</h3>
+          <p>Accès, rectification, effacement, opposition, portabilité, limitation. Exercer : <a href="mailto:privacy@mapmarket.app">privacy@mapmarket.app</a>. Droit de réclamation : CNIL.</p>
+          <h3>8. Sécurité</h3>
+          <p>Mesures techniques et organisationnelles raisonnables (chiffrement en transit, contrôle d’accès, sauvegardes).</p>
+          <h3>9. Enfants</h3>
+          <p>Service non destiné aux moins de 16 ans.</p>
+          <h3>10. Modifications</h3>
+          <p>Nous pouvons mettre à jour la présente politique ; en cas de changement significatif, une information appropriée est fournie.</p>
+        `;
+      }
+
+      function buildCookiesHtml() {
+        const date = new Date().toLocaleDateString('fr-FR');
+        return `
+          <p><em>Dernière mise à jour : ${date}</em></p>
+          <h3>1. Qu’est-ce qu’un cookie ?</h3>
+          <p>Petit fichier texte déposé sur votre terminal pour reconnaître votre navigateur, mesurer l’audience et personnaliser l’expérience.</p>
+          <h3>2. Types de cookies utilisés</h3>
+          <ul>
+            <li>Strictement nécessaires : sécurité, session, préférences techniques.</li>
+            <li>Mesure d’audience : statistiques agrégées (ex. pages vues).</li>
+            <li>Fonctionnels : géolocalisation consentie, sauvegarde de filtres.</li>
+            <li>Marketing (le cas échéant) : uniquement avec consentement.</li>
+          </ul>
+          <h3>3. Gestion du consentement</h3>
+          <p>Vous pouvez accepter ou refuser les catégories non essentielles via le gestionnaire de consentement (bannière, paramètres) et votre navigateur.</p>
+          <h3>4. Durées</h3>
+          <p>De la session à 13 mois selon la finalité. Les traceurs équivalents (localStorage/ID) suivent les mêmes principes.</p>
+          <h3>5. Paramètres</h3>
+          <p>Pour plus d’informations ou exercer vos droits : <a href="mailto:privacy@mapmarket.app">privacy@mapmarket.app</a>.</p>
+        `;
+      }
+    })();
 
     // ---------- INIT ----------
     renderList(true); updateAuthUI();
