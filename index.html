@@ -248,6 +248,30 @@
         <div id="map"></div>
         <div class="map-bottom-guard" aria-hidden="true"></div>
         <div class="map-fade-bottom" aria-hidden="true"></div>
+        <!-- Geo Panel (overlay dans la map) -->
+        <div class="geo-panel" id="geoPanel" aria-live="polite">
+          <button class="geo-btn" id="geoLocateBtn" type="button" title="Me localiser" aria-live="polite"
+            aria-busy="false" aria-expanded="false" aria-controls="geoDropdown">
+            <span class="geo-ico" aria-hidden="true">📍</span>
+            <span class="geo-label">Me localiser</span>
+            <span class="geo-spinner" aria-hidden="true"></span>
+            <span class="geo-caret" id="geoCaretBtn" role="button" tabindex="0"
+              aria-label="Options de localisation" aria-haspopup="true" aria-expanded="false">▾</span>
+            <span class="geo-toast" id="geoToast" role="status" aria-live="polite" hidden>Position détectée ✅</span>
+          </button>
+
+          <div class="geo-dropdown" id="geoDropdown" role="group" aria-label="Options de recherche par rayon" hidden>
+            <div class="geo-row" id="geoRadiusRow">
+              <label for="geoRadius" class="geo-caption">Rayon&nbsp;<span id="geoRadiusVal">10</span>&nbsp;km</label>
+              <input id="geoRadius" class="geo-range" type="range" min="1" max="100" step="1" value="10"
+                aria-label="Rayon de recherche en kilomètres">
+            </div>
+            <label class="geo-toggle">
+              <input type="checkbox" id="geoRadiusEnabled" checked>
+              <span>Désactiver la recherche par rayon</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
     <div id="sentinel"></div>
@@ -1150,6 +1174,9 @@
       if (sort.value === 'priceAsc') list.sort((a, b) => a.price - b.price);
       else if (sort.value === 'priceDesc') list.sort((a, b) => b.price - a.price);
       else list.sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (typeof window !== 'undefined' && typeof window.mmFilterByRadius === 'function') {
+        list = window.mmFilterByRadius(list);
+      }
       return list;
     }
 
@@ -1808,6 +1835,11 @@
       }
       if (!window.L) return null;
       map = L.map('map', { zoomControl: true, scrollWheelZoom: true }).setView([46.5, 2.3], 6);
+      if (typeof window !== 'undefined') {
+        window.map = map;
+        window.__leafletMap = map;
+        window.leafletMap = map;
+      }
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
       cluster = L.markerClusterGroup({
         showCoverageOnHover: false,
@@ -2085,6 +2117,342 @@
         mapEl.classList.remove('is-obscured');
       }
     }
+
+    (function () {
+      const getMap = () => {
+        if (typeof map !== 'undefined' && map) return map;
+        if (typeof window !== 'undefined') {
+          return window.map || window.__leafletMap || window.leafletMap || null;
+        }
+        return null;
+      };
+
+      const geo = {
+        active: false,
+        lat: null,
+        lng: null,
+        radiusKm: 10,
+        marker: null,
+        circle: null,
+        radiusEnabled: true
+      };
+      const panel = document.getElementById('geoPanel');
+      const btn = document.getElementById('geoLocateBtn');
+      const caret = document.getElementById('geoCaretBtn');
+      const dropdown = document.getElementById('geoDropdown');
+      const radiusRow = document.getElementById('geoRadiusRow');
+      const range = document.getElementById('geoRadius');
+      const val = document.getElementById('geoRadiusVal');
+      const toggle = document.getElementById('geoRadiusEnabled');
+      const toast = document.getElementById('geoToast');
+      let toastTimer = null;
+      let toastHideTimer = null;
+
+      if (!panel || !btn || !caret || !dropdown || !range || !toggle) return;
+
+      if (typeof window !== 'undefined') {
+        if (typeof window.getFiltered !== 'function' && typeof getFiltered === 'function') {
+          window.getFiltered = (...args) => getFiltered(...args);
+        }
+        if (typeof window.renderList !== 'function' && typeof renderList === 'function') {
+          window.renderList = (...args) => renderList(...args);
+        }
+        if (typeof window.renderMap !== 'function' && typeof renderMap === 'function') {
+          window.renderMap = (...args) => renderMap(...args);
+        }
+      }
+
+      function distKm(a, b) {
+        const R = 6371;
+        const toRad = (x) => x * Math.PI / 180;
+        const dLat = toRad(b.lat - a.lat);
+        const dLng = toRad(b.lng - a.lng);
+        const sa = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(sa));
+      }
+
+      function showGeoToast(message, duration = 1600) {
+        if (!toast) return;
+        if (toastTimer) {
+          clearTimeout(toastTimer);
+          toastTimer = null;
+        }
+        if (toastHideTimer) {
+          clearTimeout(toastHideTimer);
+          toastHideTimer = null;
+        }
+        toast.textContent = message;
+        toast.hidden = false;
+        toast.setAttribute('aria-hidden', 'false');
+        btn.classList.remove('show-toast');
+        // Force reflow to restart transition when message changes quickly
+        void btn.offsetWidth;
+        btn.classList.add('show-toast');
+        toastTimer = window.setTimeout(() => {
+          btn.classList.remove('show-toast');
+          toastHideTimer = window.setTimeout(() => {
+            toast.hidden = true;
+            toast.setAttribute('aria-hidden', 'true');
+            toastHideTimer = null;
+          }, 200);
+          toastTimer = null;
+        }, duration);
+      }
+
+      function updateRadiusLabel() {
+        if (val) {
+          val.textContent = geo.radiusKm;
+        }
+      }
+
+      function syncRangeDisabledState(enabled) {
+        range.disabled = !enabled;
+        if (radiusRow) {
+          radiusRow.classList.toggle('is-disabled', !enabled);
+        }
+      }
+
+      function removeCircle() {
+        if (geo.circle && typeof geo.circle.remove === 'function') {
+          geo.circle.remove();
+        }
+        geo.circle = null;
+      }
+
+      function upsertLayers(mapInstance) {
+        if (!mapInstance || geo.lat == null || geo.lng == null) return;
+        const latlng = [geo.lat, geo.lng];
+        if (!geo.marker) {
+          geo.marker = L.marker(latlng, {
+            icon: L.divIcon({ className: 'geo-user', iconSize: [22, 22], iconAnchor: [11, 11] })
+          }).addTo(mapInstance);
+        } else {
+          geo.marker.setLatLng(latlng);
+        }
+        if (geo.radiusEnabled) {
+          const meters = geo.radiusKm * 1000;
+          if (!geo.circle) {
+            geo.circle = L.circle(latlng, { radius: meters, interactive: false, className: 'geo-radius' });
+            geo.circle.addTo(mapInstance);
+          } else {
+            geo.circle.setLatLng(latlng).setRadius(meters);
+            if (typeof mapInstance.hasLayer === 'function' && !mapInstance.hasLayer(geo.circle)) {
+              geo.circle.addTo(mapInstance);
+            }
+          }
+        } else {
+          removeCircle();
+        }
+      }
+
+      function fitToRadius(mapInstance) {
+        if (!mapInstance || !geo.circle) return;
+        mapInstance.flyToBounds(geo.circle.getBounds(), { duration: 0.8, padding: [30, 30] });
+        if (typeof viewState === 'object' && viewState) {
+          viewState.userAdjustedView = true;
+        }
+      }
+
+      function focusOnUser(mapInstance) {
+        if (!mapInstance || geo.lat == null || geo.lng == null) return;
+        const zoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 13;
+        mapInstance.flyTo([geo.lat, geo.lng], zoom, { duration: 0.8 });
+        if (typeof viewState === 'object' && viewState) {
+          viewState.userAdjustedView = true;
+        }
+      }
+
+      function rerenderAll() {
+        if (typeof window.renderList === 'function') window.renderList(true);
+        else if (typeof renderList === 'function') renderList(true);
+        if (typeof window.renderMap === 'function') window.renderMap({ autoFit: false });
+        else if (typeof renderMap === 'function') renderMap({ autoFit: false });
+      }
+
+      function applyRadius(options = {}) {
+        if (!geo.active) return;
+        const { reFit = true, mapInstance: providedMap } = options;
+        const mapInstance = providedMap || getMap();
+        if (!mapInstance) {
+          rerenderAll();
+          return;
+        }
+        upsertLayers(mapInstance);
+        if (reFit) {
+          if (geo.radiusEnabled) {
+            fitToRadius(mapInstance);
+          } else {
+            focusOnUser(mapInstance);
+          }
+        }
+        rerenderAll();
+      }
+
+      function setRadius(value, options = {}) {
+        const next = Number(value);
+        const clamped = Number.isFinite(next) ? Math.min(100, Math.max(1, next)) : geo.radiusKm;
+        geo.radiusKm = clamped;
+        if (!options.skipInputSync) {
+          range.value = String(clamped);
+        }
+        updateRadiusLabel();
+        if (!options.silent) {
+          applyRadius({ reFit: options.reFit !== false });
+        }
+      }
+
+      const setDropdown = (open) => {
+        dropdown.hidden = !open;
+        btn.setAttribute('aria-expanded', String(open));
+        caret.setAttribute('aria-expanded', String(open));
+      };
+
+      const setCaretDisabled = (disabled) => {
+        caret.setAttribute('aria-disabled', String(disabled));
+        caret.setAttribute('data-disabled', disabled ? 'true' : 'false');
+        caret.tabIndex = disabled ? -1 : 0;
+      };
+
+      const isCaretDisabled = () => caret.getAttribute('data-disabled') === 'true';
+
+      caret.addEventListener('click', (event) => {
+        if (isCaretDisabled()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const willOpen = dropdown.hidden;
+        setDropdown(willOpen);
+      });
+
+      caret.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          caret.click();
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (dropdown.hidden) return;
+        if (!panel.contains(event.target)) {
+          setDropdown(false);
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !dropdown.hidden) {
+          setDropdown(false);
+        }
+      });
+
+      range.addEventListener('input', () => {
+        const value = Number(range.value);
+        setRadius(value);
+        if (toggle.checked && typeof window.mmSetRadius === 'function') {
+          window.mmSetRadius(value);
+        }
+      });
+
+      toggle.addEventListener('change', () => {
+        const enabled = toggle.checked;
+        geo.radiusEnabled = enabled;
+        syncRangeDisabledState(enabled);
+        applyRadius({ reFit: enabled });
+        if (typeof window.mmEnableRadiusFilter === 'function') {
+          window.mmEnableRadiusFilter(enabled);
+        }
+      });
+
+      function resetButtonState() {
+        btn.setAttribute('aria-busy', 'false');
+        btn.disabled = false;
+        setCaretDisabled(false);
+      }
+
+      async function startLocate() {
+        if (btn.getAttribute('aria-busy') === 'true') return;
+        setDropdown(false);
+        btn.setAttribute('aria-busy', 'true');
+        btn.disabled = true;
+        setCaretDisabled(true);
+
+        if (!('geolocation' in navigator)) {
+          showGeoToast('Géoloc indisponible');
+          resetButtonState();
+          return;
+        }
+
+        let mapInstance = getMap();
+        if (!mapInstance && typeof ensureMap === 'function') {
+          mapInstance = await ensureMap();
+        }
+        if (!mapInstance) {
+          showGeoToast('Carte indisponible');
+          resetButtonState();
+          return;
+        }
+
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+          });
+          const { latitude, longitude } = position.coords;
+          geo.active = true;
+          geo.lat = latitude;
+          geo.lng = longitude;
+          geo.radiusEnabled = toggle.checked;
+          updateRadiusLabel();
+          syncRangeDisabledState(geo.radiusEnabled);
+          applyRadius({ reFit: true, mapInstance });
+          if (typeof window.mmSetRadius === 'function') {
+            window.mmSetRadius(geo.radiusKm);
+          }
+          if (typeof window.mmEnableRadiusFilter === 'function') {
+            window.mmEnableRadiusFilter(geo.radiusEnabled);
+          }
+          if (typeof window.mmOnLocate === 'function') {
+            window.mmOnLocate([latitude, longitude]);
+          }
+          showGeoToast('Position détectée ✅');
+          requestAnimationFrame(() => mapInstance.invalidateSize?.());
+        } catch (error) {
+          console.warn('Geolocation error', error);
+          showGeoToast('Impossible d\'obtenir la position');
+        } finally {
+          resetButtonState();
+        }
+      }
+
+      btn.addEventListener('click', (event) => {
+        if (event.target instanceof Element && event.target.closest('#geoCaretBtn')) return;
+        startLocate();
+      });
+
+      geo.radiusKm = Number(range.value) || geo.radiusKm;
+      geo.radiusEnabled = toggle.checked;
+      updateRadiusLabel();
+      syncRangeDisabledState(geo.radiusEnabled);
+      setDropdown(false);
+      resetButtonState();
+
+      window.mmFilterByRadius = function (items) {
+        if (!geo.active || !geo.radiusEnabled || geo.lat == null || geo.lng == null) return items;
+        const origin = { lat: geo.lat, lng: geo.lng };
+        const radius = geo.radiusKm;
+        return items.filter((item) => {
+          const source = item.latlng || item.coords || (item.lat != null && item.lng != null ? { lat: item.lat, lng: item.lng } : null);
+          if (!source) return false;
+          const point = Array.isArray(source) ? { lat: source[0], lng: source[1] } : { lat: source.lat, lng: source.lng };
+          return distKm(origin, point) <= radius;
+        });
+      };
+
+      if (typeof window.getFiltered === 'function' && !window.__geoPatched) {
+        const base = window.getFiltered;
+        window.getFiltered = function (...args) {
+          return window.mmFilterByRadius(base(...args));
+        };
+        window.__geoPatched = true;
+      }
+    })();
 
     // ---------- AUTH MODAL ----------
     const authModal = document.getElementById('authModal');
