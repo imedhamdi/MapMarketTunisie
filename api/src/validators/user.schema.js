@@ -1,6 +1,7 @@
 import Joi from 'joi';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+const numericIdRegex = /^\d+$/;
 
 const baseName = Joi.string().trim().min(2).max(60);
 const baseEmail = Joi.string().trim().lowercase().email({ tlds: { allow: false } });
@@ -34,9 +35,16 @@ export const updateMeSchema = Joi.object({
 
 export const updateLocationSchema = locationSchema.required();
 
+const adIdSchema = Joi.alternatives()
+  .try(
+    Joi.string().trim().pattern(objectIdRegex),
+    Joi.string().trim().pattern(numericIdRegex)
+  )
+  .messages({
+    'alternatives.match': 'Identifiant d’annonce invalide'
+  });
+
 export const favoritesSchema = Joi.object({
-  adId: Joi.string().pattern(objectIdRegex).required().messages({
-    'string.pattern.base': 'Identifiant d’annonce invalide'
-  }),
+  adId: adIdSchema.required(),
   action: Joi.string().valid('add', 'remove').required()
 });

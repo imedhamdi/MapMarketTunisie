@@ -42,7 +42,7 @@ const UserSchema = new Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     isActive: { type: Boolean, default: true },
     avatar: { type: String },
-    favorites: [{ type: Schema.Types.ObjectId, ref: 'Ad' }],
+    favorites: [{ type: Schema.Types.Mixed }],
     reviews: { type: Array, default: [] },
     location: {
       type: LocationSchema,

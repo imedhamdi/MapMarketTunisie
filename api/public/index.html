@@ -1194,9 +1194,61 @@
     ];
 
     let allItems = allItemsData.map(it => ({ ...it, latlng: jitter(cityPos[it.city] || [46.2, 2.2]) }));
+    const allItemsIndex = new Map();
+    function rebuildAllItemsIndex() {
+      allItemsIndex.clear();
+      allItems.forEach(item => {
+        allItemsIndex.set(String(item.id), item);
+      });
+    }
+    rebuildAllItemsIndex();
 
-    // ---------- STATE ----------
-    const favStore = { get() { try { return new Set(JSON.parse(localStorage.getItem('mm-favs') || '[]')); } catch { return new Set() } }, set(s) { localStorage.setItem('mm-favs', JSON.stringify([...s])) } };
+    const normalizeAdId = (value) => {
+      if (value == null) return null;
+      return String(value);
+    };
+
+    const favStore = (() => {
+      let memory = new Set();
+      return {
+        values() {
+          return Array.from(memory);
+        },
+        has(id) {
+          const key = normalizeAdId(id);
+          return key != null ? memory.has(key) : false;
+        },
+        size() {
+          return memory.size;
+        },
+        add(id) {
+          const key = normalizeAdId(id);
+          if (key != null) memory.add(key);
+        },
+        delete(id) {
+          const key = normalizeAdId(id);
+          if (key != null) memory.delete(key);
+        },
+        clear() {
+          memory.clear();
+        },
+        load(list = []) {
+          memory = new Set(list.map(normalizeAdId).filter(Boolean));
+        }
+      };
+    })();
+
+    try {
+      localStorage.removeItem('mm-favs');
+    } catch (error) {
+      // ignore cleanup errors
+    }
+
+    const getItemById = (id) => {
+      const key = normalizeAdId(id);
+      if (key == null) return null;
+      return allItemsIndex.get(key) || allItems.find((item) => String(item.id) === key) || null;
+    };
     const authStore = { get() { try { return JSON.parse(localStorage.getItem('mm-auth') || 'null') } catch { return null } }, set(v) { localStorage.setItem('mm-auth', JSON.stringify(v)) } };
 
     // ---------- UTIL ----------
@@ -1330,6 +1382,91 @@
     const clearAllFavsBtn = document.getElementById('clearAllFavs');
     const closeFavsBtn = document.getElementById('closeFavs');
 
+    function updateFavBadge() {
+      if (favCount) favCount.textContent = favStore.size();
+    }
+
+    function syncAllFavoriteButtons() {
+      if (!listView) return;
+      const activeSet = new Set(favStore.values().map(String));
+      listView.querySelectorAll('.fav').forEach((btn) => {
+        const id = btn.dataset.id;
+        const isFav = activeSet.has(String(id));
+        btn.setAttribute('aria-pressed', String(isFav));
+        updateFavIcon(btn.querySelector('svg'), isFav);
+      });
+      if (detailsCurrentAd) {
+        setDetailsSaveState(favStore.has(detailsCurrentAd.id));
+      }
+    }
+
+    function applyFavoritesFromUser(user) {
+      const favorites = Array.isArray(user?.favorites) ? user.favorites : [];
+      favStore.load(favorites);
+      updateFavBadge();
+      syncAllFavoriteButtons();
+      if (isFavModalOpen()) renderFavSheet();
+    }
+
+    const favoriteMutations = new Map();
+
+    async function setFavoriteState(id, shouldAdd, { feedback = true } = {}) {
+      const auth = authStore.get();
+      const key = normalizeAdId(id);
+      if (!key) return false;
+      if (!auth) {
+        showToast('Connectez-vous pour gérer vos favoris 🔐');
+        return false;
+      }
+      if (favoriteMutations.has(key)) return false;
+
+      const previous = favStore.values();
+      if (shouldAdd) favStore.add(key);
+      else favStore.delete(key);
+      updateFavBadge();
+      syncFavoriteButtons(key, favStore.has(key));
+      if (isFavModalOpen()) renderFavSheet();
+
+      favoriteMutations.set(key, true);
+      try {
+        const response = await api.post('/api/users/me/favorites', { adId: key, action: shouldAdd ? 'add' : 'remove' });
+        const favorites = response?.data?.favorites ?? [];
+        favStore.load(favorites);
+        updateFavBadge();
+        syncAllFavoriteButtons();
+        if (isFavModalOpen()) renderFavSheet();
+        const currentUser = authStore.get();
+        if (currentUser) {
+          currentUser.favorites = favorites;
+          authStore.set(currentUser);
+        }
+        if (feedback) showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
+        return true;
+      } catch (error) {
+        favStore.load(previous);
+        updateFavBadge();
+        syncAllFavoriteButtons();
+        if (isFavModalOpen()) renderFavSheet();
+        const currentUser = authStore.get();
+        if (currentUser) {
+          currentUser.favorites = previous;
+          authStore.set(currentUser);
+        }
+        showToast(extractAuthErrorMessage(error));
+        if (error?.status === 401) {
+          authStore.set(null);
+          updateAuthUI();
+          favStore.clear();
+          updateFavBadge();
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
+        }
+        return false;
+      } finally {
+        favoriteMutations.delete(key);
+      }
+    }
+
     if (favModal) {
       favModal._stickyOpen = false;
       favModal._favScrollTop = 0;
@@ -1346,12 +1483,9 @@
     const pagination = { index: 0 }; const PAGE_SIZE = 12; let filteredCache = [];
 
     function getFavBaseItems() {
-      const favs = favStore.get();
-      const items = [];
-      allItems.forEach(item => {
-        if (favs.has(item.id)) items.push(item);
-      });
-      return items;
+      return favStore.values()
+        .map((id) => getItemById(id) || null)
+        .filter(Boolean);
     }
 
     function refreshFavCategories(sourceItems) {
@@ -1402,8 +1536,8 @@
       const favThumb = buildOptimizedImage(imageSource, 480, 70);
       const favSrcSet = buildSrcSet(imageSource, [320, 480, 640], 70);
       return `
-  <article class="mm-card" role="listitem" data-id="${item.id}" tabindex="-1">
-    <button class="mm-remove" aria-label="Retirer ce favori" data-id="${item.id}" title="Retirer">✕</button>
+  <article class="mm-card" role="listitem" data-id="${String(item.id)}" tabindex="-1">
+    <button class="mm-remove" aria-label="Retirer ce favori" data-id="${String(item.id)}" title="Retirer">✕</button>
     <div class="mm-thumb"><img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;"></div>
     <div class="mm-body">
       <div class="mm-title2">${item.title}</div>
@@ -1416,7 +1550,7 @@
       if (!favList) return;
       const baseItems = getFavBaseItems();
       refreshFavCategories(baseItems);
-      if (favCount) favCount.textContent = baseItems.length;
+      updateFavBadge();
       let items = applyFavFilters(baseItems);
       favList.classList.remove('mm-grid-filter-empty');
       updateFavEmptyState(baseItems.length);
@@ -1563,8 +1697,13 @@
     }
 
     clearAllFavsBtn?.addEventListener('click', async () => {
-      const favs = favStore.get();
-      if (favs.size === 0) {
+      const auth = authStore.get();
+      if (!auth) {
+        showToast('Connectez-vous pour gérer vos favoris 🔐');
+        return;
+      }
+      const ids = favStore.values();
+      if (!ids.length) {
         showToast('Aucun favori à retirer.');
         return;
       }
@@ -1575,12 +1714,19 @@
         cancelLabel: 'Annuler'
       });
       if (!accepted) return;
-      const ids = [...favs];
-      favStore.set(new Set());
-      if (favCount) favCount.textContent = 0;
-      ids.forEach(id => syncFavoriteButtons(id, false));
+      let removedCount = 0;
+      for (const id of ids) {
+        const success = await setFavoriteState(id, false, { feedback: false });
+        if (success) removedCount += 1;
+      }
+      updateFavBadge();
+      syncAllFavoriteButtons();
       renderFavSheet();
-      showToast('Tous les favoris ont été retirés.');
+      if (removedCount === ids.length) {
+        showToast('Tous les favoris ont été retirés.');
+      } else if (removedCount > 0) {
+        showToast('Certains favoris n’ont pas pu être retirés.');
+      }
     });
     favList?.addEventListener('scroll', () => {
       if (favModal?._stickyOpen) {
@@ -1588,18 +1734,13 @@
       }
     });
 
-    favList?.addEventListener('click', (event) => {
+    favList?.addEventListener('click', async (event) => {
       const removeBtn = event.target.closest('.mm-remove');
       if (removeBtn) {
         event.stopPropagation();
-        const id = Number(removeBtn.dataset.id);
-        const favs = favStore.get();
-        if (favs.has(id)) {
-          favs.delete(id);
-          favStore.set(favs);
-          if (favCount) favCount.textContent = favs.size;
-          syncFavoriteButtons(id, false);
-          renderFavSheet();
+        const id = removeBtn.dataset.id;
+        const success = await setFavoriteState(id, false, { feedback: false });
+        if (success) {
           showToast('Retiré des favoris');
         }
         return;
@@ -1608,27 +1749,22 @@
       const heartBtn = event.target.closest('.mm-heart');
       if (heartBtn) {
         event.stopPropagation();
-        const id = Number(heartBtn.dataset.id);
-        const favs = favStore.get();
-        if (favs.has(id)) {
-          favs.delete(id);
-          favStore.set(favs);
-          if (favCount) favCount.textContent = favs.size;
-          syncFavoriteButtons(id, false);
-          renderFavSheet();
+        const id = heartBtn.dataset.id;
+        const success = await setFavoriteState(id, false, { feedback: false });
+        if (success) {
           showToast('Retiré des favoris');
         }
         return;
       }
       const card = event.target.closest('.mm-card');
       if (!card) return;
-      const id = Number(card.dataset.id);
-      const ad = allItems.find(item => item.id === id);
+      const id = card.dataset.id;
+      const ad = getItemById(id);
       if (ad) {
         if (favModal) {
           if (!favModal._stickyOpen) favModal._stickyOpen = true;
           if (favList) favModal._favScrollTop = favList.scrollTop || 0;
-          favModal._lastSelectedFavId = id;
+          favModal._lastSelectedFavId = normalizeAdId(id);
           favModal._lastSelectedCard = card;
         }
         openDetailsModal(ad);
@@ -1643,16 +1779,16 @@
     });
 
     function renderChunk() {
-      const favs = favStore.get();
       const start = pagination.index * PAGE_SIZE, end = start + PAGE_SIZE;
       const slice = filteredCache.slice(start, end);
       for (const a of slice) {
         const thumbSrc = buildOptimizedImage(a.img, 480, 70);
         const thumbSrcSet = buildSrcSet(a.img, [320, 480, 640], 70);
-        const isFav = favs.has(a.id);
+        const idKey = normalizeAdId(a.id);
+        const isFav = favStore.has(idKey);
         const art = document.createElement('article'); art.className = 'ad';
         art.innerHTML = `
-          <div class="ad-content" data-id="${a.id}">
+          <div class="ad-content" data-id="${String(a.id)}">
           <div class="thumb">
             <img width="370" height="278" loading="lazy" decoding="async" alt="${a.title}"
               src="${thumbSrc}"
@@ -1662,7 +1798,7 @@
             <div class="grad"></div>
             <div class="cat ${categoryClass(a.cat)}">${a.cat === 'Immobilier' ? '🏢' : a.cat === 'Mode' ? '👕' : a.cat === 'High-Tech' ? '💻' : a.cat === 'Auto' ? '🚗' : '🏠'} <span>${a.cat}</span></div>
             <div class="stats"><span class="row">👁️ ${a.views}</span><span class="row">❤ ${a.likes}</span></div>
-            <button class="fav" title="Ajouter aux favoris" aria-pressed="${isFav}" data-id="${a.id}">
+            <button class="fav" title="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-pressed="${isFav}" data-id="${String(a.id)}">
               <svg viewBox="0 0 24 24" fill="${isFav ? THEME.favorite : 'none'}" stroke="${isFav ? THEME.favorite : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
             </button>
           </div>
@@ -1682,27 +1818,27 @@
       // bind favs for the newly added ones
       listView.querySelectorAll('.fav').forEach(btn => {
         if (btn._bound) return; btn._bound = true;
-        btn.addEventListener('click', e => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const id = +btn.dataset.id; const s = favStore.get();
-          const isAdding = !s.has(id);
-          if (isAdding) {
-            s.add(id); showToast('Ajouté aux favoris');
-            triggerFavAnimation(btn); // Déclenche l'animation
-          } else { s.delete(id); showToast('Retiré des favoris'); }
-
-          favStore.set(s);
-          if (favCount) favCount.textContent = s.size;
-          updateFavIcon(btn.querySelector('svg'), s.has(id));
-          if (isFavModalOpen()) renderFavSheet();
-        })
-      })
+          const id = btn.dataset.id;
+          const shouldAdd = !favStore.has(id);
+          const success = await setFavoriteState(id, shouldAdd, { feedback: false });
+          if (success) {
+            if (shouldAdd) {
+              triggerFavAnimation(btn);
+              showToast('Ajouté aux favoris');
+            } else {
+              showToast('Retiré des favoris');
+            }
+          }
+        });
+      });
       pagination.index++;
     }
 
     function renderList(reset) {
       filteredCache = getFiltered();
-      favCount.textContent = favStore.get().size;
+      updateFavBadge();
       count.textContent = filteredCache.length + (filteredCache.length > 1 ? ' annonces trouvées' : ' annonce trouvée');
       if (reset) { listView.innerHTML = ''; pagination.index = 0; }
       renderChunk();
@@ -2983,6 +3119,10 @@
         } finally {
           authStore.set(null);
           updateAuthUI();
+          favStore.clear();
+          updateFavBadge();
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
           setAuthFeedback('Déconnecté', 'info');
           if (typeof showToast === 'function') showToast('Déconnecté');
         }
@@ -3378,6 +3518,13 @@
         const user = response?.data?.user || null;
         if (user) {
           authStore.set(user);
+          applyFavoritesFromUser(user);
+        } else {
+          authStore.set(null);
+          favStore.clear();
+          updateFavBadge();
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
         }
         updateAuthUI();
         setAuthFeedback(response?.message || 'Connexion réussie ✅', 'success');
@@ -3405,6 +3552,13 @@
         const user = response?.data?.user || null;
         if (user) {
           authStore.set(user);
+          applyFavoritesFromUser(user);
+        } else {
+          authStore.set(null);
+          favStore.clear();
+          updateFavBadge();
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
         }
         updateAuthUI();
         setAuthFeedback(response?.message || 'Compte créé. Bienvenue 👋', 'success');
@@ -3461,11 +3615,20 @@
         const user = response?.data?.user || null;
         if (user) {
           authStore.set(user);
+          applyFavoritesFromUser(user);
         } else {
           authStore.set(null);
+          favStore.clear();
+          updateFavBadge();
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
         }
       } catch (error) {
         authStore.set(null);
+        favStore.clear();
+        updateFavBadge();
+        syncAllFavoriteButtons();
+        if (isFavModalOpen()) renderFavSheet();
         if (error?.status && error.status !== 401) {
           console.warn('Synchronisation auth échouée', error);
         }
@@ -4009,6 +4172,7 @@
     function setDetailsSaveState(isFav) {
       detailsSave.classList.toggle('active', isFav);
       detailsSave.setAttribute('aria-pressed', String(isFav));
+      detailsSave.setAttribute('title', isFav ? 'Retirer des favoris' : 'Ajouter aux favoris');
       const svg = detailsSave.querySelector('svg');
       const span = detailsSave.querySelector('span');
       const path = svg.querySelector('path');
@@ -4020,12 +4184,18 @@
     }
 
     function syncFavoriteButtons(id, isFav) {
-      listView.querySelectorAll(`.fav[data-id="${id}"]`).forEach(btn => {
+      const key = normalizeAdId(id);
+      if (!key) return;
+      listView.querySelectorAll(`.fav[data-id="${key}"]`).forEach(btn => {
         btn.setAttribute('aria-pressed', String(isFav));
+        btn.setAttribute('title', isFav ? 'Retirer des favoris' : 'Ajouter aux favoris');
         const svg = btn.querySelector('svg');
         updateFavIcon(svg, isFav);
       });
-      favCount.textContent = favStore.get().size;
+      if (detailsCurrentAd && normalizeAdId(detailsCurrentAd.id) === key) {
+        setDetailsSaveState(isFav);
+      }
+      updateFavBadge();
     }
 
     function openDetailsModal(adData) {
@@ -4061,9 +4231,8 @@
         deactivateContactFocusTrap();
       }
       renderGallery(detailsCurrentImages, adData.title);
-      const favs = favStore.get();
-      setDetailsSaveState(favs.has(adData.id));
-      detailsSave.dataset.id = adData.id;
+      setDetailsSaveState(favStore.has(adData.id));
+      detailsSave.dataset.id = String(adData.id);
 
       detailsModal.style.display = 'flex';
       detailsModal.classList.add('active');
@@ -4155,24 +4324,20 @@
       updateLightboxView();
     });
 
-    detailsSave.addEventListener('click', () => {
+    detailsSave.addEventListener('click', async () => {
       if (!detailsCurrentAd) return;
-      const id = detailsCurrentAd.id;
-      const favs = favStore.get();
-      const isFav = favs.has(id);
-      if (isFav) {
-        favs.delete(id);
-        detailsSave.classList.remove('animating'); // Préparation pour future animation
-        showToast('Retiré des favoris');
-      } else {
-        favs.add(id);
-        triggerFavAnimation(detailsSave); // Déclenche l'animation
-        showToast('Ajouté aux favoris');
+      const auth = authStore.get();
+      if (!auth) {
+        showToast('Connectez-vous pour ajouter des favoris 🔐');
+        return;
       }
-      favStore.set(favs);
-      setDetailsSaveState(!isFav);
-      syncFavoriteButtons(id, !isFav);
-      if (isFavModalOpen()) renderFavSheet();
+      const id = detailsSave.dataset.id ?? detailsCurrentAd.id;
+      const shouldAdd = !favStore.has(id);
+      const success = await setFavoriteState(id, shouldAdd, { feedback: false });
+      if (success) {
+        if (shouldAdd) triggerFavAnimation(detailsSave);
+        showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
+      }
     });
 
     if (detailsContact) {
@@ -4391,8 +4556,8 @@
     listView.addEventListener('click', (e) => {
       const adWrapper = e.target.closest('.ad-content');
       if (!adWrapper || e.target.closest('.fav')) return;
-      const adId = +adWrapper.dataset.id;
-      const adData = allItems.find(item => item.id === adId);
+      const adId = adWrapper.dataset.id;
+      const adData = getItemById(adId);
       if (adData) openDetailsModal(adData);
     });
 
@@ -4690,6 +4855,10 @@
     })();
 
     // ---------- INIT ----------
+    const initialAuth = authStore.get();
+    if (initialAuth) {
+      applyFavoritesFromUser(initialAuth);
+    }
     renderList(true);
     updateAuthUI();
     hydrateAuthFromSession();

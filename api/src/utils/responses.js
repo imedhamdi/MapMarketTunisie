@@ -23,5 +23,8 @@ export function formatUser(user) {
   delete plain.password;
   delete plain.resetTokenHash;
   delete plain.resetTokenExp;
+  if (Array.isArray(plain.favorites)) {
+    plain.favorites = plain.favorites.map((value) => (value && typeof value.toString === 'function' ? value.toString() : value));
+  }
   return plain;
 }

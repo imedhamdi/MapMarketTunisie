@@ -148,6 +148,7 @@ export async function updateAvatar(req, res) {
 
 export async function updateFavorites(req, res) {
   const { adId, action } = req.body;
+  const normalizedId = String(adId);
   const user = await User.findById(req.user._id);
   if (!user) {
     return sendError(res, {
@@ -157,18 +158,18 @@ export async function updateFavorites(req, res) {
     });
   }
 
-  const favorites = new Set((user.favorites ?? []).map((id) => id.toString()));
+  const favorites = new Set((user.favorites ?? []).map((id) => id && id.toString ? id.toString() : String(id)));
   if (action === 'add') {
-    favorites.add(adId);
+    favorites.add(normalizedId);
   } else {
-    favorites.delete(adId);
+    favorites.delete(normalizedId);
   }
-  user.favorites = Array.from(favorites).map((id) => new mongoose.Types.ObjectId(id));
+  user.favorites = Array.from(favorites).map((id) => (mongoose.isValidObjectId(id) ? new mongoose.Types.ObjectId(id) : id));
   await user.save();
 
   return sendSuccess(res, {
     message: 'Favoris mis à jour',
-    data: { favorites: user.favorites }
+    data: { favorites: user.favorites.map((value) => (value && value.toString ? value.toString() : String(value))) }
   });
 }
 
