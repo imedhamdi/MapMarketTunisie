@@ -1,0 +1,6 @@
+node_modules
+uploads/avatars
+.env
+dist
+coverage
+*.log

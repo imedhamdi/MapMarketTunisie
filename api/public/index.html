@@ -14,6 +14,8 @@
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
   <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
   <title>MapMarket — Liste + Carte + Infini</title>
@@ -54,7 +56,33 @@
             <path d="M5 12h14" />
             <path d="M12 5v14" />
           </svg><span class="hide-sm">Déposer une annonce</span></button>
-        <div class="avatar" id="avatar"></div>
+        <div class="header-user">
+          <div class="avatar" id="avatar"></div>
+          <div id="userMenu" class="user-menu" role="menu" aria-labelledby="userMenuButton" hidden>
+            <div class="user-menu__header">
+              <img class="user-menu__avatar" src="/uploads/avatars/default.jpg" alt="" />
+              <div class="user-menu__id">
+                <div class="user-menu__name" id="userMenuName">Utilisateur</div>
+                <div class="user-menu__email" id="userMenuEmail">email@example.com</div>
+              </div>
+            </div>
+            <button class="user-menu__item" type="button" role="menuitem" data-action="profile">
+              <span class="icon">👤</span>
+              <span class="text">
+                <strong>Mon Profil</strong>
+                <small>Voir et modifier mes informations</small>
+              </span>
+            </button>
+            <hr class="user-menu__sep" />
+            <button class="user-menu__item danger" type="button" role="menuitem" data-action="logout">
+              <span class="icon">🚪</span>
+              <span class="text">
+                <strong>Déconnexion</strong>
+                <small>Se déconnecter de l’application</small>
+              </span>
+            </button>
+          </div>
+        </div>
       </nav>
     </div>
   </header>
@@ -2603,6 +2631,100 @@
     const bottomNav = document.getElementById('bottomNav');
     const bottomNavButtons = bottomNav ? Array.from(bottomNav.querySelectorAll('.bn-btn')) : [];
 
+    const API_BASE = window.API_BASE || window.location.origin;
+
+    function buildApiUrl(path) {
+      if (!path) return API_BASE;
+      if (/^https?:\/\//i.test(path)) return path;
+      const normalizedBase = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      return `${normalizedBase}${normalizedPath}`;
+    }
+
+    async function apiRequest(path, { method = 'GET', body, headers = {} } = {}) {
+      const isFormData = body instanceof FormData;
+      let response;
+      try {
+        response = await fetch(buildApiUrl(path), {
+          method,
+          credentials: 'include',
+          headers: isFormData
+            ? headers
+            : {
+                'Content-Type': 'application/json',
+                ...headers
+              },
+          body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+        });
+      } catch (networkError) {
+        const error = new Error('Serveur injoignable. Vérifiez votre connexion.');
+        error.code = 'NETWORK_ERROR';
+        error.cause = networkError;
+        throw error;
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const message = payload?.message || `Erreur HTTP ${response.status}`;
+        const error = new Error(message);
+        error.status = response.status;
+        error.code = payload?.code || 'HTTP_ERROR';
+        error.payload = payload;
+        throw error;
+      }
+
+      return payload;
+    }
+
+    const api = {
+      get: (path, options) => apiRequest(path, { ...(options || {}), method: 'GET' }),
+      post: (path, body, options) => apiRequest(path, { ...(options || {}), method: 'POST', body }),
+      patch: (path, body, options) => apiRequest(path, { ...(options || {}), method: 'PATCH', body }),
+      del: (path, options) => apiRequest(path, { ...(options || {}), method: 'DELETE' })
+    };
+
+    function setAuthFeedback(message = '', type = 'info') {
+      if (!authFeedback) return;
+      if (message) {
+        authFeedback.textContent = '';
+        const icon = document.createElement('span');
+        icon.className = 'auth-feedback-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        const iconMap = {
+          success: '✅',
+          error: '⚠️',
+          info: 'ℹ️'
+        };
+        icon.textContent = iconMap[type] || iconMap.info;
+        const text = document.createElement('span');
+        text.className = 'auth-feedback-message';
+        text.textContent = message;
+        authFeedback.append(icon, text);
+        authFeedback.dataset.type = type;
+      } else {
+        authFeedback.textContent = '';
+        authFeedback.removeAttribute('data-type');
+      }
+      scheduleAuthMeasure();
+    }
+
+    function clearAuthFeedback() {
+      setAuthFeedback('', 'info');
+    }
+
+    function extractAuthErrorMessage(error) {
+      if (!error) return 'Une erreur est survenue.';
+      if (error.payload?.message) return error.payload.message;
+      if (error.message) return error.message;
+      return 'Une erreur est survenue.';
+    }
+
     function updateBottomNavState() {
       if (!bottomNavButtons.length) return;
       const isMapActive = !!(viewWrapper && viewWrapper.classList.contains('show-map'));
@@ -2728,27 +2850,251 @@
       profile: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
     };
 
+    function updateUserMenuIdentity(auth) {
+      const nameEl = document.getElementById('userMenuName');
+      const emailEl = document.getElementById('userMenuEmail');
+      const avatarImgs = document.querySelectorAll('.user-menu__avatar, #userMenuButton .avatar-img');
+      if (nameEl) nameEl.textContent = auth?.name || 'Utilisateur';
+      if (emailEl) emailEl.textContent = auth?.email || '';
+      const avatarSrc = auth?.avatar || '';
+      if (avatarSrc) {
+        avatarImgs.forEach((img) => {
+          if (img) img.src = avatarSrc;
+        });
+      } else {
+        avatarImgs.forEach((img) => {
+          if (img) img.src = '/uploads/avatars/default.jpg';
+        });
+      }
+    }
+
+    function initUserMenu(auth) {
+      const button = document.getElementById('userMenuButton');
+      const menu = document.getElementById('userMenu');
+      if (!button || !menu) return;
+
+      menu.dataset.open = 'false';
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+
+      if (auth) {
+        updateUserMenuIdentity(auth);
+      }
+
+      let isOpen = false;
+
+      const handleDocumentClick = (event) => {
+        if (menu.contains(event.target) || button.contains(event.target)) return;
+        closeMenu();
+      };
+
+      const handleKeydown = (event) => {
+        if (!isOpen) return;
+        const activeElement = document.activeElement;
+        const items = getMenuItems();
+        switch (event.key) {
+          case 'Escape':
+            event.preventDefault();
+            closeMenu({ restoreFocus: true });
+            break;
+          case 'ArrowDown':
+            event.preventDefault();
+            focusNextItem(activeElement, 1);
+            break;
+          case 'ArrowUp':
+            event.preventDefault();
+            focusNextItem(activeElement, -1);
+            break;
+          case 'Home':
+            event.preventDefault();
+            focusFirstItem();
+            break;
+          case 'End':
+            event.preventDefault();
+            focusLastItem();
+            break;
+          case 'Enter':
+          case ' ':
+            if (items.includes(activeElement)) {
+              event.preventDefault();
+              handleMenuAction(activeElement.dataset.action);
+            }
+            break;
+          default:
+            break;
+        }
+      };
+
+      function openMenu() {
+        if (isOpen) return;
+        isOpen = true;
+        menu.hidden = false;
+        requestAnimationFrame(() => {
+          menu.dataset.open = 'true';
+        });
+        button.setAttribute('aria-expanded', 'true');
+        document.addEventListener('click', handleDocumentClick, { capture: true });
+        document.addEventListener('keydown', handleKeydown);
+        focusFirstItem();
+      }
+
+      function closeMenu({ restoreFocus = false } = {}) {
+        if (!isOpen) return;
+        isOpen = false;
+        menu.dataset.open = 'false';
+        button.setAttribute('aria-expanded', 'false');
+        setTimeout(() => {
+          if (!isOpen) {
+            menu.hidden = true;
+          }
+        }, 180);
+        document.removeEventListener('click', handleDocumentClick, { capture: true });
+        document.removeEventListener('keydown', handleKeydown);
+        if (restoreFocus) button.focus();
+      }
+
+      function getMenuItems() {
+        return Array.from(menu.querySelectorAll('[role="menuitem"]'));
+      }
+
+      function focusFirstItem() {
+        const items = getMenuItems();
+        if (items.length) items[0].focus({ preventScroll: true });
+      }
+
+      function focusLastItem() {
+        const items = getMenuItems();
+        if (items.length) items[items.length - 1].focus({ preventScroll: true });
+      }
+
+      function focusNextItem(current, direction = 1) {
+        const items = getMenuItems();
+        if (!items.length) return;
+        const currentIndex = items.indexOf(current);
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + direction + items.length) % items.length;
+        items[nextIndex].focus({ preventScroll: true });
+      }
+
+      async function performLogout() {
+        try {
+          await api.post('/api/auth/logout');
+        } catch (error) {
+          console.error('Logout error', error);
+        } finally {
+          authStore.set(null);
+          updateAuthUI();
+          setAuthFeedback('Déconnecté', 'info');
+          if (typeof showToast === 'function') showToast('Déconnecté');
+        }
+        closeMenu({ restoreFocus: true });
+      }
+
+      function handleMenuAction(action) {
+        if (!action) return;
+        switch (action) {
+          case 'logout':
+            performLogout();
+            break;
+          case 'profile':
+            closeMenu({ restoreFocus: true });
+            if (typeof showToast === 'function') showToast('Section profil en préparation ✨');
+            break;
+          default:
+            break;
+        }
+      }
+
+      function toggleMenu(event) {
+        if (event) event.preventDefault();
+        if (isOpen) closeMenu();
+        else openMenu();
+      }
+
+      if (button.__menuToggleHandler) {
+        button.removeEventListener('click', button.__menuToggleHandler);
+      }
+      button.__menuToggleHandler = toggleMenu;
+      button.addEventListener('click', button.__menuToggleHandler);
+
+      if (button.__menuKeyHandler) {
+        button.removeEventListener('keydown', button.__menuKeyHandler);
+      }
+      button.__menuKeyHandler = (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openMenu();
+        }
+      };
+      button.addEventListener('keydown', button.__menuKeyHandler);
+
+      if (menu.__handlerClick) {
+        menu.removeEventListener('click', menu.__handlerClick);
+      }
+      menu.__handlerClick = (event) => {
+        const item = event.target.closest('[data-action]');
+        if (!item) return;
+        handleMenuAction(item.dataset.action);
+      };
+      menu.addEventListener('click', menu.__handlerClick);
+
+      button.__closeUserMenu = closeMenu;
+    }
+
     function renderAvatar(auth) {
       const avatar = document.getElementById('avatar');
+      const userMenu = document.getElementById('userMenu');
       if (!avatar) return;
       avatar.innerHTML = '';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'avatar-btn';
+
       if (auth) {
+        button.id = 'userMenuButton';
+        button.setAttribute('aria-haspopup', 'menu');
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'userMenu');
         button.classList.add('is-auth');
-        button.setAttribute('aria-label', auth.name ? `Profil de ${auth.name}` : 'Profil connecté');
-        button.innerHTML = avatarIcons.profile;
-        button.addEventListener('click', () => showToast('Espace compte bientôt disponible'));
+        button.setAttribute('title', auth.name || auth.email || 'Profil connecté');
+        button.setAttribute('aria-label', auth.name ? `Menu de ${auth.name}` : 'Menu utilisateur connecté');
+        const avatarSrc = auth.avatar || '';
+        if (avatarSrc) {
+          const img = document.createElement('img');
+          img.className = 'avatar-img';
+          img.src = avatarSrc;
+          img.alt = auth.name || auth.email || 'Avatar';
+          button.appendChild(img);
+        } else {
+          const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          icon.setAttribute('viewBox', '0 0 24 24');
+          icon.setAttribute('aria-hidden', 'true');
+          icon.classList.add('avatar-icon');
+          icon.innerHTML = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
+          button.appendChild(icon);
+        }
+        const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        chevron.setAttribute('viewBox', '0 0 24 24');
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.classList.add('chevron');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M7 10l5 5 5-5');
+        chevron.appendChild(path);
+        button.appendChild(chevron);
         avatar.title = auth.name || auth.email || 'Compte connecté';
+        avatar.appendChild(button);
+        initUserMenu(auth);
       } else {
         button.classList.add('needs-auth');
         button.setAttribute('aria-label', 'Se connecter ou créer un compte');
         button.innerHTML = avatarIcons.auth;
-        button.addEventListener('click', () => openAuth());
         avatar.title = 'Se connecter ou créer un compte';
+        button.addEventListener('click', () => openAuth());
+        avatar.appendChild(button);
+        if (userMenu) {
+          userMenu.dataset.open = 'false';
+          userMenu.hidden = true;
+        }
       }
-      avatar.appendChild(button);
     }
 
     let authMeasureRaf = null;
@@ -2852,12 +3198,7 @@
     }
 
     function clearSuccessMessage() {
-      const container = authFeedback || formContainer;
-      if (!container) return;
-      const success = container.querySelector('.auth-success');
-      if (!success) return;
-      success.remove();
-      scheduleAuthMeasure();
+      clearAuthFeedback();
     }
 
     function clearFeedback() {
@@ -2983,17 +3324,7 @@
     }
 
     function showSuccess(message) {
-      clearSuccessMessage();
-      const banner = document.createElement('div');
-      banner.className = 'auth-success';
-      banner.textContent = message;
-      const container = authFeedback || formContainer;
-      if (container) container.appendChild(banner);
-      setTimeout(() => {
-        banner.remove();
-        scheduleAuthMeasure();
-      }, 3200);
-      scheduleAuthMeasure();
+      setAuthFeedback(message, 'success');
     }
 
     function togglePassword(id) {
@@ -3033,33 +3364,50 @@
     authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthFn(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && authModal.classList.contains('active')) closeAuthFn(); });
 
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
       clearFieldErrors();
+      clearAuthFeedback();
       if (!validateForm(loginForm)) return;
       const button = document.getElementById('loginSubmit');
       setLoading(button, true);
-      setTimeout(() => {
-        setLoading(button, false);
-        showSuccess('Connexion réussie ! Redirection en cours...');
-        authStore.set({ name: 'Vous', email: document.getElementById('loginEmail').value.trim() });
+      try {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const response = await api.post('/api/auth/login', { email, password });
+        const user = response?.data?.user || null;
+        if (user) {
+          authStore.set(user);
+        }
         updateAuthUI();
+        setAuthFeedback(response?.message || 'Connexion réussie ✅', 'success');
         showToast('Connecté !');
         setTimeout(() => closeAuthFn(), 1200);
-      }, 1200);
+      } catch (error) {
+        setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      } finally {
+        setLoading(button, false);
+      }
     });
 
-    signupForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+    signupForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
       clearFieldErrors();
+      clearAuthFeedback();
       if (!validateForm(signupForm)) return;
       const button = document.getElementById('signupSubmit');
       setLoading(button, true);
-      setTimeout(() => {
-        setLoading(button, false);
-        showSuccess('Compte créé avec succès ! Vérifiez votre email.');
-        authStore.set({ name: document.getElementById('signupName').value.trim(), email: document.getElementById('signupEmail').value.trim() });
+      try {
+        const name = document.getElementById('signupName').value.trim();
+        const email = document.getElementById('signupEmail').value.trim();
+        const password = document.getElementById('signupPassword').value;
+        const response = await api.post('/api/auth/signup', { name, email, password });
+        const user = response?.data?.user || null;
+        if (user) {
+          authStore.set(user);
+        }
         updateAuthUI();
+        setAuthFeedback(response?.message || 'Compte créé. Bienvenue 👋', 'success');
         showToast('Compte créé et connecté');
         switchTab('login', { force: true, resetSuccess: false, instant: true });
         setTimeout(() => {
@@ -3067,25 +3415,35 @@
           if (loginInput) loginInput.focus();
         }, 220);
         setTimeout(() => closeAuthFn(), 1400);
-      }, 1500);
+      } catch (error) {
+        setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      } finally {
+        setLoading(button, false);
+      }
     });
 
-    forgotForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+    forgotForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
       clearFieldErrors();
+      clearAuthFeedback();
       if (!validateForm(forgotForm)) return;
       const button = document.getElementById('forgotSubmit');
       setLoading(button, true);
-      setTimeout(() => {
-        setLoading(button, false);
-        showSuccess('Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.');
+      try {
+        const email = document.getElementById('forgotEmail').value.trim();
+        const response = await api.post('/api/auth/forgot-password', { email });
+        setAuthFeedback(response?.message || 'Si un compte existe, un lien a été envoyé.', 'success');
         showToast('Email de réinitialisation envoyé');
         switchTab('login', { force: true, resetSuccess: false, instant: false });
         setTimeout(() => {
           const loginInput = document.getElementById('loginEmail');
           if (loginInput) loginInput.focus();
         }, 360);
-      }, 1500);
+      } catch (error) {
+        setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      } finally {
+        setLoading(button, false);
+      }
     });
 
     postBtn.addEventListener('click', () => {
@@ -3095,6 +3453,25 @@
     function updateAuthUI() {
       const auth = authStore.get();
       renderAvatar(auth);
+    }
+
+    async function hydrateAuthFromSession() {
+      try {
+        const response = await api.get('/api/auth/me');
+        const user = response?.data?.user || null;
+        if (user) {
+          authStore.set(user);
+        } else {
+          authStore.set(null);
+        }
+      } catch (error) {
+        authStore.set(null);
+        if (error?.status && error.status !== 401) {
+          console.warn('Synchronisation auth échouée', error);
+        }
+      } finally {
+        updateAuthUI();
+      }
     }
 
     // ---------- DETAILS MODAL ----------
@@ -4313,7 +4690,9 @@
     })();
 
     // ---------- INIT ----------
-    renderList(true); updateAuthUI();
+    renderList(true);
+    updateAuthUI();
+    hydrateAuthFromSession();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => { });
@@ -4322,5 +4701,4 @@
     })();
   </script>
 </body>
-
 </html>

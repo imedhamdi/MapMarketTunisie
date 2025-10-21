@@ -12,6 +12,7 @@ npm run dev
 ```
 
 Le serveur écoute par défaut sur `http://localhost:4000`.
+L’interface web est servie depuis le même serveur (`http://localhost:4000/`) afin d’éviter toute erreur CORS.
 
 ## 🔐 Variables d'environnement
 
@@ -41,6 +42,9 @@ SMTP_USER=
 SMTP_PASS=
 RESET_BASE_URL=http://localhost:5173/reset-password
 ```
+
+> Vous pouvez fournir plusieurs origines séparées par des virgules, par exemple :  
+> `CLIENT_ORIGIN=http://localhost:5173,http://localhost:5500`
 
 > ℹ️ Le fichier `.env` n'est **pas** versionné.
 
