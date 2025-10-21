@@ -419,6 +419,7 @@
             </div>
           </form>
         </div>
+        <div class="auth-feedback" id="authFeedback" aria-live="polite" aria-atomic="true"></div>
 
       </div>
       <button class="auth-close" id="closeAuth" aria-label="Fermer">✕</button>
@@ -475,7 +476,38 @@
 
         <section class="details-section">
           <h3>Informations sur le vendeur</h3>
-          <div class="seller-card" id="detailsSeller"></div>
+          <div class="seller-card-wrap" id="sellerCardWrap">
+            <div class="seller-card" id="detailsSeller"></div>
+            <div id="contactPopover" class="contact-popover" hidden role="dialog" aria-modal="true" aria-labelledby="cpTitle">
+              <div class="contact-arrow" aria-hidden="true"></div>
+              <header class="contact-header">
+                <h3 id="cpTitle">Contacter le vendeur</h3>
+                <button id="cpClose" class="icon-btn contact-close" type="button" aria-label="Fermer">✕</button>
+              </header>
+              <div class="contact-body">
+                <textarea id="cpMessage" rows="3" maxlength="500"
+                  placeholder="Bonjour, votre article est-il toujours disponible ? Puis-je venir le voir ce week-end ?"></textarea>
+                <div class="cp-suggestions" aria-label="Suggestions de message">
+                  <button type="button" class="chip">Toujours dispo ?</button>
+                  <button type="button" class="chip">Prix négociable ?</button>
+                  <button type="button" class="chip">Proposition RDV</button>
+                </div>
+                <p id="cpError" class="cp-error" role="alert" aria-live="assertive" hidden></p>
+                <div class="contact-footer">
+                  <span id="cpCounter" class="cp-counter" aria-live="polite">500</span>
+                  <div class="cp-actions">
+                    <button class="icon-btn ghost" id="cpCancel" type="button" aria-label="Annuler" title="Annuler">✕</button>
+                    <button class="icon-btn primary" id="cpSend" type="button" aria-label="Envoyer" title="Envoyer">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22 2L11 13" />
+                        <path d="M22 2L15 22l-4-9-9-4Z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <div class="details-actions">
@@ -622,7 +654,6 @@
           <label class="sr-only" for="newsletterEmail">Votre e-mail</label>
           <input id="newsletterEmail" class="mm-news__input" type="email" inputmode="email" placeholder="you@example.com" required>
           <button class="mm-news__btn" type="submit">S’inscrire</button>
-          <p class="mm-news__msg" id="newsletterMsg" aria-live="polite"></p>
           <p class="mm-footer__hint">En vous inscrivant, vous acceptez de recevoir nos actualités. Consultez notre <a href="#"
               data-legal="privacy">Politique de confidentialité</a>.</p>
         </form>
@@ -1277,6 +1308,12 @@
       favModal._lastSelectedFavId = null;
       favModal._lastSelectedCard = null;
     }
+
+    navMessages?.addEventListener('click', (event) => {
+      event.preventDefault();
+      navMessages.removeAttribute('data-unread');
+      showToast('Messagerie à venir 💬');
+    });
 
     const pagination = { index: 0 }; const PAGE_SIZE = 12; let filteredCache = [];
 
@@ -2553,6 +2590,7 @@
     const signupTab = document.getElementById('signupTab');
     const tabIndicator = document.getElementById('tabIndicator');
     const formContainer = document.getElementById('formContainer');
+    const authFeedback = document.getElementById('authFeedback');
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
     const forgotForm = document.getElementById('forgotForm');
@@ -2814,11 +2852,12 @@
     }
 
     function clearSuccessMessage() {
-      const success = formContainer.querySelector('.auth-success');
-      if (success) {
-        success.remove();
-        scheduleAuthMeasure();
-      }
+      const container = authFeedback || formContainer;
+      if (!container) return;
+      const success = container.querySelector('.auth-success');
+      if (!success) return;
+      success.remove();
+      scheduleAuthMeasure();
     }
 
     function clearFeedback() {
@@ -2948,9 +2987,8 @@
       const banner = document.createElement('div');
       banner.className = 'auth-success';
       banner.textContent = message;
-      const firstForm = formContainer.firstElementChild;
-      if (firstForm) formContainer.insertBefore(banner, firstForm);
-      else formContainer.appendChild(banner);
+      const container = authFeedback || formContainer;
+      if (container) container.appendChild(banner);
       setTimeout(() => {
         banner.remove();
         scheduleAuthMeasure();
@@ -3077,6 +3115,15 @@
     const detailsSeller = document.getElementById('detailsSeller');
     const detailsSave = document.getElementById('detailsSave');
     const detailsContact = document.getElementById('detailsContact');
+    const contactPopover = document.getElementById('contactPopover');
+    const contactAnchor = document.getElementById('sellerCardWrap');
+    const contactMessage = document.getElementById('cpMessage');
+    const contactCloseBtn = document.getElementById('cpClose');
+    const contactCancelBtn = document.getElementById('cpCancel');
+    const contactSendBtn = document.getElementById('cpSend');
+    const contactCounter = document.getElementById('cpCounter');
+    const contactError = document.getElementById('cpError');
+    const contactSuggestions = contactPopover ? Array.from(contactPopover.querySelectorAll('.chip')) : [];
     const detailsVisitBtn = document.getElementById('detailsVisit');
     const detailsTags = document.getElementById('detailsTags');
     const detailsBodyEl = document.querySelector('.details-body');
@@ -3098,6 +3145,15 @@
     let detailsSkeletonTimeout = null;
     let lightboxActive = false;
     let lightboxLastFocus = null;
+    let contactPopoverTimer = null;
+    let contactTrapActive = false;
+    let contactLastFocus = null;
+    let contactSending = false;
+    let contactCooldownUntil = 0;
+    const CONTACT_MAX_LENGTH = 500;
+    const CONTACT_MIN_LENGTH = 12;
+    const CONTACT_COOLDOWN_MS = 3000;
+    const CONTACT_FOCUS_SELECTOR = 'button:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
     const detailsIcons = {
       category: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>`,
@@ -3392,6 +3448,187 @@
       `;
     }
 
+    function updateContactCounter() {
+      if (!contactCounter || !contactMessage) return;
+      const remaining = Math.max(0, CONTACT_MAX_LENGTH - contactMessage.value.length);
+      contactCounter.textContent = String(remaining);
+      contactCounter.classList.toggle('is-low', remaining <= 20);
+    }
+
+    function clearContactError() {
+      if (!contactError) return;
+      contactError.textContent = '';
+      contactError.hidden = true;
+    }
+
+    function showContactError(message) {
+      if (!contactError) return;
+      contactError.textContent = message;
+      contactError.hidden = false;
+    }
+
+    function autoSizeContactMessage({ reset = false } = {}) {
+      if (!contactMessage) return;
+      if (reset) {
+        contactMessage.style.height = '';
+        return;
+      }
+      contactMessage.style.height = 'auto';
+      const next = Math.min(200, Math.max(54, contactMessage.scrollHeight));
+      contactMessage.style.height = `${next}px`;
+      updateContactPlacement();
+      ensureContactVisibility();
+    }
+
+    function getContactFocusables() {
+      if (!contactPopover || contactPopover.hasAttribute('hidden')) return [];
+      const nodes = Array.from(contactPopover.querySelectorAll(CONTACT_FOCUS_SELECTOR));
+      return nodes.filter((node) => {
+        if (node.hasAttribute('disabled')) return false;
+        if (node.getAttribute('aria-hidden') === 'true') return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 || rect.height > 0;
+      });
+    }
+
+    function updateContactPlacement() {
+      if (!contactPopover || contactPopover.hasAttribute('hidden')) return;
+      const anchorRect = contactAnchor?.getBoundingClientRect?.();
+      const dialogRect = detailsDialog?.getBoundingClientRect?.();
+      if (!anchorRect || !dialogRect) return;
+      const popHeight = contactPopover.offsetHeight || 0;
+      const spaceAbove = anchorRect.top - dialogRect.top;
+      const spaceBelow = dialogRect.bottom - anchorRect.bottom;
+      const needsBottom = popHeight + 28 > spaceAbove && spaceBelow > spaceAbove;
+      contactPopover.classList.toggle('is-bottom', needsBottom);
+    }
+
+    function activateContactFocusTrap() {
+      contactTrapActive = true;
+    }
+
+    function deactivateContactFocusTrap() {
+      contactTrapActive = false;
+    }
+
+    function setContactLoading(isLoading) {
+      if (!contactSendBtn) return;
+      if (isLoading) {
+        contactSending = true;
+        contactSendBtn.classList.add('is-loading');
+        contactSendBtn.setAttribute('disabled', '');
+        contactCancelBtn?.setAttribute('disabled', '');
+        contactCloseBtn?.setAttribute('disabled', '');
+        contactMessage?.setAttribute('readonly', '');
+        contactSuggestions.forEach(btn => btn.setAttribute('disabled', ''));
+      } else {
+        contactSending = false;
+        contactSendBtn.classList.remove('is-loading');
+        contactSendBtn.removeAttribute('disabled');
+        contactCancelBtn?.removeAttribute('disabled');
+        contactCloseBtn?.removeAttribute('disabled');
+        contactMessage?.removeAttribute('readonly');
+        contactSuggestions.forEach(btn => btn.removeAttribute('disabled'));
+      }
+    }
+
+    function ensureContactVisibility() {
+      if (!contactPopover || contactPopover.hasAttribute('hidden') || !detailsBodyEl) return;
+      requestAnimationFrame(() => {
+        const popRect = contactPopover.getBoundingClientRect();
+        const dialogRect = detailsDialog?.getBoundingClientRect();
+        if (!popRect || !dialogRect) return;
+        const offsetTop = popRect.top - (dialogRect.top + 16);
+        const offsetBottom = popRect.bottom - (dialogRect.bottom - 16);
+        if (offsetTop < 0) {
+          detailsBodyEl.scrollBy({ top: offsetTop - 12, behavior: prefersReducedMotion.matches ? 'auto' : 'smooth' });
+        } else if (offsetBottom > 0) {
+          detailsBodyEl.scrollBy({ top: offsetBottom + 12, behavior: prefersReducedMotion.matches ? 'auto' : 'smooth' });
+        }
+      });
+    }
+
+    function resetContactForm() {
+      if (contactMessage) {
+        contactMessage.value = '';
+        autoSizeContactMessage({ reset: true });
+      }
+      updateContactCounter();
+      clearContactError();
+    }
+
+    function openContactPopover() {
+      if (!contactPopover) return;
+      const auth = authStore.get();
+      if (!auth) {
+        // Ne pas ouvrir le modal d'auth : juste un feedback elegant
+        showToast('Connectez-vous pour envoyer un message 🔒');
+        if (!contactPopover.hasAttribute('hidden')) {
+          closeContactPopover({ immediate: true, restoreFocus: false });
+        }
+        return;
+      }
+      if (contactSending) return;
+      if (Date.now() < contactCooldownUntil) {
+        showToast('Un instant… vous pourrez renvoyer un message dans quelques secondes.');
+        return;
+      }
+      contactLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : detailsContact;
+      if (contactPopoverTimer) {
+        clearTimeout(contactPopoverTimer);
+        contactPopoverTimer = null;
+      }
+      setContactLoading(false);
+      contactPopover.setAttribute('aria-hidden', 'false');
+      contactPopover.removeAttribute('hidden');
+      contactPopover.classList.remove('closing');
+      requestAnimationFrame(() => {
+        updateContactPlacement();
+        contactPopover.classList.add('open');
+        activateContactFocusTrap();
+        ensureContactVisibility();
+      });
+      clearContactError();
+      updateContactCounter();
+      autoSizeContactMessage();
+      requestAnimationFrame(() => {
+        updateContactPlacement();
+        ensureContactVisibility();
+        contactMessage?.focus?.({ preventScroll: true });
+      });
+    }
+
+    function closeContactPopover({ restoreFocus = false, immediate = false } = {}) {
+      if (!contactPopover || contactPopover.hasAttribute('hidden')) return;
+      if (contactPopoverTimer) {
+        clearTimeout(contactPopoverTimer);
+        contactPopoverTimer = null;
+      }
+      deactivateContactFocusTrap();
+      contactPopover.classList.remove('open', 'is-bottom');
+      contactPopover.setAttribute('aria-hidden', 'true');
+      setContactLoading(false);
+      if (contactMessage) {
+        contactMessage.removeAttribute('readonly');
+        contactMessage.blur();
+      }
+      if (immediate) {
+        contactPopover.setAttribute('hidden', '');
+        autoSizeContactMessage({ reset: true });
+      } else {
+        contactPopoverTimer = window.setTimeout(() => {
+          contactPopover?.setAttribute('hidden', '');
+          contactPopoverTimer = null;
+          autoSizeContactMessage({ reset: true });
+        }, 220);
+      }
+      if (restoreFocus) {
+        (detailsContact || contactLastFocus)?.focus?.({ preventScroll: true });
+      }
+      contactLastFocus = null;
+      clearContactError();
+    }
+
     function setDetailsSaveState(isFav) {
       detailsSave.classList.toggle('active', isFav);
       detailsSave.setAttribute('aria-pressed', String(isFav));
@@ -3437,6 +3674,15 @@
       renderDetailsTags(adData);
       setDetailsDescription(adData.desc);
       renderSeller(adData);
+      resetContactForm();
+      setContactLoading(false);
+      if (contactPopover) {
+        contactPopover.classList.remove('open');
+        contactPopover.setAttribute('hidden', '');
+        contactPopover.setAttribute('aria-hidden', 'true');
+        contactPopoverTimer = null;
+        deactivateContactFocusTrap();
+      }
       renderGallery(detailsCurrentImages, adData.title);
       const favs = favStore.get();
       setDetailsSaveState(favs.has(adData.id));
@@ -3459,6 +3705,8 @@
 
     function closeDetailsModal() {
       if (lightboxActive) closeLightbox({ restoreFocus: false });
+      if (contactPopover) closeContactPopover({ immediate: true, restoreFocus: false });
+      resetContactForm();
       const stickyOpen = !!favModal?._stickyOpen;
       const stickyScrollTop = typeof favModal?._favScrollTop === 'number' ? favModal._favScrollTop : 0;
       const stickyId = favModal?._lastSelectedFavId ?? null;
@@ -3550,8 +3798,119 @@
       if (isFavModalOpen()) renderFavSheet();
     });
 
-    detailsContact.addEventListener('click', () => {
-      showToast('Contact envoyé au vendeur 📬');
+    if (detailsContact) {
+      detailsContact.addEventListener('click', () => {
+        if (!contactPopover) {
+          showToast('Contact envoyé au vendeur 📬');
+          return;
+        }
+        if (contactSending) return;
+        if (contactPopover.hasAttribute('hidden')) {
+          openContactPopover();
+        } else {
+          closeContactPopover({ restoreFocus: false });
+        }
+      });
+    }
+
+    contactCancelBtn?.addEventListener('click', () => {
+      closeContactPopover({ restoreFocus: true });
+    });
+
+    contactCloseBtn?.addEventListener('click', () => {
+      closeContactPopover({ restoreFocus: true });
+    });
+
+    contactSendBtn?.addEventListener('click', () => {
+      sendContactMessage();
+    });
+
+    contactMessage?.addEventListener('input', () => {
+      clearContactError();
+      updateContactCounter();
+      autoSizeContactMessage();
+    });
+
+    contactMessage?.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        sendContactMessage();
+      }
+    });
+
+    contactSuggestions.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        if (!contactMessage || chip.hasAttribute('disabled')) return;
+        const text = chip.textContent?.trim();
+        if (!text) return;
+        const needsSpace = contactMessage.value && !contactMessage.value.endsWith(' ');
+        contactMessage.value = contactMessage.value.trimEnd();
+        contactMessage.value = contactMessage.value
+          ? `${contactMessage.value}${needsSpace ? ' ' : ''}${text}`
+          : text;
+        if (contactMessage.value.length > CONTACT_MAX_LENGTH) {
+          contactMessage.value = contactMessage.value.slice(0, CONTACT_MAX_LENGTH);
+        }
+        updateContactCounter();
+        autoSizeContactMessage();
+        clearContactError();
+        contactMessage.focus({ preventScroll: true });
+        requestAnimationFrame(() => {
+          const len = contactMessage.value.length;
+          contactMessage.setSelectionRange(len, len);
+        });
+      });
+    });
+
+    async function sendContactMessage() {
+      if (!contactPopover || contactPopover.hasAttribute('hidden')) return;
+      if (!contactMessage) return;
+      if (contactSending) return;
+      if (!detailsCurrentAd) {
+        showContactError('Annonce introuvable. Veuillez réessayer.');
+        return;
+      }
+      if (Date.now() < contactCooldownUntil) {
+        showContactError('Patientez encore un instant avant un nouvel envoi.');
+        return;
+      }
+      const message = contactMessage.value.trim();
+      if (message.length < CONTACT_MIN_LENGTH) {
+        showContactError(`Votre message doit contenir au moins ${CONTACT_MIN_LENGTH} caractères.`);
+        contactMessage.focus({ preventScroll: true });
+        return;
+      }
+      clearContactError();
+      setContactLoading(true);
+      try {
+        await sendContactRequest(detailsCurrentAd.id, message);
+        contactCooldownUntil = Date.now() + CONTACT_COOLDOWN_MS;
+        showToast('Message envoyé ✅');
+        if (navMessages) navMessages.setAttribute('data-unread', 'true');
+        resetContactForm();
+        closeContactPopover({ restoreFocus: true });
+      } catch (error) {
+        console.error(error);
+        setContactLoading(false);
+        showContactError('Une erreur est survenue. Merci de réessayer.');
+        contactMessage.focus({ preventScroll: true });
+      }
+    }
+
+    function sendContactRequest(adId, message) {
+      const payload = { adId, message, sentAt: new Date().toISOString() };
+      console.info('[contact] Simulated send', payload);
+      const delay = prefersReducedMotion.matches ? 280 : 640 + Math.random() * 320;
+      return new Promise((resolve) => {
+        setTimeout(() => resolve({ ok: true }), delay);
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      if (!contactPopover || contactPopover.hasAttribute('hidden')) return;
+      autoSizeContactMessage();
+      updateContactPlacement();
+      ensureContactVisibility();
     });
 
     detailsVisitBtn.addEventListener('click', () => {
@@ -3616,6 +3975,33 @@
         }
       }
       if (detailsModal.style.display !== 'flex') return;
+      if (contactTrapActive && e.key === 'Tab') {
+        const focusables = getContactFocusables();
+        if (!focusables.length) {
+          e.preventDefault();
+          return;
+        }
+        const activeEl = document.activeElement;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey) {
+          if (activeEl === first || !contactPopover?.contains(activeEl)) {
+            e.preventDefault();
+            last?.focus?.({ preventScroll: true });
+          }
+        } else {
+          if (activeEl === last || !contactPopover?.contains(activeEl)) {
+            e.preventDefault();
+            first?.focus?.({ preventScroll: true });
+          }
+        }
+        return;
+      }
+      if (e.key === 'Escape' && contactPopover && !contactPopover.hasAttribute('hidden')) {
+        e.preventDefault();
+        closeContactPopover({ restoreFocus: true });
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         closeDetailsModal();
@@ -3683,20 +4069,18 @@
 
       const newsletterForm = document.getElementById('newsletterForm');
       const newsletterEmail = document.getElementById('newsletterEmail');
-      const newsletterMsg = document.getElementById('newsletterMsg');
       const newsletterBtn = newsletterForm?.querySelector('.mm-news__btn');
       if (newsletterForm) {
         newsletterForm.addEventListener('submit', (event) => {
           event.preventDefault();
-          if (newsletterMsg) newsletterMsg.textContent = '';
           if (!newsletterEmail?.checkValidity()) {
-            newsletterMsg.textContent = 'Veuillez saisir un e-mail valide.';
+            newsletterEmail?.reportValidity?.();
             newsletterEmail?.focus?.();
             return;
           }
           if (newsletterBtn) newsletterBtn.disabled = true;
           setTimeout(() => {
-            newsletterMsg.textContent = 'Merci ! Vous recevrez prochainement nos actualités.';
+            showToast('Merci ! Vous recevrez prochainement nos actualités.');
             newsletterForm.reset();
             if (newsletterBtn) newsletterBtn.disabled = false;
           }, 600);
