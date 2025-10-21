@@ -64,6 +64,11 @@ RESET_BASE_URL=http://localhost:5173/reset-password
 | `PATCH` | `/api/users/me/avatar` | Met à jour l'avatar (multipart) |
 | `POST` | `/api/users/me/favorites` | Ajoute/retire un favori |
 | `DELETE` | `/api/users/me` | Supprime le compte |
+| `GET` | `/api/ads` | Liste paginée des annonces (`page`, `limit`, `category`, `owner`, `status`) |
+| `POST` | `/api/ads` | Crée une annonce (auth requis) |
+| `GET` | `/api/ads/:id` | Récupère une annonce (+1 vue) |
+| `PATCH` | `/api/ads/:id` | Met à jour l’annonce (auteur uniquement) |
+| `DELETE` | `/api/ads/:id` | Supprime l’annonce (auteur uniquement) |
 
 Toutes les réponses respectent le contrat :
 
@@ -100,6 +105,9 @@ http -v POST :4000/api/users/me/favorites adId==68bab30e305fa7f3eb651842 action=
 
 # Suppression de compte
 http -v DELETE :4000/api/users/me --session=auth
+
+# Créer une annonce
+http -v POST :4000/api/ads title="Injecteur Bosch Golf 6" description="Pièce d'origine, testée, vendue avec facture." category=pieces condition=good price:=450 locationText="Tunis" latitude:=36.8065 longitude:=10.1815 images:='["https://img.example.com/123.jpg"]' attributes:='{"compatible":"Golf 6","grade":"bon"}' --session=auth
 ```
 
 ## 🔒 Sécurité & bonnes pratiques

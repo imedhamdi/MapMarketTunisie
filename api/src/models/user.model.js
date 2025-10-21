@@ -42,6 +42,7 @@ const UserSchema = new Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     isActive: { type: Boolean, default: true },
     avatar: { type: String },
+    avatarUrl: { type: String },
     favorites: [{ type: Schema.Types.Mixed }],
     reviews: { type: Array, default: [] },
     location: {

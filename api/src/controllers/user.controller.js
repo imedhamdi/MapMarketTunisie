@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
 import User from '../models/user.model.js';
+import Ad from '../models/ad.model.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import { clearAuthCookies } from '../utils/generateTokens.js';
 
@@ -148,7 +149,16 @@ export async function updateAvatar(req, res) {
 
 export async function updateFavorites(req, res) {
   const { adId, action } = req.body;
-  const normalizedId = String(adId);
+  const normalizedId = String(adId).trim();
+  const isObjectId = mongoose.isValidObjectId(normalizedId);
+  const isNumericId = /^\d+$/.test(normalizedId);
+  if (!isObjectId && !isNumericId) {
+    return sendError(res, {
+      statusCode: 400,
+      code: 'INVALID_AD_ID',
+      message: 'Identifiant d’annonce invalide.'
+    });
+  }
   const user = await User.findById(req.user._id);
   if (!user) {
     return sendError(res, {
@@ -158,7 +168,7 @@ export async function updateFavorites(req, res) {
     });
   }
 
-  const favorites = new Set((user.favorites ?? []).map((id) => id && id.toString ? id.toString() : String(id)));
+  const favorites = new Set((user.favorites ?? []).map((id) => (id && typeof id.toString === 'function' ? id.toString() : String(id))));
   if (action === 'add') {
     favorites.add(normalizedId);
   } else {
@@ -166,6 +176,20 @@ export async function updateFavorites(req, res) {
   }
   user.favorites = Array.from(favorites).map((id) => (mongoose.isValidObjectId(id) ? new mongoose.Types.ObjectId(id) : id));
   await user.save();
+
+  if (mongoose.isValidObjectId(normalizedId)) {
+    try {
+      const adDoc = await Ad.findById(normalizedId);
+      if (adDoc) {
+        const increment = action === 'add' ? 1 : -1;
+        const nextCount = Math.max(0, (adDoc.favoritesCount || 0) + increment);
+        adDoc.favoritesCount = nextCount;
+        await adDoc.save();
+      }
+    } catch (error) {
+      console.warn('Unable to sync favorites count', error);
+    }
+  }
 
   return sendSuccess(res, {
     message: 'Favoris mis à jour',

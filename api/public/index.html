@@ -151,10 +151,9 @@
             <select id="cat" title="Catégories">
               <option value="">Toutes catégories</option>
               <option>Immobilier</option>
-              <option>Mode</option>
-              <option>High-Tech</option>
               <option>Auto</option>
-              <option>Maison</option>
+              <option>High-Tech</option>
+              <option>Pièces</option>
             </select>
             <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -173,9 +172,10 @@
             </svg>
             <select id="etat" title="État">
               <option value="">Tous états</option>
+              <option>Neuf</option>
               <option>Très bon état</option>
               <option>Bon état</option>
-              <option>Neuf</option>
+              <option>Correct</option>
             </select>
             <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -454,6 +454,171 @@
     </div>
   </div>
 
+  <!-- POST MODAL -->
+  <div class="modal-backdrop post-backdrop" id="postModal" aria-hidden="true">
+    <div class="post-dialog" id="postDialog" role="dialog" aria-modal="true" aria-labelledby="postTitle">
+      <header class="post-header">
+        <div class="post-title-group">
+          <h2 id="postTitle">Déposer une annonce</h2>
+          <p class="post-subtitle">Partagez votre article en détaillant son état, son prix et sa localisation.</p>
+        </div>
+        <button class="post-close" id="closePost" type="button" aria-label="Fermer">✕</button>
+      </header>
+      <form id="postForm" class="post-form" novalidate>
+        <div class="post-content">
+          <section class="post-section" aria-labelledby="postSectionMain">
+            <header>
+              <h3 id="postSectionMain">A. Infos principales</h3>
+              <p class="hint">Soyez précis: marque, modèle, état…</p>
+            </header>
+            <div class="post-grid">
+              <div class="field">
+                <label for="postTitleInput">Titre de l’annonce <span aria-hidden="true">*</span></label>
+                <input type="text" id="postTitleInput" name="title" placeholder="Ex: Peugeot 208 2018 Diesel" required minlength="10" maxlength="80" autocomplete="off">
+                <p class="field-hint">Entre 10 et 80 caractères.</p>
+                <p class="field-error" data-error-for="postTitleInput"></p>
+              </div>
+              <div class="field">
+                <label for="postCategory">Catégorie <span aria-hidden="true">*</span></label>
+                <select id="postCategory" name="category" required>
+                  <option value="">Sélectionnez</option>
+                  <option value="immobilier">Immobilier</option>
+                  <option value="auto">Auto</option>
+                  <option value="electroniques">Électroniques</option>
+                  <option value="pieces">Pièces</option>
+                </select>
+                <p class="field-error" data-error-for="postCategory"></p>
+              </div>
+              <div class="field">
+                <label for="postCondition">État <span aria-hidden="true">*</span></label>
+                <select id="postCondition" name="condition" required>
+                  <option value="">Sélectionnez</option>
+                  <option value="new">Neuf</option>
+                  <option value="very_good">Très bon état</option>
+                  <option value="good">Bon état</option>
+                  <option value="fair">Correct</option>
+                </select>
+                <p class="field-error" data-error-for="postCondition"></p>
+              </div>
+              <div class="field">
+                <label for="postPrice">Prix (Dt) <span aria-hidden="true">*</span></label>
+                <div class="price-input">
+                  <input type="number" id="postPrice" name="price" required min="0.1" max="9999999" step="1" inputmode="decimal" placeholder="Ex: 2500">
+                  <span class="currency">Dt</span>
+                </div>
+                <p class="field-error" data-error-for="postPrice"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="post-section" aria-labelledby="postSectionPhotos">
+            <header>
+              <h3 id="postSectionPhotos">B. Photos</h3>
+              <p class="hint">Ajoutez jusqu’à 10 photos nettes sous plusieurs angles.</p>
+            </header>
+            <div class="uploader" id="postUploader">
+              <input type="file" id="postPhotos" name="photos" accept="image/jpeg,image/png,image/webp" multiple hidden>
+              <label for="postPhotos" class="uploader-drop" tabindex="0">
+                <div class="uploader-illustration">📸</div>
+                <div>
+                  <strong>Glissez vos photos ici</strong>
+                  <p>Formats jpg, png, webp – 10 max (8 Mo max chacune).</p>
+                </div>
+              </label>
+              <div class="uploader-list" id="postPhotosList" aria-live="polite" aria-label="Photos sélectionnées"></div>
+              <p class="field-error" data-error-for="postPhotos"></p>
+            </div>
+          </section>
+
+          <section class="post-section" aria-labelledby="postSectionAttributes">
+            <header>
+              <h3 id="postSectionAttributes">C. Caractéristiques</h3>
+              <p class="hint">Renseignez les informations spécifiques à votre catégorie.</p>
+            </header>
+            <div id="postAttributes" class="post-grid"></div>
+          </section>
+
+          <section class="post-section" aria-labelledby="postSectionLocation">
+            <header>
+              <h3 id="postSectionLocation">D. Localisation</h3>
+              <p class="hint">Indiquez l’emplacement pour des résultats locaux pertinents.</p>
+            </header>
+            <div class="post-grid">
+              <div class="field field-col">
+                <label for="postAddress">Adresse <span aria-hidden="true">*</span></label>
+                <input type="text" id="postAddress" name="locationText" placeholder="Ville / adresse…" autocomplete="street-address" required>
+                <p class="field-error" data-error-for="postAddress"></p>
+              </div>
+            </div>
+            <div class="map-wrapper">
+              <div class="map-toolbar">
+                <button type="button" class="map-btn" id="postUseLocation">📍 Utiliser ma position</button>
+                <p class="map-hint">Déplacez le marqueur pour ajuster la position.</p>
+              </div>
+              <div id="postMap" class="post-map" role="application" aria-label="Carte de localisation"></div>
+              <div class="map-coords">
+                <div class="field">
+                  <label for="postLat">Latitude <span aria-hidden="true">*</span></label>
+                  <input type="number" id="postLat" name="latitude" step="0.000001" required>
+                  <p class="field-error" data-error-for="postLat"></p>
+                </div>
+                <div class="field">
+                  <label for="postLng">Longitude <span aria-hidden="true">*</span></label>
+                  <input type="number" id="postLng" name="longitude" step="0.000001" required>
+                  <p class="field-error" data-error-for="postLng"></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="post-section" aria-labelledby="postSectionDescription">
+            <header>
+              <h3 id="postSectionDescription">E. Description</h3>
+              <p class="hint">Décrivez l’article: état réel, accessoires, facture, raison de la vente…</p>
+            </header>
+            <div class="field field-col">
+              <label for="postDescription">Description <span aria-hidden="true">*</span></label>
+              <textarea id="postDescription" name="description" rows="6" minlength="30" maxlength="2000" required placeholder="Donnez un maximum de détails pour rassurer les acheteurs."></textarea>
+              <div class="field-footer">
+                <p class="field-hint">Minimum 30 caractères · Maximum 2000 caractères.</p>
+                <span id="postDescriptionCount" aria-live="polite">0 / 2000</span>
+              </div>
+              <p class="field-error" data-error-for="postDescription"></p>
+            </div>
+          </section>
+
+          <section class="post-section post-section--draft" aria-live="polite" hidden id="postDraftBanner">
+            <div class="draft-banner">
+              <div class="draft-info">
+                <strong>Brouillon retrouvé</strong>
+                <p>Vous aviez commencé une annonce. Voulez-vous la reprendre ?</p>
+              </div>
+              <div class="draft-actions">
+                <button type="button" class="mm-btn" id="postDraftResume">Charger</button>
+                <button type="button" class="mm-btn ghost" id="postDraftDiscard">Ignorer</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="post-footer">
+          <div class="footer-left">
+            <button type="button" class="mm-btn ghost" id="postCancel">Annuler</button>
+            <button type="button" class="mm-btn outline" id="postPreview">Prévisualiser</button>
+            <button type="button" class="mm-btn ghost" id="postSaveDraft">Enregistrer le brouillon</button>
+          </div>
+          <div class="footer-right">
+            <div class="post-status" id="postStatus" aria-live="polite"></div>
+            <button type="submit" class="mm-btn primary" id="postSubmit">
+              <span class="btn-label">Publier l’annonce</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <!-- DETAILS MODAL -->
   <div class="modal-backdrop details-backdrop" id="detailsModal" aria-hidden="true">
     <div class="details-dialog" id="detailsDialog" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
@@ -724,476 +889,211 @@
       favorite: cssVar('--color-favorite', '#ef4444')
     };
 
+    const CATEGORY_CONFIG = [
+      { slug: 'immobilier', label: 'Immobilier', icon: '🏢' },
+      { slug: 'auto', label: 'Auto', icon: '🚗' },
+      { slug: 'mode', label: 'Mode', icon: '👗' },
+      { slug: 'electroniques', label: 'High-Tech', icon: '💻' },
+      { slug: 'pieces', label: 'Pièces', icon: '🔧' },
+      { slug: 'loisirs', label: 'Loisirs', icon: '🚲' }
+    ];
+    const CATEGORY_LABELS = CATEGORY_CONFIG.reduce((acc, item) => {
+      acc[item.slug] = item.label;
+      return acc;
+    }, {});
+    const CATEGORY_ICONS = CATEGORY_CONFIG.reduce((acc, item) => {
+      acc[item.slug] = item.icon;
+      return acc;
+    }, {});
+
+    const CONDITION_LABELS = {
+      new: 'Neuf',
+      very_good: 'Très bon état',
+      good: 'Bon état',
+      fair: 'Correct'
+    };
+
+    function mapConditionToSlug(label) {
+      if (!label) return '';
+      const normalized = label.toString().toLowerCase();
+      if (normalized.includes('neuf')) return 'new';
+      if (normalized.includes('très bon')) return 'very_good';
+      if (normalized.includes('bon')) return 'good';
+      if (normalized.includes('correct')) return 'fair';
+      return normalized;
+    }
+
+    const DEFAULT_IMAGE = 'https://via.placeholder.com/640x480?text=MapMarket';
+
+    function capitalize(text = '') {
+      if (!text) return '';
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    function getCategoryConfig(value) {
+      if (!value) return null;
+      const normalized = normalize(value);
+      return CATEGORY_CONFIG.find((cat) => normalize(cat.slug) === normalized || normalize(cat.label) === normalized) || null;
+    }
+
+    function normalizeLabel(value, fallback) {
+      if (!value) return fallback;
+      const match = getCategoryConfig(value);
+      if (match) return match.label;
+      return fallback || capitalize(value.toString());
+    }
+
+    function mapCategoryLabelToSlug(label) {
+      if (!label) return '';
+      const match = getCategoryConfig(label);
+      if (match) return match.slug;
+      return normalize(label);
+    }
+
+    function buildChipsFromAttributes(category, attributes = {}) {
+      const chips = [];
+      const attr = attributes || {};
+      switch (category) {
+        case 'auto': {
+          if (attr.year) chips.push(String(attr.year));
+          if (attr.mileage != null) chips.push(`${Number(attr.mileage).toLocaleString('fr-FR')} km`);
+          if (attr.fuel) chips.push(capitalize(attr.fuel));
+          if (attr.gearbox) chips.push(capitalize(attr.gearbox));
+          break;
+        }
+        case 'immobilier': {
+          if (attr.surface) chips.push(`${attr.surface} m²`);
+          if (attr.rooms) chips.push(`${attr.rooms} pièce${attr.rooms > 1 ? 's' : ''}`);
+          if (attr.dpe) chips.push(`DPE ${attr.dpe}`);
+          if (attr.furnished != null) chips.push(attr.furnished ? 'Meublé' : 'Non meublé');
+          break;
+        }
+        case 'electroniques': {
+          if (attr.brand) chips.push(capitalize(attr.brand));
+          if (attr.storage) chips.push(`${attr.storage} Go`);
+          if (attr.grade) chips.push(capitalize(attr.grade));
+          break;
+        }
+        case 'pieces': {
+          if (attr.compatible) chips.push(attr.compatible);
+          if (attr.grade) chips.push(capitalize(attr.grade));
+          if (attr.reference) chips.push(`Ref ${attr.reference}`);
+          break;
+        }
+        default:
+          break;
+      }
+      return chips.slice(0, 3);
+    }
+
+    function mapAdFromApi(ad) {
+      if (!ad) return null;
+      const category = ad.category || '';
+      const catLabel = normalizeLabel(category, 'Autres');
+      const conditionLabel = CONDITION_LABELS[ad.condition] || capitalize(ad.condition || '');
+      const locationText = ad.locationText?.trim() || 'Localisation à préciser';
+      const coordinates = Array.isArray(ad.location?.coordinates) ? ad.location.coordinates : null;
+      const latlng = coordinates && coordinates.length === 2
+        ? [Number(coordinates[1]), Number(coordinates[0])]
+        : null;
+      const cityGuess = locationText.split(',')[0].trim() || catLabel;
+      const fallbackLatLng = cityPos[cityGuess] || cityPos[catLabel] || [36.8065, 10.1815];
+      const images = Array.isArray(ad.images) && ad.images.length ? ad.images : [];
+      const owner = ad.owner || {};
+      let sellerAvatar = null;
+      if (owner.avatarUrl) {
+        sellerAvatar = owner.avatarUrl;
+      } else if (owner.avatar && !String(owner.avatar).startsWith('data:')) {
+        sellerAvatar = `/uploads/avatars/${owner.avatar}`;
+      }
+      const sellerMemberSince = owner.memberSince || owner.createdAt || ad.createdAt;
+      let chips = buildChipsFromAttributes(category, ad.attributes);
+      if (!chips.length) {
+        chips = [catLabel, conditionLabel, fmtPrice(ad.price)];
+      }
+
+      return {
+        id: String(ad._id),
+        category,
+        cat: catLabel,
+        condition: ad.condition,
+        state: conditionLabel || '—',
+        title: ad.title || 'Annonce MapMarket',
+        desc: ad.description || '',
+        price: Number(ad.price) || 0,
+        city: cityGuess,
+        locationText,
+        latlng: latlng || fallbackLatLng,
+        views: ad.views ?? 0,
+        likes: ad.favoritesCount ?? 0,
+        favorites: ad.favoritesCount ?? 0,
+        date: ad.createdAt || ad.updatedAt || new Date().toISOString(),
+        img: images[0] || DEFAULT_IMAGE,
+        gallery: images.length ? images : [DEFAULT_IMAGE],
+        attributes: ad.attributes || {},
+        chips,
+        sellerName: owner.name || owner.email || `Vendeur ${cityGuess}`,
+        sellerEmail: owner.email || '',
+        sellerAvatar,
+        sellerMemberSince,
+        sellerAnnouncements: owner.activeAds ?? null,
+        ownerId: owner._id ? String(owner._id) : null
+      };
+    }
+
+    function upsertAd(ad) {
+      if (!ad) return;
+      const id = String(ad.id);
+      const index = allItems.findIndex((item) => String(item.id) === id);
+      if (index === -1) {
+        allItems.push(ad);
+      } else {
+        allItems[index] = ad;
+      }
+      filteredCache = filteredCache.map((item) => (String(item.id) === id ? ad : item));
+      rebuildAllItemsIndex();
+      syncAdStats(ad);
+    }
+
+    function syncAdStats(ad) {
+      if (!ad) return;
+      updateAdCardDisplay(ad);
+      updateMarkerStats(ad);
+      if (favStore.has(ad.id) && isFavModalOpen()) renderFavSheet();
+      const detailsId = normalizeAdId(detailsDialog?.dataset?.itemId);
+      if (detailsModal && detailsModal.style.display === 'flex' && detailsId && detailsId === normalizeAdId(ad.id)) {
+        refreshOpenDetails(ad);
+      }
+    }
+
+    function updateAdCardDisplay(ad) {
+      if (!listView) return;
+      const cards = listView.querySelectorAll(`.ad-content[data-id=\"${CSS.escape(String(ad.id))}\"]`);
+      cards.forEach((card) => {
+        const priceEl = card.querySelector('.price');
+        if (priceEl) priceEl.textContent = fmtPrice(ad.price);
+        const statsSpans = card.querySelectorAll('.stats .row');
+        if (statsSpans[0]) statsSpans[0].innerHTML = `👁️ ${escapeHtml(ad.views ?? 0)}`;
+        if (statsSpans[1]) statsSpans[1].innerHTML = `❤ ${escapeHtml(ad.likes ?? ad.favorites ?? 0)}`;
+      });
+    }
+
+    function updateMarkerStats(ad) {
+      const marker = markerIndex.get(String(ad.id));
+      if (!marker || !marker._item) return;
+      marker._item.stats = {
+        views: ad.views ?? 0,
+        likes: ad.likes ?? ad.favorites ?? 0
+      };
+    }
+
     const updateFavIcon = (node, isActive) => {
       if (!node) return;
       node.setAttribute('fill', isActive ? THEME.favorite : 'none');
       node.setAttribute('stroke', isActive ? THEME.favorite : 'currentColor');
     };
 
-    const allItemsData = [
-      {
-        "id": 201,
-        "cat": "Immobilier",
-        "title": "Loft industriel rénové - Lyon Croix-Rousse",
-        "price": 485000,
-        "desc": "Volume lumineux de 120 m² avec poutres apparentes, cuisine ouverte équipée et terrasse de 15 m². Copropriété entretenue, faibles charges.",
-        "chips": [
-          "120 m²",
-          "3 pièces",
-          "Terrasse"
-        ],
-        "city": "Lyon",
-        "state": "Très bon état",
-        "views": 182,
-        "likes": 21,
-        "date": "2025-01-18",
-        "img": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 202,
-        "cat": "Immobilier",
-        "title": "Maison familiale 6 pièces - Bordeaux Caudéran",
-        "price": 639000,
-        "desc": "Maison de 165 m² sur parcelle de 480 m², 4 chambres, bureau, piscine chauffée et garage double. Commodités à pied, tram à 7 minutes.",
-        "chips": [
-          "165 m²",
-          "4 chambres",
-          "Piscine"
-        ],
-        "city": "Bordeaux",
-        "state": "Excellent état",
-        "views": 205,
-        "likes": 34,
-        "date": "2025-01-16",
-        "img": "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 203,
-        "cat": "Immobilier",
-        "title": "Studio meublé 28 m² - Paris Canal Saint-Martin",
-        "price": 289000,
-        "desc": "Idéal investisseur : studio traversant, cuisine séparée, salle d'eau rénovée, vendu meublé et équipé. Métro République à 3 minutes.",
-        "chips": [
-          "28 m²",
-          "Meublé",
-          "4e étage"
-        ],
-        "city": "Paris",
-        "state": "Rénové",
-        "views": 332,
-        "likes": 42,
-        "date": "2025-01-20",
-        "img": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1532323544230-7191fd51bc1b?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 204,
-        "cat": "Immobilier",
-        "title": "Chalet bois 5 pièces - Chamonix Les Bois",
-        "price": 825000,
-        "desc": "Chalet de 135 m² orienté sud, vue Mont-Blanc, 4 chambres, poêle scandinave et jardin arboré. Navette ski et commerces à proximité.",
-        "chips": [
-          "135 m²",
-          "4 chambres",
-          "Vue montagne"
-        ],
-        "city": "Chamonix",
-        "state": "Très bon état",
-        "views": 148,
-        "likes": 29,
-        "date": "2024-12-28",
-        "img": "https://images.unsplash.com/photo-1512914890250-353c77d871ae?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1451976426598-a7593bd6d0b2?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1475948165652-1d106188ff24?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1514320291840-4e0cb04cdc29?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 205,
-        "cat": "Auto",
-        "title": "Tesla Model 3 Grande Autonomie 2022",
-        "price": 42900,
-        "desc": "Model 3 Dual Motor AWD, 38 000 km, carnet Tesla, Autopilot amélioré, garantie batterie 8 ans. Pneus hiver et câbles recharge fournis.",
-        "chips": [
-          "38 000 km",
-          "Autopilot",
-          "Dual Motor"
-        ],
-        "city": "Toulouse",
-        "state": "Excellent état",
-        "views": 198,
-        "likes": 33,
-        "date": "2025-01-12",
-        "img": "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1511390429071-3ae4351ca459?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1471479917193-f00955256257?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 206,
-        "cat": "Auto",
-        "title": "BMW Série 1 118d M Sport 2021",
-        "price": 25990,
-        "desc": "Diesel 150 ch, boîte auto 8 rapports, 52 000 km, pack M complet, entretien concession, pneus neufs janvier 2025.",
-        "chips": [
-          "52 000 km",
-          "BVA8",
-          "Pack M"
-        ],
-        "city": "Lille",
-        "state": "Très bon état",
-        "views": 176,
-        "likes": 24,
-        "date": "2025-01-09",
-        "img": "https://images.unsplash.com/photo-1551816230-ef5deaed4a26?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1549923746-c502d488b3ea?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1552519507-93d6c1b09805?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 207,
-        "cat": "Auto",
-        "title": "Volkswagen California Beach T6.1 2020",
-        "price": 57900,
-        "desc": "Van aménagé 4 couchages, 65 500 km, toit relevable électrique, chauffage stationnaire, révision VW 12/2024.",
-        "chips": [
-          "65 500 km",
-          "4 couchages",
-          "Toit relevable"
-        ],
-        "city": "Nantes",
-        "state": "Très bon état",
-        "views": 242,
-        "likes": 41,
-        "date": "2024-12-30",
-        "img": "https://images.unsplash.com/photo-1517949908111-7220f23a2765?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1465446751832-9f11e2739c61?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1471479917193-f00955256257?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1470246973918-29a93221c455?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 208,
-        "cat": "High-Tech",
-        "title": "MacBook Pro 14\" M3 Pro - 1 To",
-        "price": 2490,
-        "desc": "Modèle 2023 gris sidéral, puce M3 Pro 12 cœurs, 18 Go RAM, SSD 1 To. Facture Apple Store, coque et AppleCare+ inclus.",
-        "chips": [
-          "Puissance M3 Pro",
-          "18 Go RAM",
-          "SSD 1 To"
-        ],
-        "city": "Paris",
-        "state": "Comme neuf",
-        "views": 314,
-        "likes": 58,
-        "date": "2025-01-07",
-        "img": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1527430253228-e93688616381?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 209,
-        "cat": "High-Tech",
-        "title": "Sony A7 IV + 24-70mm f/2.8 GM",
-        "price": 3490,
-        "desc": "Hybride plein format 33 MP, 22 000 déclenchements. Optique G Master, 3 batteries, cage SmallRig. Acheté FNAC 2023.",
-        "chips": [
-          "33 MP",
-          "4K60",
-          "Optique GM"
-        ],
-        "city": "Marseille",
-        "state": "Excellent état",
-        "views": 268,
-        "likes": 47,
-        "date": "2025-01-14",
-        "img": "https://images.unsplash.com/photo-1514320291840-4e0cb04cdc29?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1516728778615-2d590ea18506?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1471440671318-55bdbb772f93?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 210,
-        "cat": "High-Tech",
-        "title": "Setup gaming complet RTX 4080 Super",
-        "price": 3690,
-        "desc": "Tour NZXT i7-14700K, RTX 4080 Super, 32 Go DDR5, SSD 2 To, écran incurvé 34 pouces 165 Hz, clavier méca, souris wireless.",
-        "chips": [
-          "i7-14700K",
-          "RTX 4080S",
-          "Écran 34″"
-        ],
-        "city": "Rennes",
-        "state": "Comme neuf",
-        "views": 401,
-        "likes": 62,
-        "date": "2025-01-11",
-        "img": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1587202372775-98927f7ccfcd?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 211,
-        "cat": "High-Tech",
-        "title": "iPhone 15 Pro Max 256 Go - Bleu Titane",
-        "price": 1320,
-        "desc": "Acheté octobre 2024, garantie Apple en cours. Batterie 100 %, livré avec boîte, câble, AppleCare+ transférable et verre trempé.",
-        "chips": [
-          "256 Go",
-          "AppleCare+",
-          "Batterie 100 %"
-        ],
-        "city": "Nice",
-        "state": "Comme neuf",
-        "views": 355,
-        "likes": 73,
-        "date": "2025-01-15",
-        "img": "https://images.unsplash.com/photo-1695048130329-4b631dccd880?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1695048026064-14f2b90e1091?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1695048026132-7cbdeb18f0bc?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1695048026259-06d9a14abe12?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 212,
-        "cat": "Maison",
-        "title": "Cuisine équipée complète - Schmidt 2022",
-        "price": 6900,
-        "desc": "Cuisine en L 3,60 m x 2,40 m, façades chêne clair + îlot, plan quartz, électroménager Siemens inclus (four vapeur, plaque induction, LV).",
-        "chips": [
-          "Quartz",
-          "Électroménager Siemens",
-          "2022"
-        ],
-        "city": "Strasbourg",
-        "state": "Très bon état",
-        "views": 119,
-        "likes": 18,
-        "date": "2024-12-22",
-        "img": "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 213,
-        "cat": "Maison",
-        "title": "Ensemble salon design - canapé + fauteuil + table",
-        "price": 1890,
-        "desc": "Set Made.com 2023 : canapé 3 places velours bleu, fauteuil assorti, table basse verre fumé. Maison non fumeur, aucun accroc.",
-        "chips": [
-          "Velours",
-          "2023",
-          "Excellent état"
-        ],
-        "city": "Montpellier",
-        "state": "Excellent état",
-        "views": 143,
-        "likes": 26,
-        "date": "2025-01-05",
-        "img": "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 214,
-        "cat": "Maison",
-        "title": "Lit bébé évolutif + commode Quax",
-        "price": 420,
-        "desc": "Lit évolutif 70x140 cm + commode 3 tiroirs Quax Moonshadow. Achetés neufs en 2023, vendus avec matelas latex traité anti-acariens.",
-        "chips": [
-          "70x140",
-          "Matelas latex",
-          "2023"
-        ],
-        "city": "Nantes",
-        "state": "Très bon état",
-        "views": 88,
-        "likes": 15,
-        "date": "2025-01-03",
-        "img": "https://images.unsplash.com/photo-1616594039964-0c9c5edb126e?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1549187774-b4e9b0445b06?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=75"
-        ]
-      },
-      {
-        "id": 215,
-        "cat": "Maison",
-        "title": "Robot tondeuse Husqvarna Automower 430X",
-        "price": 1490,
-        "desc": "Pour jardins jusqu'à 3200 m². Installation pro 2022, entretien annuel. Livré avec base, câbles, 2 jeux de lames. Parfait état.",
-        "chips": [
-          "Jusqu’à 3200 m²",
-          "GPS",
-          "Silencieux"
-        ],
-        "city": "Angers",
-        "state": "Très bon état",
-        "views": 97,
-        "likes": 19,
-        "date": "2024-12-18",
-        "img": "https://images.unsplash.com/photo-1624022353893-c5d5e7593160?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1624009694643-dca3ad37d627?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1624009694846-73f45e15b8ff?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1624009695209-8efbea7f2a7b?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 216,
-        "cat": "Mode",
-        "title": "Veste Acne Studios Velocite oversized XS",
-        "price": 780,
-        "desc": "Veste motard shearling Acne Studios noir, taille XS oversize. Portée trois fois, vendue avec housse d'origine. Valeur boutique 1900 €.",
-        "chips": [
-          "Shearling",
-          "Taille XS",
-          "Quasi neuve"
-        ],
-        "city": "Paris",
-        "state": "Comme neuf",
-        "views": 167,
-        "likes": 51,
-        "date": "2025-01-13",
-        "img": "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1521570265162-6b51f6f7b86f?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 217,
-        "cat": "Mode",
-        "title": "Lot sneakers collection Nike/Adidas - 6 paires",
-        "price": 950,
-        "desc": "Collection personnelle : Air Jordan 1 Obsidian, Nike Dunk Panda, Adidas Yeezy 350 V2, état proche du neuf, tailles 43-44.",
-        "chips": [
-          "6 paires",
-          "Pointure 43-44",
-          "Boîtes incluses"
-        ],
-        "city": "Lyon",
-        "state": "Très bon état",
-        "views": 289,
-        "likes": 63,
-        "date": "2025-01-04",
-        "img": "https://images.unsplash.com/photo-1528701800489-20be3c00c1f5?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 218,
-        "cat": "Mode",
-        "title": "Robe de mariée Laure de Sagazan 2024",
-        "price": 1750,
-        "desc": "Modèle Chagall 2024, taille 38, portée une fois, nettoyée pressing spécialisé. Dentelle de Calais, ceinture en soie, voilage fourni.",
-        "chips": [
-          "Taille 38",
-          "Nettoyée",
-          "Collection 2024"
-        ],
-        "city": "Rennes",
-        "state": "Comme neuf",
-        "views": 124,
-        "likes": 28,
-        "date": "2024-12-26",
-        "img": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1524504388712-1be48574f0d1?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1520854221050-0f4caff449fb?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1520854221050-0f4caff449fb?auto=format&fit=crop&w=1600&q=70"
-        ]
-      },
-      {
-        "id": 219,
-        "cat": "Mode",
-        "title": "Montre Omega Speedmaster Professional 2021",
-        "price": 5400,
-        "desc": "Speedmaster Moonwatch calibre 3861, full set (boîte, cartes, NATO), achetée Bucherer 2021. Révision Omega 2024, bracelet acier neuf.",
-        "chips": [
-          "Calibre 3861",
-          "Full set",
-          "Révisée 2024"
-        ],
-        "city": "Strasbourg",
-        "state": "Excellent état",
-        "views": 212,
-        "likes": 39,
-        "date": "2025-01-02",
-        "img": "https://images.unsplash.com/photo-1518544889280-9c61d6634830?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1524592093325-113f59c8b0e2?auto=format&fit=crop&w=1600&q=80"
-        ]
-      },
-      {
-        "id": 220,
-        "cat": "Mode",
-        "title": "Sac Hermès Kelly 28 Retourne Gold",
-        "price": 8900,
-        "desc": "Kelly 28 cuir Togo Gold, garniture palladium, année 2022, porté occasionnellement, facture Hermès, dust bag, cadenas et bandoulière.",
-        "chips": [
-          "Kelly 28",
-          "Cuir Togo",
-          "Facture Hermès"
-        ],
-        "city": "Paris",
-        "state": "Excellent état",
-        "views": 178,
-        "likes": 45,
-        "date": "2024-12-15",
-        "img": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1400&q=80",
-        "gallery": [
-          "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1524504388712-1be48574f0d1?auto=format&fit=crop&w=1600&q=80",
-          "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1600&q=80"
-        ]
-      }
-    ];
-
-    let allItems = allItemsData.map(it => ({ ...it, latlng: jitter(cityPos[it.city] || [46.2, 2.2]) }));
+    let allItems = [];
     const allItemsIndex = new Map();
     function rebuildAllItemsIndex() {
       allItemsIndex.clear();
@@ -1252,8 +1152,20 @@
     const authStore = { get() { try { return JSON.parse(localStorage.getItem('mm-auth') || 'null') } catch { return null } }, set(v) { localStorage.setItem('mm-auth', JSON.stringify(v)) } };
 
     // ---------- UTIL ----------
-    function categoryClass(cat) { return cat === 'Immobilier' ? 'immobilier' : cat === 'Mode' ? 'mode' : cat === 'High-Tech' ? 'hitech' : cat === 'Auto' ? 'auto' : 'maison'; }
-    function fmtPrice(n) { return (n >= 1000 ? n.toLocaleString('fr-FR') : n) + ' €'; }
+    function categoryClass(cat) {
+      const value = (cat || '').toString().toLowerCase();
+      if (value.includes('immobilier')) return 'immobilier';
+      if (value.includes('mode')) return 'mode';
+      if (value.includes('high-tech') || value.includes('electron')) return 'hitech';
+      if (value.includes('auto')) return 'auto';
+      if (value.includes('pièce')) return 'pieces';
+      return 'maison';
+    }
+    function fmtPrice(n) {
+      const value = Number(n);
+      if (Number.isNaN(value)) return '0 Dt';
+      return fmtDT.format(value);
+    }
     function buildOptimizedImage(url, width = 480, quality = 70) {
       if (!url) return '';
       try {
@@ -1346,21 +1258,31 @@
       return list;
     }
 
-    [search, cat, etat, sort, pmin, pmax, city].forEach(el => el.addEventListener('input', () => {
+    let filterReloadTimer = null;
+    function scheduleAdsReload({ immediate = false } = {}) {
+      if (filterReloadTimer) clearTimeout(filterReloadTimer);
       viewState.userAdjustedView = false;
-      pagination.index = 0;
-      renderList(true);
-      renderMap({ autoFit: true });
-    }));
+      if (immediate) {
+        loadAds({ filters: getFilterValues() });
+        return;
+      }
+      filterReloadTimer = setTimeout(() => {
+        loadAds({ filters: getFilterValues() });
+      }, 400);
+    }
+
+    if (search) search.addEventListener('input', () => scheduleAdsReload({ immediate: false }));
+    [cat, etat, sort, pmin, pmax, city].forEach(el => el?.addEventListener('change', () => scheduleAdsReload({ immediate: true })));
+    [pmin, pmax, city].forEach(el => el?.addEventListener('input', () => scheduleAdsReload({ immediate: false })));
+
     resetBtn.addEventListener('click', () => {
       [search, cat, etat, sort, pmin, pmax, city].forEach(el => {
+        if (!el) return;
         if (el.tagName === 'SELECT') el.selectedIndex = 0;
         else el.value = '';
       });
       viewState.userAdjustedView = false;
-      pagination.index = 0;
-      renderList(true);
-      renderMap({ autoFit: true });
+      loadAds({ filters: getFilterValues() });
     });
 
     // ---------- LIST RENDER + INFINITE ----------
@@ -1408,6 +1330,76 @@
       if (isFavModalOpen()) renderFavSheet();
     }
 
+    let isLoadingAds = false;
+    let pendingFilters = null;
+    let currentFilters = {
+      search: '',
+      category: '',
+      condition: '',
+      minPrice: '',
+      maxPrice: '',
+      city: '',
+      sort: 'recent'
+    };
+
+    function getFilterValues() {
+      return {
+        search: search?.value?.trim() || '',
+        category: cat?.value || '',
+        condition: etat?.value || '',
+        minPrice: pmin?.value || '',
+        maxPrice: pmax?.value || '',
+        city: city?.value?.trim() || '',
+        sort: sort?.value || 'recent'
+      };
+    }
+
+    async function loadAds({ filters = null, toastOnError = true } = {}) {
+      if (isLoadingAds) {
+        if (filters) pendingFilters = { ...filters };
+        return;
+      }
+      isLoadingAds = true;
+      try {
+        if (loading) loading.hidden = false;
+        if (filters) {
+          currentFilters = { ...currentFilters, ...filters };
+        }
+        const params = new URLSearchParams();
+        params.set('page', '1');
+        params.set('limit', '200');
+        if (currentFilters.search) params.set('search', currentFilters.search);
+        if (currentFilters.category) params.set('category', mapCategoryLabelToSlug(currentFilters.category));
+        if (currentFilters.condition) params.set('condition', mapConditionToSlug(currentFilters.condition));
+        if (currentFilters.minPrice) params.set('minPrice', currentFilters.minPrice);
+        if (currentFilters.maxPrice) params.set('maxPrice', currentFilters.maxPrice);
+        if (currentFilters.city) params.set('city', currentFilters.city);
+        if (currentFilters.sort) params.set('sort', currentFilters.sort);
+        const response = await api.get(`/api/ads?${params.toString()}`);
+        const items = Array.isArray(response?.data?.items) ? response.data.items : [];
+        allItems = items.map(mapAdFromApi).filter(Boolean);
+        rebuildAllItemsIndex();
+        pagination.index = 0;
+        listView.innerHTML = '';
+        filteredCache = [];
+        renderList(true);
+        renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
+        syncAllFavoriteButtons();
+        if (isFavModalOpen()) renderFavSheet();
+      } catch (error) {
+        console.error('loadAds error', error);
+        if (toastOnError) showToast(error?.message || 'Impossible de charger les annonces.');
+      } finally {
+        if (loading) loading.hidden = true;
+        isLoadingAds = false;
+        if (pendingFilters) {
+          const nextFilters = pendingFilters;
+          pendingFilters = null;
+          loadAds({ filters: nextFilters, toastOnError });
+        }
+      }
+    }
+
     const favoriteMutations = new Map();
 
     async function setFavoriteState(id, shouldAdd, { feedback = true } = {}) {
@@ -1440,6 +1432,7 @@
           currentUser.favorites = favorites;
           authStore.set(currentUser);
         }
+        adjustAdFavorites(key, shouldAdd ? 1 : -1);
         if (feedback) showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
         return true;
       } catch (error) {
@@ -1465,6 +1458,15 @@
       } finally {
         favoriteMutations.delete(key);
       }
+    }
+
+    function adjustAdFavorites(id, delta) {
+      const ad = getItemById(id);
+      if (!ad) return;
+      const next = Math.max(0, (ad.likes ?? ad.favorites ?? 0) + delta);
+      ad.likes = next;
+      ad.favorites = next;
+      upsertAd(ad);
     }
 
     if (favModal) {
@@ -1855,7 +1857,7 @@
     io.observe(sentinel);
 
     // ---------- MAP (Leaflet + clusters) ----------
-    const fmtEUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+    const fmtDT = new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 });
 
     function escapeHtml(value = '') {
       return String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1866,7 +1868,7 @@
     }
 
     function renderMiniCard(item) {
-      const priceLabel = typeof item.price === 'number' ? fmtEUR.format(item.price) : (item.price || '');
+      const priceLabel = typeof item.price === 'number' ? fmtDT.format(item.price) : (item.price || '');
       const stats = item.stats || {};
       const viewLabel = Number.isFinite(stats.views) ? stats.views : null;
       const likeLabel = Number.isFinite(stats.likes) ? stats.likes : null;
@@ -1955,7 +1957,7 @@
       el.addEventListener('click', (event) => {
         const target = event.target.closest('[data-action="open-details"]');
         if (!target) return;
-        const id = Number(target.getAttribute('data-id'));
+        const id = target.getAttribute('data-id');
         scheduleCloseHover(0);
         const sourceMarker = hoverCard?._sourceMarker;
         const data = sourceMarker?._itemData;
@@ -2175,6 +2177,7 @@
       markerIndex.clear();
       const list = getFiltered();
       list.forEach(a => {
+        if (!Array.isArray(a.latlng) || a.latlng.length !== 2 || a.latlng.some(v => Number.isNaN(Number(v)))) return;
         const marker = L.marker(a.latlng, { title: a.title, keyboard: true });
         const hoverData = {
           id: a.id,
@@ -2187,7 +2190,7 @@
         };
         marker._item = hoverData;
         marker._itemData = a;
-        markerIndex.set(a.id, marker);
+        markerIndex.set(String(a.id), marker);
         bindHoverCard(marker);
         cluster.addLayer(marker);
       });
@@ -2209,7 +2212,7 @@
     }
 
     function focusMarkerById(id, attempt = 0) {
-      const marker = markerIndex.get(Number(id));
+      const marker = markerIndex.get(String(id));
       if (!marker) {
         if (attempt < 8) setTimeout(() => focusMarkerById(id, attempt + 1), 150);
         return;
@@ -3600,10 +3603,6 @@
       }
     });
 
-    postBtn.addEventListener('click', () => {
-      showToast('Formulaire de dépôt à venir…');
-    });
-
     function updateAuthUI() {
       const auth = authStore.get();
       renderAvatar(auth);
@@ -3635,6 +3634,606 @@
       } finally {
         updateAuthUI();
       }
+    }
+
+    // ---------- POST MODAL ----------
+    const postModal = document.getElementById('postModal');
+    const postDialog = document.getElementById('postDialog');
+    const postForm = document.getElementById('postForm');
+    const postTitleInput = document.getElementById('postTitleInput');
+    const postCategory = document.getElementById('postCategory');
+    const postCondition = document.getElementById('postCondition');
+    const postPrice = document.getElementById('postPrice');
+    const postPhotosInput = document.getElementById('postPhotos');
+    const postPhotosList = document.getElementById('postPhotosList');
+    const postAttributes = document.getElementById('postAttributes');
+    const postAddress = document.getElementById('postAddress');
+    const postLat = document.getElementById('postLat');
+    const postLng = document.getElementById('postLng');
+    const postDescription = document.getElementById('postDescription');
+    const postDescriptionCount = document.getElementById('postDescriptionCount');
+    const postUseLocation = document.getElementById('postUseLocation');
+    const postStatus = document.getElementById('postStatus');
+    const postCancel = document.getElementById('postCancel');
+    const postSubmit = document.getElementById('postSubmit');
+    const postPreview = document.getElementById('postPreview');
+    const postSaveDraft = document.getElementById('postSaveDraft');
+    const postDraftBanner = document.getElementById('postDraftBanner');
+    const postDraftResume = document.getElementById('postDraftResume');
+    const postDraftDiscard = document.getElementById('postDraftDiscard');
+    const closePostBtn = document.getElementById('closePost');
+    const postUploader = document.getElementById('postUploader');
+
+    const DRAFT_STORAGE_KEY = 'mm-new-ad-draft-v1';
+    const MAX_IMAGES = 10;
+    const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+
+    const categoryDefinitions = {
+      auto: {
+        fields: [
+          { id: 'year', label: 'Année', type: 'number', min: 1980, max: new Date().getFullYear(), required: true },
+          { id: 'mileage', label: 'Kilométrage', type: 'number', min: 0, max: 500000, required: true },
+          { id: 'fuel', label: 'Carburant', type: 'select', options: ['essence', 'diesel', 'hybride', 'electrique', 'gpl'], required: true },
+          { id: 'gearbox', label: 'Boîte de vitesses', type: 'select', options: ['manuelle', 'automatique'], required: true }
+        ]
+      },
+      immobilier: {
+        fields: [
+          { id: 'surface', label: 'Surface (m²)', type: 'number', min: 5, max: 1000, required: true },
+          { id: 'rooms', label: 'Nombre de pièces', type: 'number', min: 1, max: 20, required: true },
+          { id: 'dpe', label: 'DPE', type: 'select', options: ['A', 'B', 'C', 'D', 'E', 'F', 'G'], required: true },
+          { id: 'furnished', label: 'Meublé', type: 'boolean', required: false },
+          { id: 'floor', label: 'Étage', type: 'number', min: 0, max: 50, required: false }
+        ]
+      },
+      electroniques: {
+        fields: [
+          { id: 'storage', label: 'Stockage (Go)', type: 'number', min: 1, max: 4096, required: true },
+          { id: 'brand', label: 'Marque', type: 'text', required: true },
+          { id: 'grade', label: 'Grade', type: 'select', options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'], required: true }
+        ]
+      },
+      pieces: {
+        fields: [
+          { id: 'compatible', label: 'Compatible avec', type: 'text', required: true },
+          { id: 'grade', label: 'État', type: 'select', options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'], required: true },
+          { id: 'reference', label: 'Référence', type: 'text', required: false }
+        ]
+      }
+    };
+
+    let postPhotos = [];
+    let postMapInstance = null;
+    let postMapMarker = null;
+    let postDraftLoaded = false;
+    let postDraftTimer = null;
+    let postIsSubmitting = false;
+
+    function setPostModalHidden(hidden) {
+      if (!postModal) return;
+      postModal.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+      document.body.classList.toggle('modal-open', !hidden);
+      if (hidden) {
+        unlockBodyScroll();
+      } else {
+        lockBodyScroll();
+      }
+    }
+
+    function openPostModal() {
+      const auth = authStore.get();
+      if (!auth) {
+        showToast('Connectez-vous pour déposer une annonce 🔐');
+        openAuth();
+        return;
+      }
+      rebuildAllItemsIndex();
+      setPostModalHidden(false);
+      postForm.reset();
+      clearAllFieldErrors(postForm);
+      postPhotos = [];
+      renderPhotoList();
+      postStatus.textContent = '';
+      postDraftLoaded = false;
+      postDraftBanner.hidden = true;
+      initPostMap();
+      buildAttributesForm(postCategory.value);
+      const draft = loadDraft();
+      if (draft) {
+        postDraftBanner.hidden = false;
+      }
+      postTitleInput.focus({ preventScroll: true });
+      updateDescriptionCount();
+    }
+
+    function closePostModal({ reset = false } = {}) {
+      setPostModalHidden(true);
+      if (reset) {
+        postForm.reset();
+        postPhotos = [];
+        renderPhotoList();
+        postStatus.textContent = '';
+      }
+    }
+
+    function clearAllFieldErrors(scope) {
+      scope.querySelectorAll('.field-error').forEach((el) => (el.textContent = ''));
+      scope.querySelectorAll('[aria-invalid="true"]').forEach((el) => el.removeAttribute('aria-invalid'));
+    }
+
+    function setFieldError(id, message) {
+      const field = typeof id === 'string' ? document.getElementById(id) : id;
+      if (!field) return;
+      const errorEl = postForm.querySelector(`.field-error[data-error-for="${field.id}"]`);
+      if (errorEl) errorEl.textContent = message || '';
+      if (message) field.setAttribute('aria-invalid', 'true');
+      else field.removeAttribute('aria-invalid');
+    }
+
+    function renderPhotoList() {
+      if (!postPhotosList) return;
+      postPhotosList.innerHTML = '';
+      if (!postPhotos.length) return;
+      postPhotos.forEach((entry, index) => {
+        const item = document.createElement('div');
+        item.className = 'uploader-item';
+        item.draggable = true;
+        item.dataset.index = String(index);
+        item.innerHTML = `
+          <img src="${entry.preview}" alt="Photo ${index + 1}">
+          <button type="button" class="uploader-remove" data-index="${index}" aria-label="Supprimer la photo">✕</button>
+        `;
+        item.addEventListener('dragstart', handlePhotoDragStart);
+        item.addEventListener('dragover', handlePhotoDragOver);
+        item.addEventListener('drop', handlePhotoDrop);
+        postPhotosList.appendChild(item);
+      });
+    }
+
+    let dragPhotoIndex = null;
+    function handlePhotoDragStart(event) {
+      dragPhotoIndex = Number(event.currentTarget.dataset.index);
+      event.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handlePhotoDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    function handlePhotoDrop(event) {
+      event.preventDefault();
+      const targetIndex = Number(event.currentTarget.dataset.index);
+      if (Number.isNaN(dragPhotoIndex) || Number.isNaN(targetIndex) || dragPhotoIndex === targetIndex) return;
+      const reordered = [...postPhotos];
+      const [moved] = reordered.splice(dragPhotoIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+      postPhotos = reordered;
+      renderPhotoList();
+      queueDraftSave();
+    }
+
+    function buildAttributesForm(category) {
+      if (!postAttributes) return;
+      postAttributes.innerHTML = '';
+      const def = categoryDefinitions[category];
+      if (!def) return;
+      def.fields.forEach((field) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'field';
+        wrapper.dataset.attribute = field.id;
+        const label = document.createElement('label');
+        label.setAttribute('for', `attr-${field.id}`);
+        label.textContent = `${field.label}${field.required ? ' *' : ''}`;
+        wrapper.appendChild(label);
+        let input;
+        if (field.type === 'select') {
+          input = document.createElement('select');
+          input.id = `attr-${field.id}`;
+          input.name = `attr_${field.id}`;
+          input.innerHTML = `<option value="">Sélectionnez</option>` + field.options.map((opt) => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('');
+        } else if (field.type === 'boolean') {
+          input = document.createElement('select');
+          input.id = `attr-${field.id}`;
+          input.name = `attr_${field.id}`;
+          input.innerHTML = '<option value="">Sélectionnez</option><option value="true">Oui</option><option value="false">Non</option>';
+        } else {
+          input = document.createElement('input');
+          input.id = `attr-${field.id}`;
+          input.name = `attr_${field.id}`;
+          input.type = field.type === 'number' ? 'number' : 'text';
+          if (field.min != null) input.min = field.min;
+          if (field.max != null) input.max = field.max;
+        }
+        if (field.required) input.required = true;
+        wrapper.appendChild(input);
+        const error = document.createElement('p');
+        error.className = 'field-error';
+        error.dataset.errorFor = input.id;
+        wrapper.appendChild(error);
+        postAttributes.appendChild(wrapper);
+        input.addEventListener('input', queueDraftSave);
+      });
+    }
+
+    function updateDescriptionCount() {
+      if (!postDescription || !postDescriptionCount) return;
+      postDescriptionCount.textContent = `${postDescription.value.length} / 2000`;
+    }
+
+    function validatePostForm() {
+      clearAllFieldErrors(postForm);
+      let valid = true;
+      const title = postTitleInput.value.trim();
+      if (title.length < 10 || title.length > 80) {
+        setFieldError('postTitleInput', 'Le titre doit contenir entre 10 et 80 caractères.');
+        valid = false;
+      }
+      if (!postCategory.value) {
+        setFieldError('postCategory', 'Sélectionnez une catégorie.');
+        valid = false;
+      }
+      if (!postCondition.value) {
+        setFieldError('postCondition', 'Sélectionnez l’état de l’article.');
+        valid = false;
+      }
+      const priceValue = Number(postPrice.value);
+      if (!postPrice.value || Number.isNaN(priceValue) || priceValue < 0.1 || priceValue > 9999999) {
+        setFieldError('postPrice', 'Indiquez un prix valide (0.1 à 9 999 999).');
+        valid = false;
+      }
+      if (!postPhotos.length) {
+        setFieldError('postPhotos', 'Ajoutez au moins une photo.');
+        valid = false;
+      }
+      const def = categoryDefinitions[postCategory.value];
+      if (def) {
+        def.fields.forEach((field) => {
+          const input = document.getElementById(`attr-${field.id}`);
+          if (!input) return;
+          let error = '';
+          const value = input.value.trim();
+          if (field.required && !value) {
+            error = 'Champ requis';
+          } else if (field.type === 'number' && value) {
+            const num = Number(value);
+            if (Number.isNaN(num)) error = 'Valeur numérique invalide';
+            if (field.min != null && num < field.min) error = `Minimum ${field.min}`;
+            if (field.max != null && num > field.max) error = `Maximum ${field.max}`;
+          }
+          if (error) {
+            setFieldError(input.id, error);
+            valid = false;
+          }
+        });
+      }
+      if (!postAddress.value.trim()) {
+        setFieldError('postAddress', 'Indiquez une adresse.');
+        valid = false;
+      }
+      const lat = Number(postLat.value);
+      const lng = Number(postLng.value);
+      if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+        setFieldError('postLat', 'Latitude invalide.');
+        valid = false;
+      }
+      if (Number.isNaN(lng) || lng < -180 || lng > 180) {
+        setFieldError('postLng', 'Longitude invalide.');
+        valid = false;
+      }
+      if (postDescription.value.trim().length < 30) {
+        setFieldError('postDescription', 'La description doit contenir au moins 30 caractères.');
+        valid = false;
+      }
+      if (!valid) {
+        const firstError = postForm.querySelector('[aria-invalid="true"]');
+        if (firstError) firstError.focus({ preventScroll: false });
+      }
+      return valid;
+    }
+
+    function collectPostPayload() {
+      const attributes = {};
+      const def = categoryDefinitions[postCategory.value];
+      if (def) {
+        def.fields.forEach((field) => {
+          const input = document.getElementById(`attr-${field.id}`);
+          if (!input) return;
+          if (field.type === 'number') {
+            attributes[field.id] = input.value ? Number(input.value) : null;
+          } else if (field.type === 'boolean') {
+            attributes[field.id] = input.value === '' ? null : input.value === 'true';
+          } else {
+            attributes[field.id] = input.value.trim() || null;
+          }
+        });
+      }
+      return {
+        title: postTitleInput.value.trim(),
+        category: postCategory.value,
+        condition: postCondition.value,
+        price: Number(postPrice.value),
+        description: postDescription.value.trim(),
+        locationText: postAddress.value.trim(),
+        latitude: Number(postLat.value),
+        longitude: Number(postLng.value),
+        attributes,
+        images: postPhotos.map((file) => file.preview)
+      };
+    }
+
+    function saveDraft(data) {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
+      } catch (error) {
+        console.warn('Impossible de sauvegarder le brouillon', error);
+      }
+    }
+
+    function loadDraft() {
+      try {
+        const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (error) {
+        console.warn('Impossible de charger le brouillon', error);
+        return null;
+      }
+    }
+
+    function discardDraft() {
+      try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch (error) {
+        console.warn('Impossible de supprimer le brouillon', error);
+      }
+    }
+
+    function restoreDraft(draft) {
+      if (!draft) return;
+      if (draft.title) postTitleInput.value = draft.title;
+      if (draft.category) {
+        postCategory.value = draft.category;
+        buildAttributesForm(draft.category);
+      }
+      if (draft.condition) postCondition.value = draft.condition;
+      if (draft.price) postPrice.value = draft.price;
+      if (draft.description) postDescription.value = draft.description;
+      if (draft.locationText) postAddress.value = draft.locationText;
+      if (draft.latitude) postLat.value = draft.latitude;
+      if (draft.longitude) postLng.value = draft.longitude;
+      if (draft.attributes && typeof draft.attributes === 'object') {
+        Object.entries(draft.attributes).forEach(([key, value]) => {
+          const input = document.getElementById(`attr-${key}`);
+          if (input) input.value = value ?? '';
+        });
+      }
+      if (Array.isArray(draft.photos)) {
+        postPhotos = draft.photos.map((photo) => ({ preview: photo, file: null }));
+        renderPhotoList();
+      }
+      if (draft.latitude && draft.longitude) {
+        updatePostMapMarker(draft.latitude, draft.longitude);
+      }
+      updateDescriptionCount();
+    }
+
+    function queueDraftSave() {
+      if (postDraftTimer) clearTimeout(postDraftTimer);
+      postDraftTimer = setTimeout(() => {
+        if (postIsSubmitting) return;
+        const payload = collectPostPayload();
+        saveDraft({ ...payload, photos: postPhotos.map((p) => p.preview) });
+      }, 1500);
+    }
+
+    function initPostMap() {
+      const container = document.getElementById('postMap');
+      if (!container) return;
+      if (!postMapInstance) {
+        postMapInstance = L.map('postMap', {
+          center: [36.8065, 10.1815],
+          zoom: 12,
+          scrollWheelZoom: false
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(postMapInstance);
+        postMapMarker = L.marker(postMapInstance.getCenter(), { draggable: true }).addTo(postMapInstance);
+        postMapMarker.on('move', ({ latlng }) => {
+          postLat.value = latlng.lat.toFixed(6);
+          postLng.value = latlng.lng.toFixed(6);
+          queueDraftSave();
+        });
+        postMapInstance.on('click', ({ latlng }) => {
+          postMapMarker.setLatLng(latlng);
+          postLat.value = latlng.lat.toFixed(6);
+          postLng.value = latlng.lng.toFixed(6);
+          queueDraftSave();
+        });
+      }
+      setTimeout(() => {
+        postMapInstance.invalidateSize();
+      }, 200);
+    }
+
+    function updatePostMapMarker(lat, lng) {
+      if (!postMapInstance || !postMapMarker) return;
+      const latNum = Number(lat);
+      const lngNum = Number(lng);
+      if (Number.isNaN(latNum) || Number.isNaN(lngNum)) return;
+      postMapMarker.setLatLng([latNum, lngNum]);
+      postMapInstance.setView([latNum, lngNum], Math.max(postMapInstance.getZoom(), 12));
+    }
+
+    async function requestUserLocation() {
+      if (!navigator.geolocation) {
+        showToast('Géolocalisation non supportée');
+        return;
+      }
+      postUseLocation.disabled = true;
+      postUseLocation.textContent = 'Recherche…';
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+        });
+        const { latitude, longitude } = position.coords;
+        postLat.value = latitude.toFixed(6);
+        postLng.value = longitude.toFixed(6);
+        updatePostMapMarker(latitude, longitude);
+        showToast('Position détectée ✅');
+        queueDraftSave();
+      } catch (error) {
+        console.warn('Geolocation error', error);
+        showToast('Impossible d’obtenir la position');
+      } finally {
+        postUseLocation.disabled = false;
+        postUseLocation.textContent = '📍 Utiliser ma position';
+      }
+    }
+
+    async function uploadImages(files) {
+      const results = [];
+      for (const file of files) {
+        results.push({ url: file.preview, name: file.file?.name || 'image' });
+      }
+      return results;
+    }
+
+    async function submitPost(event) {
+      event.preventDefault();
+      if (postIsSubmitting) return;
+      if (!validatePostForm()) return;
+      postIsSubmitting = true;
+      postSubmit.classList.add('loading');
+      postStatus.textContent = 'Publication en cours…';
+
+      try {
+        const uploaded = await uploadImages(postPhotos);
+        const payload = collectPostPayload();
+        payload.images = uploaded.map((item) => item.url);
+        if (payload.images.length === 0) {
+          throw new Error('Ajoutez au moins une photo avant de publier.');
+        }
+        const response = await api.post('/api/ads', payload, { headers: { 'Content-Type': 'application/json' } });
+        showToast(response?.message || 'Annonce publiée ✅');
+        discardDraft();
+        await loadAds({ toastOnError: false });
+        closePostModal({ reset: true });
+        postStatus.textContent = '';
+      } catch (error) {
+        console.error('Post error', error);
+        const message = error?.payload?.message || error?.message || 'Impossible de publier l’annonce.';
+        postStatus.textContent = message;
+        showToast(message);
+      } finally {
+        postIsSubmitting = false;
+        postSubmit.classList.remove('loading');
+      }
+    }
+
+    postBtn?.addEventListener('click', () => openPostModal());
+    closePostBtn?.addEventListener('click', () => closePostModal({ reset: false }));
+    postCancel?.addEventListener('click', () => closePostModal({ reset: false }));
+    postPreview?.addEventListener('click', () => {
+      if (!validatePostForm()) return;
+      const payload = collectPostPayload();
+      console.table(payload);
+      showToast('Prévisualisation disponible prochainement ✨');
+    });
+    postSaveDraft?.addEventListener('click', () => {
+      const payload = collectPostPayload();
+      saveDraft({ ...payload, photos: postPhotos.map((p) => p.preview) });
+      postStatus.textContent = 'Brouillon enregistré ✔';
+      setTimeout(() => (postStatus.textContent = ''), 2000);
+    });
+    postForm?.addEventListener('submit', submitPost);
+
+    postCategory?.addEventListener('change', () => {
+      buildAttributesForm(postCategory.value);
+      queueDraftSave();
+    });
+    [postTitleInput, postCondition, postPrice, postAddress, postLat, postLng].forEach((input) => {
+      input?.addEventListener('input', () => {
+        if (input === postLat || input === postLng) {
+          updatePostMapMarker(postLat.value, postLng.value);
+        }
+        queueDraftSave();
+      });
+    });
+    postDescription?.addEventListener('input', () => {
+      updateDescriptionCount();
+      queueDraftSave();
+    });
+    postPhotosInput?.addEventListener('change', async (event) => {
+      setFieldError('postPhotos', '');
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      const remainingSlots = MAX_IMAGES - postPhotos.length;
+      const selection = files.slice(0, remainingSlots);
+      for (const file of selection) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          showToast(`Format non supporté: ${file.name}`);
+          continue;
+        }
+        if (file.size > MAX_IMAGE_SIZE) {
+          showToast(`${file.name} dépasse 8 Mo`);
+          continue;
+        }
+        const preview = await readFilePreview(file);
+        postPhotos.push({ file, preview });
+      }
+      renderPhotoList();
+      queueDraftSave();
+      postPhotosInput.value = '';
+    });
+
+    postPhotosList?.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.uploader-remove');
+      if (!removeBtn) return;
+      const index = Number(removeBtn.dataset.index);
+      if (Number.isNaN(index)) return;
+      postPhotos.splice(index, 1);
+      renderPhotoList();
+      queueDraftSave();
+    });
+
+    postUseLocation?.addEventListener('click', () => requestUserLocation());
+
+    postModal?.addEventListener('click', (event) => {
+      if (event.target === postModal) {
+        closePostModal({ reset: false });
+      }
+    });
+
+    postDialog?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePostModal({ reset: false });
+      }
+    });
+
+    postDraftResume?.addEventListener('click', () => {
+      const draft = loadDraft();
+      if (draft) {
+        restoreDraft(draft);
+        postDraftBanner.hidden = true;
+        postDraftLoaded = true;
+      }
+    });
+
+    postDraftDiscard?.addEventListener('click', () => {
+      discardDraft();
+      postDraftBanner.hidden = true;
+    });
+
+    async function readFilePreview(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
     // ---------- DETAILS MODAL ----------
@@ -3811,6 +4410,72 @@
       updateCarouselUI();
     }
 
+    function applyDetailsContent(ad, { replaceGallery = true, gallery: providedGallery = null } = {}) {
+      if (!ad) return;
+      const gallery = providedGallery ?? buildGallery(ad);
+      const totalImages = gallery.length || 0;
+      const wasLightboxActive = lightboxActive;
+
+      detailsCurrentAd = ad;
+      detailsDialog.dataset.itemId = String(ad.id ?? '');
+
+      detailsTitleEl.textContent = ad.title;
+      detailsPriceEl.innerHTML = `<strong>${fmtPrice(ad.price)}</strong>`;
+      renderDetailsMeta(ad);
+      updateDetailsStats(ad);
+      renderDetailsTags(ad);
+      const nextDesc = ad.desc || '';
+      if (replaceGallery || nextDesc !== detailsDescFull) {
+        setDetailsDescription(nextDesc);
+      } else {
+        updateDescription();
+      }
+      renderSeller(ad);
+
+      if (detailsSave) {
+        detailsSave.dataset.id = String(ad.id ?? '');
+        setDetailsSaveState(favStore.has(ad.id));
+      }
+
+      if (replaceGallery) {
+        detailsCurrentImages = gallery;
+        detailsCurrentIndex = 0;
+        renderGallery(gallery, ad.title);
+      } else {
+        const previousIndex = detailsCurrentIndex;
+        detailsCurrentImages = gallery;
+        const safeIndex = gallery.length ? normalizeIndex(previousIndex, gallery.length) : 0;
+        detailsCurrentIndex = safeIndex;
+        updateCarouselUI();
+        if (wasLightboxActive) {
+          updateLightboxView();
+        } else if (lightboxTitleEl) {
+          lightboxTitleEl.textContent = ad.title || 'Photo';
+          if (lightboxCounterEl) {
+            const displayTotal = gallery.length || 1;
+            lightboxCounterEl.textContent = `${Math.min(detailsCurrentIndex + 1, displayTotal)}/${displayTotal}`;
+          }
+        }
+      }
+
+      if (lightboxImage && !wasLightboxActive) {
+        const displayTotal = totalImages || 1;
+        lightboxImage.alt = `${ad.title || 'Photo'} — ${Math.min(detailsCurrentIndex + 1, displayTotal)} / ${displayTotal}`;
+      }
+
+      setDetailsLoading(false);
+    }
+
+    function refreshOpenDetails(ad) {
+      if (!ad || !detailsModal || detailsModal.style.display !== 'flex') return;
+      const currentId = normalizeAdId(detailsDialog?.dataset?.itemId);
+      const nextId = normalizeAdId(ad.id);
+      if (!currentId || currentId !== nextId) return;
+      const nextGallery = buildGallery(ad);
+      const shouldReplace = !arraysShallowEqual(detailsCurrentImages, nextGallery);
+      applyDetailsContent(ad, { replaceGallery: shouldReplace, gallery: nextGallery });
+    }
+
     function getLightboxFocusables() {
       if (!imageLightbox) return [];
       return Array.from(imageLightbox.querySelectorAll('button:not([disabled])')).filter(el => {
@@ -3904,10 +4569,9 @@
 
     function categorySymbol(cat) {
       if (cat === 'Immobilier') return '🏢';
-      if (cat === 'Mode') return '👕';
-      if (cat === 'High-Tech') return '💻';
       if (cat === 'Auto') return '🚗';
-      if (cat === 'Maison') return '🏠';
+      if (cat === 'High-Tech') return '💻';
+      if (cat === 'Pièces') return '🔧';
       return '📦';
     }
 
@@ -3924,6 +4588,121 @@
         if (b.type === 'cat') return b.html;
         return `<span class="details-meta-item ${b.class}">${b.icon}<span class="label">${b.text}</span></span>`;
       }).join('');
+    }
+
+    function setDetailsLoading(isLoading) {
+      if (!detailsDialog) return;
+      detailsDialog.classList.toggle('is-loading', Boolean(isLoading));
+      if (isLoading) {
+        detailsDialog.setAttribute('aria-busy', 'true');
+      } else {
+        detailsDialog.removeAttribute('aria-busy');
+      }
+      const interactive = [detailsSave, detailsContact, detailsVisitBtn, detailsReadMore];
+      interactive.forEach((node) => {
+        if (!node) return;
+        if (isLoading) {
+          node.setAttribute('disabled', '');
+          node.setAttribute('aria-disabled', 'true');
+        } else {
+          node.removeAttribute('disabled');
+          node.removeAttribute('aria-disabled');
+        }
+      });
+      if (isLoading && detailsSave) {
+        detailsSave.dataset.id = '';
+      }
+    }
+
+    function showDetailsLoadingState(id = null) {
+      if (detailsSkeletonTimeout) {
+        clearTimeout(detailsSkeletonTimeout);
+        detailsSkeletonTimeout = null;
+      }
+      setDetailsLoading(true);
+      detailsCurrentAd = null;
+      detailsCurrentImages = [];
+      detailsCurrentIndex = 0;
+      detailsSkeleton.classList.add('active');
+      detailsCarouselTrack.innerHTML = '';
+      detailsCarouselDots.innerHTML = '';
+      detailsImageCounter.textContent = '…';
+      if (lightboxImage) {
+        lightboxImage.removeAttribute('src');
+        lightboxImage.removeAttribute('srcset');
+        lightboxImage.removeAttribute('sizes');
+        lightboxImage.alt = '';
+      }
+      detailsDialog.dataset.itemId = id ? String(id) : '';
+      detailsTitleEl.innerHTML = '<span class="skeleton-line skeleton-line--lg" aria-hidden="true"></span>';
+      detailsPriceEl.innerHTML = '<span class="skeleton-pill skeleton-pill--lg" aria-hidden="true"></span>';
+      detailsMeta.innerHTML = [
+        '<span class="skeleton-pill skeleton-pill--md" aria-hidden="true"></span>',
+        '<span class="skeleton-pill skeleton-pill--sm" aria-hidden="true"></span>'
+      ].join('');
+      detailsDescFull = '';
+      detailsDescExpanded = false;
+      detailsDescEl.innerHTML = [
+        '<span class="skeleton-line" aria-hidden="true"></span>',
+        '<span class="skeleton-line skeleton-line--sm" aria-hidden="true"></span>',
+        '<span class="skeleton-line skeleton-line--sm" aria-hidden="true"></span>'
+      ].join('');
+      detailsReadMore.classList.remove('visible');
+      detailsTags.style.display = 'none';
+      detailsTags.innerHTML = '';
+      detailsSeller.innerHTML = `
+        <div class="seller-skeleton" aria-hidden="true">
+          <span class="skeleton-avatar"></span>
+          <div class="seller-skeleton__lines">
+            <span class="skeleton-line skeleton-line--sm"></span>
+            <span class="skeleton-line skeleton-line--xs"></span>
+            <span class="skeleton-line skeleton-line--xs"></span>
+          </div>
+        </div>
+      `;
+      resetContactForm();
+      if (contactPopover && !contactPopover.hasAttribute('hidden')) {
+        closeContactPopover({ immediate: true, restoreFocus: false });
+      }
+      setContactLoading(false);
+      if (detailsModal.style.display !== 'flex') {
+        if (detailsModal) {
+          const activeEl = document.activeElement;
+          detailsModal._lastTrigger = activeEl instanceof HTMLElement ? activeEl : null;
+        }
+        detailsModal.style.display = 'flex';
+        detailsModal.classList.add('active');
+        detailsModal.setAttribute('aria-hidden', 'false');
+        lockBodyScroll();
+        obscureMap();
+        if (favModal?._stickyOpen && favList) {
+          favModal._favScrollTop = favList.scrollTop || favModal._favScrollTop || 0;
+        }
+        const focusTarget = closeDetailsBtn || detailsDialog;
+        setTimeout(() => focusTarget?.focus?.({ preventScroll: true }), 40);
+      }
+      if (detailsBodyEl) {
+        detailsBodyEl.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    }
+
+    function arraysShallowEqual(a, b) {
+      if (a === b) return true;
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    }
+
+    function updateDetailsMeta(ad) {
+      if (!detailsMeta) return;
+      if (!ad) {
+        detailsMeta.innerHTML = '';
+        return;
+      }
+      renderDetailsMeta(ad);
     }
 
     function updateDetailsStats(ad) {
@@ -3975,15 +4754,16 @@
     }
 
     function renderSeller(ad) {
-      const avatarBase = ad.img || '';
+      const avatarBase = ad.sellerAvatar || ad.img || DEFAULT_IMAGE;
       const avatarThumb = buildOptimizedImage(avatarBase, 160, 60);
-      const memberDate = formatDateLong(ad.date);
+      const memberDate = ad.sellerMemberSince ? formatDateLong(ad.sellerMemberSince) : formatDateLong(ad.date);
+      const activeCount = ad.sellerAnnouncements != null ? ad.sellerAnnouncements : Math.max(1, Math.round((ad.likes ?? 0) / 3));
       detailsSeller.innerHTML = `
-        <img src="${avatarThumb}" alt="Vendeur ${ad.city}" loading="lazy" decoding="async" width="52" height="52" style="width:52px;height:52px;">
+        <img src="${avatarThumb}" alt="${ad.sellerName || 'Vendeur'}" loading="lazy" decoding="async" width="52" height="52" style="width:52px;height:52px;">
         <div class="seller-meta">
-          <strong>${ad.seller || `Vendeur ${ad.city}`}</strong>
+          <strong>${ad.sellerName || `Vendeur ${ad.city}`}</strong>
           <span>Membre depuis le ${memberDate}</span>
-          <span>${Math.max(1, Math.round(ad.likes / 3))} annonce(s) active(s)</span>
+          <span>${activeCount} annonce(s) active(s)</span>
         </div>
       `;
     }
@@ -4199,28 +4979,14 @@
     }
 
     function openDetailsModal(adData) {
+      if (!adData) return;
+      const alreadyOpen = detailsModal && detailsModal.style.display === 'flex' && detailsModal.getAttribute('aria-hidden') === 'false';
       if (lightboxActive) closeLightbox({ restoreFocus: false });
-      detailsCurrentAd = adData;
-      detailsCurrentImages = buildGallery(adData);
-      detailsCurrentIndex = 0;
       lightboxActive = false;
-      if (lightboxImage) {
-        lightboxImage.removeAttribute('src');
-        lightboxImage.removeAttribute('srcset');
-        lightboxImage.removeAttribute('sizes');
-        lightboxImage.alt = '';
-      }
-      if (detailsModal) {
+      if (detailsModal && !alreadyOpen) {
         const activeEl = document.activeElement;
         detailsModal._lastTrigger = activeEl instanceof HTMLElement ? activeEl : null;
       }
-      detailsTitleEl.textContent = adData.title;
-      detailsPriceEl.innerHTML = `<strong>${fmtPrice(adData.price)}</strong>`;
-      renderDetailsMeta(adData);
-      updateDetailsStats(adData);
-      renderDetailsTags(adData);
-      setDetailsDescription(adData.desc);
-      renderSeller(adData);
       resetContactForm();
       setContactLoading(false);
       if (contactPopover) {
@@ -4230,20 +4996,25 @@
         contactPopoverTimer = null;
         deactivateContactFocusTrap();
       }
-      renderGallery(detailsCurrentImages, adData.title);
-      setDetailsSaveState(favStore.has(adData.id));
-      detailsSave.dataset.id = String(adData.id);
-
-      detailsModal.style.display = 'flex';
-      detailsModal.classList.add('active');
-      detailsModal.setAttribute('aria-hidden', 'false');
-      lockBodyScroll();
-      obscureMap();
-      if (favModal?._stickyOpen && favList) {
-        favModal._favScrollTop = favList.scrollTop || favModal._favScrollTop || 0;
+      if (lightboxImage) {
+        lightboxImage.removeAttribute('src');
+        lightboxImage.removeAttribute('srcset');
+        lightboxImage.removeAttribute('sizes');
+        lightboxImage.alt = '';
       }
-      const focusTarget = closeDetailsBtn || detailsDialog;
-      setTimeout(() => focusTarget?.focus?.({ preventScroll: true }), 40);
+      applyDetailsContent(adData, { replaceGallery: true });
+      if (!alreadyOpen) {
+        detailsModal.style.display = 'flex';
+        detailsModal.classList.add('active');
+        detailsModal.setAttribute('aria-hidden', 'false');
+        lockBodyScroll();
+        obscureMap();
+        if (favModal?._stickyOpen && favList) {
+          favModal._favScrollTop = favList.scrollTop || favModal._favScrollTop || 0;
+        }
+        const focusTarget = closeDetailsBtn || detailsDialog;
+        setTimeout(() => focusTarget?.focus?.({ preventScroll: true }), 40);
+      }
       if (detailsBodyEl) {
         detailsBodyEl.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       }
@@ -4253,6 +5024,7 @@
       if (lightboxActive) closeLightbox({ restoreFocus: false });
       if (contactPopover) closeContactPopover({ immediate: true, restoreFocus: false });
       resetContactForm();
+      setDetailsLoading(false);
       const stickyOpen = !!favModal?._stickyOpen;
       const stickyScrollTop = typeof favModal?._favScrollTop === 'number' ? favModal._favScrollTop : 0;
       const stickyId = favModal?._lastSelectedFavId ?? null;
@@ -4457,7 +5229,7 @@
 
     detailsVisitBtn.addEventListener('click', () => {
       if (!detailsCurrentAd) return;
-      const id = Number(detailsDialog?.dataset?.itemId || detailsCurrentAd.id);
+      const id = detailsDialog?.dataset?.itemId || detailsCurrentAd.id;
       closeDetailsModal();
       animateTo('map', { skipSameStateFocus: true });
       setTimeout(async () => {
@@ -4553,12 +5325,54 @@
       if (e.key === 'ArrowLeft') changeSlide(-1);
     });
 
+    async function openDetailsById(id, fallback = null) {
+      const normalizedId = normalizeAdId(id);
+      if (!normalizedId) return;
+      let base = fallback || getItemById(normalizedId);
+      let hasOpened = false;
+      let openedWithSkeleton = false;
+      if (base) {
+        openDetailsModal(base);
+        hasOpened = true;
+      } else {
+        showDetailsLoadingState(normalizedId);
+        hasOpened = true;
+        openedWithSkeleton = true;
+      }
+      const fetched = await fetchAdById(normalizedId);
+      if (fetched) {
+        if (hasOpened) {
+          refreshOpenDetails(fetched);
+        } else {
+          openDetailsModal(fetched);
+        }
+        return;
+      }
+      if (!hasOpened || openedWithSkeleton) {
+        closeDetailsModal();
+        showToast('Annonce introuvable');
+      }
+    }
+
+    async function fetchAdById(id) {
+      try {
+        const response = await api.get(`/api/ads/${id}`);
+        if (response?.data?.ad) {
+          const mapped = mapAdFromApi(response.data.ad);
+          upsertAd(mapped);
+          return mapped;
+        }
+      } catch (error) {
+        console.error('fetchAdById error', error);
+      }
+      return null;
+    }
+
     listView.addEventListener('click', (e) => {
       const adWrapper = e.target.closest('.ad-content');
       if (!adWrapper || e.target.closest('.fav')) return;
       const adId = adWrapper.dataset.id;
-      const adData = getItemById(adId);
-      if (adData) openDetailsModal(adData);
+      openDetailsById(adId, getItemById(adId));
     });
 
     // ---------- FAVORITE ANIMATION ----------
@@ -4859,8 +5673,8 @@
     if (initialAuth) {
       applyFavoritesFromUser(initialAuth);
     }
-    renderList(true);
     updateAuthUI();
+    loadAds();
     hydrateAuthFromSession();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
