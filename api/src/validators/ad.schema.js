@@ -13,7 +13,7 @@ const descriptionSchema = Joi.string().trim().min(30).max(2000).messages({
 });
 
 const categorySchema = Joi.string()
-  .valid('immobilier', 'auto', 'electroniques', 'pieces')
+  .valid('immobilier', 'auto', 'electroniques', 'pieces', 'mode', 'loisirs')
   .required()
   .messages({ 'any.only': 'Sélectionnez une catégorie.', 'any.required': 'Sélectionnez une catégorie.' });
 
@@ -85,6 +85,16 @@ const attributeSchemas = {
     compatible: Joi.string().trim().min(2).max(120).required(),
     grade: Joi.string().valid('neuf', 'comme neuf', 'très bon', 'bon', 'correct').required(),
     reference: Joi.string().trim().max(120).allow('', null)
+  }),
+  mode: Joi.object({
+    gender: Joi.string().valid('femme', 'homme', 'enfant', 'mixte').required(),
+    size: Joi.string().valid('XS', 'S', 'M', 'L', 'XL', 'XXL').allow('', null),
+    brand: Joi.string().trim().min(2).max(60).allow('', null)
+  }),
+  loisirs: Joi.object({
+    activity: Joi.string().valid('vélo', 'trottinette', 'plein air', 'sport', 'autre').allow('', null),
+    brand: Joi.string().trim().min(2).max(60).allow('', null),
+    model: Joi.string().trim().min(1).max(80).allow('', null)
   })
 };
 

@@ -36,6 +36,20 @@ const categoryDefinitions = {
       { id: 'grade', type: 'string' },
       { id: 'reference', type: 'string' }
     ]
+  },
+  mode: {
+    fields: [
+      { id: 'gender', type: 'string' },
+      { id: 'size', type: 'string' },
+      { id: 'brand', type: 'string' }
+    ]
+  },
+  loisirs: {
+    fields: [
+      { id: 'activity', type: 'string' },
+      { id: 'brand', type: 'string' },
+      { id: 'model', type: 'string' }
+    ]
   }
 };
 

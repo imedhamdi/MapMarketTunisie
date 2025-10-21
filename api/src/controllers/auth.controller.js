@@ -70,7 +70,7 @@ export async function login(req, res) {
   setAuthCookies(res, tokens);
 
   return sendSuccess(res, {
-    message: 'Connexion réussie ✅',
+    message: 'Connexion réussie.',
     data: { user: formatUser(user) }
   });
 }

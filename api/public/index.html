@@ -150,10 +150,12 @@
             </svg>
             <select id="cat" title="Catégories">
               <option value="">Toutes catégories</option>
-              <option>Immobilier</option>
-              <option>Auto</option>
-              <option>High-Tech</option>
-              <option>Pièces</option>
+              <option value="immobilier">Immobilier</option>
+              <option value="auto">Auto</option>
+              <option value="mode">Mode</option>
+              <option value="electroniques">High-Tech</option>
+              <option value="pieces">Pièces</option>
+              <option value="loisirs">Loisirs</option>
             </select>
             <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -484,8 +486,10 @@
                   <option value="">Sélectionnez</option>
                   <option value="immobilier">Immobilier</option>
                   <option value="auto">Auto</option>
-                  <option value="electroniques">Électroniques</option>
+                  <option value="mode">Mode</option>
+                  <option value="electroniques">High-Tech</option>
                   <option value="pieces">Pièces</option>
+                  <option value="loisirs">Loisirs</option>
                 </select>
                 <p class="field-error" data-error-for="postCategory"></p>
               </div>
@@ -950,6 +954,31 @@
       return normalize(label);
     }
 
+    function populateCategorySelect(selectEl, { placeholderLabel = null, placeholderValue = '' } = {}) {
+      if (!selectEl) return;
+      const previousValue = selectEl.value;
+      const fragment = document.createDocumentFragment();
+      if (typeof placeholderLabel === 'string') {
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = placeholderValue;
+        placeholderOption.textContent = placeholderLabel;
+        fragment.appendChild(placeholderOption);
+      }
+      CATEGORY_CONFIG.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item.slug;
+        option.textContent = item.label;
+        fragment.appendChild(option);
+      });
+      selectEl.innerHTML = '';
+      selectEl.appendChild(fragment);
+      if (previousValue && selectEl.querySelector(`option[value="${previousValue}"]`)) {
+        selectEl.value = previousValue;
+      } else if (typeof placeholderLabel === 'string') {
+        selectEl.value = placeholderValue;
+      }
+    }
+
     function buildChipsFromAttributes(category, attributes = {}) {
       const chips = [];
       const attr = attributes || {};
@@ -980,6 +1009,18 @@
           if (attr.reference) chips.push(`Ref ${attr.reference}`);
           break;
         }
+        case 'mode': {
+          if (attr.brand) chips.push(capitalize(attr.brand));
+          if (attr.size) chips.push(String(attr.size).toUpperCase());
+          if (attr.gender) chips.push(capitalize(attr.gender));
+          break;
+        }
+        case 'loisirs': {
+          if (attr.activity) chips.push(capitalize(attr.activity));
+          if (attr.brand) chips.push(capitalize(attr.brand));
+          if (attr.model) chips.push(attr.model);
+          break;
+        }
         default:
           break;
       }
@@ -988,7 +1029,9 @@
 
     function mapAdFromApi(ad) {
       if (!ad) return null;
-      const category = ad.category || '';
+      const rawCategory = ad.category || '';
+      const catSlug = mapCategoryLabelToSlug(rawCategory);
+      const category = catSlug || rawCategory;
       const catLabel = normalizeLabel(category, 'Autres');
       const conditionLabel = CONDITION_LABELS[ad.condition] || capitalize(ad.condition || '');
       const locationText = ad.locationText?.trim() || 'Localisation à préciser';
@@ -1015,6 +1058,7 @@
       return {
         id: String(ad._id),
         category,
+        catSlug: category,
         cat: catLabel,
         condition: ad.condition,
         state: conditionLabel || '—',
@@ -1085,6 +1129,19 @@
         views: ad.views ?? 0,
         likes: ad.likes ?? ad.favorites ?? 0
       };
+      marker._itemData = {
+        ...marker._itemData,
+        views: ad.views ?? 0,
+        likes: ad.likes ?? ad.favorites ?? 0,
+        stats: {
+          views: ad.views ?? 0,
+          likes: ad.likes ?? ad.favorites ?? 0
+        }
+      };
+      if (hoverCard && hoverCard._sourceMarker === marker) {
+        hoverCard.setContent(renderMiniCard(marker._item));
+        hoverCard.update();
+      }
     }
 
     const updateFavIcon = (node, isActive) => {
@@ -1153,13 +1210,23 @@
 
     // ---------- UTIL ----------
     function categoryClass(cat) {
-      const value = (cat || '').toString().toLowerCase();
-      if (value.includes('immobilier')) return 'immobilier';
-      if (value.includes('mode')) return 'mode';
-      if (value.includes('high-tech') || value.includes('electron')) return 'hitech';
-      if (value.includes('auto')) return 'auto';
-      if (value.includes('pièce')) return 'pieces';
-      return 'maison';
+      const slug = mapCategoryLabelToSlug(cat);
+      switch (slug) {
+        case 'immobilier':
+          return 'immobilier';
+        case 'mode':
+          return 'mode';
+        case 'electroniques':
+          return 'hitech';
+        case 'auto':
+          return 'auto';
+        case 'pieces':
+          return 'pieces';
+        case 'loisirs':
+          return 'loisirs';
+        default:
+          return 'maison';
+      }
     }
     function fmtPrice(n) {
       const value = Number(n);
@@ -1244,7 +1311,7 @@
       let list = allItems.slice();
       const q = normalize(search.value);
       if (q) list = list.filter(a => normalize(a.title + " " + a.desc).includes(q));
-      if (cat.value) list = list.filter(a => a.cat === cat.value);
+      if (cat.value) list = list.filter(a => (a.catSlug || mapCategoryLabelToSlug(a.cat)) === cat.value);
       if (etat.value) list = list.filter(a => a.state === etat.value);
       if (city.value) list = list.filter(a => normalize(a.city).includes(normalize(city.value)));
       const min = Number(pmin.value || 0), max = Number(pmax.value || Infinity);
@@ -1798,7 +1865,7 @@
               sizes="(max-width: 480px) 90vw, 370px"
               style="aspect-ratio: 4 / 3; width: 100%; height: auto;" />
             <div class="grad"></div>
-            <div class="cat ${categoryClass(a.cat)}">${a.cat === 'Immobilier' ? '🏢' : a.cat === 'Mode' ? '👕' : a.cat === 'High-Tech' ? '💻' : a.cat === 'Auto' ? '🚗' : '🏠'} <span>${a.cat}</span></div>
+            <div class="cat ${categoryClass(a.catSlug || a.cat)}">${categorySymbol(a.catSlug || a.cat)} <span>${a.cat}</span></div>
             <div class="stats"><span class="row">👁️ ${a.views}</span><span class="row">❤ ${a.likes}</span></div>
             <button class="fav" title="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-pressed="${isFav}" data-id="${String(a.id)}">
               <svg viewBox="0 0 24 24" fill="${isFav ? THEME.favorite : 'none'}" stroke="${isFav ? THEME.favorite : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
@@ -2186,7 +2253,7 @@
           price: a.price,
           imageUrl: buildOptimizedImage(a.img, 480, 70),
           category: a.cat || a.category,
-          stats: { views: a.views, likes: a.likes }
+          stats: { views: a.views ?? 0, likes: a.likes ?? 0 }
         };
         marker._item = hoverData;
         marker._itemData = a;
@@ -2830,31 +2897,41 @@
 
     function setAuthFeedback(message = '', type = 'info') {
       if (!authFeedback) return;
-      if (message) {
-        authFeedback.textContent = '';
-        const icon = document.createElement('span');
-        icon.className = 'auth-feedback-icon';
-        icon.setAttribute('aria-hidden', 'true');
-        const iconMap = {
-          success: '✅',
-          error: '⚠️',
-          info: 'ℹ️'
-        };
-        icon.textContent = iconMap[type] || iconMap.info;
-        const text = document.createElement('span');
-        text.className = 'auth-feedback-message';
-        text.textContent = message;
-        authFeedback.append(icon, text);
-        authFeedback.dataset.type = type;
-      } else {
-        authFeedback.textContent = '';
-        authFeedback.removeAttribute('data-type');
+      authFeedback.textContent = '';
+      authFeedback.removeAttribute('data-type');
+      authFeedback.classList.remove('is-visible');
+      if (!message) {
+        scheduleAuthMeasure();
+        return;
       }
+      const icon = document.createElement('span');
+      icon.className = 'auth-feedback-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      const iconMap = {
+        success: '✓',
+        error: '⚠',
+        info: 'ℹ'
+      };
+      icon.textContent = iconMap[type] || iconMap.info;
+      const text = document.createElement('span');
+      text.className = 'auth-feedback-message';
+      text.textContent = message;
+      authFeedback.append(icon, text);
+      authFeedback.dataset.type = type;
+      authFeedback.classList.add('is-visible');
+      authFeedback.classList.remove('auth-feedback-pop');
+      void authFeedback.offsetWidth;
+      authFeedback.classList.add('auth-feedback-pop');
+      authFeedback.addEventListener('animationend', () => authFeedback.classList.remove('auth-feedback-pop'), { once: true });
       scheduleAuthMeasure();
     }
 
     function clearAuthFeedback() {
-      setAuthFeedback('', 'info');
+      if (!authFeedback) return;
+      authFeedback.textContent = '';
+      authFeedback.removeAttribute('data-type');
+      authFeedback.classList.remove('is-visible');
+      scheduleAuthMeasure();
     }
 
     function extractAuthErrorMessage(error) {
@@ -3530,8 +3607,10 @@
           if (isFavModalOpen()) renderFavSheet();
         }
         updateAuthUI();
-        setAuthFeedback(response?.message || 'Connexion réussie ✅', 'success');
-        showToast('Connecté !');
+        const firstName = user?.name ? user.name.trim().split(/\s+/)[0] : '';
+      const successMessage = firstName ? `Bienvenue ${firstName} ! Vous êtes maintenant connecté.` : 'Connexion réussie ! Vous êtes maintenant connecté.';
+      setAuthFeedback(successMessage, 'success');
+        showToast('Connexion réussie');
         setTimeout(() => closeAuthFn(), 1200);
       } catch (error) {
         setAuthFeedback(extractAuthErrorMessage(error), 'error');
@@ -3664,6 +3743,9 @@
     const closePostBtn = document.getElementById('closePost');
     const postUploader = document.getElementById('postUploader');
 
+    populateCategorySelect(cat, { placeholderLabel: 'Toutes catégories', placeholderValue: '' });
+    populateCategorySelect(postCategory, { placeholderLabel: 'Sélectionnez', placeholderValue: '' });
+
     const DRAFT_STORAGE_KEY = 'mm-new-ad-draft-v1';
     const MAX_IMAGES = 10;
     const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
@@ -3698,6 +3780,20 @@
           { id: 'compatible', label: 'Compatible avec', type: 'text', required: true },
           { id: 'grade', label: 'État', type: 'select', options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'], required: true },
           { id: 'reference', label: 'Référence', type: 'text', required: false }
+        ]
+      },
+      mode: {
+        fields: [
+          { id: 'gender', label: 'Genre', type: 'select', options: ['femme', 'homme', 'enfant', 'mixte'], required: true },
+          { id: 'size', label: 'Taille', type: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: false },
+          { id: 'brand', label: 'Marque', type: 'text', required: false }
+        ]
+      },
+      loisirs: {
+        fields: [
+          { id: 'activity', label: 'Activité', type: 'select', options: ['vélo', 'trottinette', 'plein air', 'sport', 'autre'], required: false },
+          { id: 'brand', label: 'Marque', type: 'text', required: false },
+          { id: 'model', label: 'Modèle', type: 'text', required: false }
         ]
       }
     };
@@ -4294,12 +4390,6 @@
     const CONTACT_COOLDOWN_MS = 3000;
     const CONTACT_FOCUS_SELECTOR = 'button:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
-    const detailsIcons = {
-      category: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>`,
-      location: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 5-5 10-9 12-4-2-9-7-9-12a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
-      date: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
-    };
-
     function buildGallery(ad) {
       const sources = Array.isArray(ad.gallery) && ad.gallery.length ? ad.gallery : [ad.img];
       return sources.map((url, index) => buildOptimizedImage(url, index === 0 ? 960 : 1280, index === 0 ? 75 : 70));
@@ -4568,25 +4658,25 @@
     }
 
     function categorySymbol(cat) {
-      if (cat === 'Immobilier') return '🏢';
-      if (cat === 'Auto') return '🚗';
-      if (cat === 'High-Tech') return '💻';
-      if (cat === 'Pièces') return '🔧';
-      return '📦';
+      const slug = mapCategoryLabelToSlug(cat);
+      return CATEGORY_ICONS[slug] || '📦';
     }
 
     function renderDetailsMeta(ad) {
       const badges = [];
       if (ad.cat) {
-        badges.push({ type: 'cat', html: `<div class="cat ${categoryClass(ad.cat)}">${categorySymbol(ad.cat)} <span>${ad.cat}</span></div>` });
+        badges.push({
+          type: 'cat',
+          html: `<div class="cat ${categoryClass(ad.catSlug || ad.cat)}">${categorySymbol(ad.catSlug || ad.cat)} <span>${ad.cat}</span></div>`
+        });
       }
       badges.push(
-        { class: 'location', icon: detailsIcons.location, text: ad.city },
-        { class: 'date', icon: detailsIcons.date, text: `Publiée le ${formatDateLong(ad.date)}` }
+        { class: 'location', text: ad.city || 'Localisation à préciser' },
+        { class: 'date', text: `Publiée le ${formatDateLong(ad.date)}` }
       );
-      detailsMeta.innerHTML = badges.map(b => {
-        if (b.type === 'cat') return b.html;
-        return `<span class="details-meta-item ${b.class}">${b.icon}<span class="label">${b.text}</span></span>`;
+      detailsMeta.innerHTML = badges.map((badge) => {
+        if (badge.type === 'cat') return badge.html;
+        return `<span class="details-meta-item ${badge.class} tag"><span class="label">${badge.text}</span></span>`;
       }).join('');
     }
 
