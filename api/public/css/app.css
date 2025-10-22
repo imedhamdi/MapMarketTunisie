@@ -1853,6 +1853,7 @@ button.nav-link {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  min-height: 52px;
   transition: transform .3s ease, box-shadow .3s ease;
   margin-top: 6px;
   position: relative;
