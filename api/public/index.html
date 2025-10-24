@@ -648,6 +648,7 @@
             <div class="carousel-counter" id="detailsImageCounter">1 / 1</div>
             <div class="carousel-dots" id="detailsCarouselDots"></div>
           </div>
+          <div class="details-meta details-meta-category" role="group" aria-label="Catégorie de l'annonce"></div>
           <div class="details-meta details-meta-stats" role="group" aria-label="Statistiques de l'annonce"></div>
         </div>
         <div class="details-skeleton" id="detailsSkeleton"></div>
@@ -4714,18 +4715,11 @@
 
     function renderDetailsMeta(ad) {
       const badges = [];
-      if (ad.cat) {
-        badges.push({
-          type: 'cat',
-          html: `<div class="cat ${categoryClass(ad.catSlug || ad.cat)}">${categorySymbol(ad.catSlug || ad.cat)} <span>${ad.cat}</span></div>`
-        });
-      }
       badges.push(
         { class: 'location', text: ad.city || 'Localisation à préciser' },
         { class: 'date', text: `Publiée le ${formatDateLong(ad.date)}` }
       );
       detailsMeta.innerHTML = badges.map((badge) => {
-        if (badge.type === 'cat') return badge.html;
         return `<span class="details-meta-item ${badge.class} tag"><span class="label">${badge.text}</span></span>`;
       }).join('');
     }
@@ -4846,9 +4840,24 @@
     }
 
     function updateDetailsStats(ad) {
-      const root = detailsDialog.querySelector('.details-meta.details-meta-stats');
-      if (!root) return;
+      const statsRoot = detailsDialog.querySelector('.details-meta.details-meta-stats');
+      const categoryRoot = detailsDialog.querySelector('.details-meta.details-meta-category');
+      
+      // Gérer la catégorie (à gauche)
+      if (categoryRoot) {
+        if (ad && ad.cat) {
+          categoryRoot.innerHTML = `<div class="cat ${categoryClass(ad.catSlug || ad.cat)}">${categorySymbol(ad.catSlug || ad.cat)} <span>${ad.cat}</span></div>`;
+          categoryRoot.style.display = 'inline-flex';
+        } else {
+          categoryRoot.innerHTML = '';
+          categoryRoot.style.display = 'none';
+        }
+      }
+      
+      // Gérer les stats (à droite)
+      if (!statsRoot) return;
       const stats = [];
+      
       if (ad && typeof ad.views !== 'undefined') {
         stats.push(`<span class="details-meta-item views" aria-label="Nombre de vues"><span class="icon" aria-hidden="true">👁️</span><span class="label"><strong class="count">${ad.views}</strong> vues</span></span>`);
       }
@@ -4856,7 +4865,7 @@
       if (typeof favCountValue !== 'undefined') {
         stats.push(`<span class="details-meta-item fav-meta" aria-label="Nombre de favoris"><span class="icon" aria-hidden="true">❤️</span><span class="label"><strong class="count">${favCountValue}</strong> favoris</span></span>`);
       }
-      root.innerHTML = stats.join('');
+      statsRoot.innerHTML = stats.join('');
     }
 
     function renderDetailsTags(ad) {

@@ -12,7 +12,7 @@ function onRateLimit(req, res) {
 
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: onRateLimit
@@ -20,7 +20,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   handler: onRateLimit
@@ -28,7 +28,7 @@ export const authLimiter = rateLimit({
 
 export const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   handler: onRateLimit
