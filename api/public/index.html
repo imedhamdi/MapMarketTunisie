@@ -58,9 +58,9 @@
           </svg><span class="hide-sm">Déposer une annonce</span></button>
         <div class="header-user">
           <div class="avatar" id="avatar"></div>
-          <div id="userMenu" class="user-menu" role="menu" aria-labelledby="userMenuButton" hidden>
+          <div id="userMenu" class="user-menu" role="menu" aria-labelledby="avatar" hidden>
             <div class="user-menu__header">
-              <img class="user-menu__avatar" src="/uploads/avatars/default.jpg" alt="" />
+              <img class="user-menu__avatar" src="/uploads/avatars/default.jpg" alt="">
               <div class="user-menu__id">
                 <div class="user-menu__name" id="userMenuName">Utilisateur</div>
                 <div class="user-menu__email" id="userMenuEmail">email@example.com</div>
@@ -73,7 +73,7 @@
                 <small>Voir et modifier mes informations</small>
               </span>
             </button>
-            <hr class="user-menu__sep" />
+            <hr class="user-menu__sep">
             <button class="user-menu__item danger" type="button" role="menuitem" data-action="logout">
               <span class="icon">🚪</span>
               <span class="text">
@@ -272,7 +272,7 @@
     <!-- Cards / Map views -->
     <div class="view-wrapper show-list" id="viewWrapper" aria-live="polite">
       <section class="results view" aria-hidden="false" aria-label="Résultats en liste">
-        <div class="grid list-view" id="listView" aria-label="Résultats en liste"></div>
+        <div class="grid list-view" id="listView"></div>
       </section>
       <div class="view map-view" id="mapView" role="region" aria-labelledby="tab-map">
         <div id="map"></div>
@@ -285,8 +285,7 @@
             <span class="geo-ico" aria-hidden="true">📍</span>
             <span class="geo-label">Me localiser</span>
             <span class="geo-spinner" aria-hidden="true"></span>
-            <span class="geo-caret" id="geoCaretBtn" role="button" tabindex="0"
-              aria-label="Options de localisation" aria-haspopup="true" aria-expanded="false">▾</span>
+            <span class="geo-caret" id="geoCaretBtn">▾</span>
             <span class="geo-toast" id="geoToast" role="status" aria-live="polite" hidden>Position détectée ✅</span>
           </button>
 
@@ -307,7 +306,7 @@
     <div id="sentinel"></div>
     <div class="loading" id="loading" style="display:none">Chargement…</div>
   </main>
-  <nav class="bottom-nav" id="bottomNav" role="navigation" aria-label="Navigation mobile">
+  <nav class="bottom-nav" id="bottomNav" aria-label="Navigation mobile">
     <button class="bn-btn is-active" type="button" data-action="home" aria-pressed="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
         <path d="m3 11 9-8 9 8" />
@@ -523,13 +522,13 @@
             <div class="uploader" id="postUploader">
               <input type="file" id="postPhotos" name="photos" accept="image/jpeg,image/png,image/webp" multiple hidden>
               <label for="postPhotos" class="uploader-drop" tabindex="0">
-                <div class="uploader-illustration">📸</div>
-                <div>
+                <span class="uploader-illustration">📸</span>
+                <span class="uploader-text">
                   <strong>Glissez vos photos ici</strong>
-                  <p>Formats jpg, png, webp – 10 max (8 Mo max chacune).</p>
-                </div>
+                  <span class="uploader-hint">Formats jpg, png, webp – 10 max (8 Mo max chacune).</span>
+                </span>
               </label>
-              <div class="uploader-list" id="postPhotosList" aria-live="polite" aria-label="Photos sélectionnées"></div>
+              <div class="uploader-list" id="postPhotosList" aria-live="polite"></div>
               <p class="field-error" data-error-for="postPhotos"></p>
             </div>
           </section>
@@ -550,7 +549,7 @@
             <div class="post-grid">
               <div class="field field-col">
                 <label for="postAddress">Adresse <span aria-hidden="true">*</span></label>
-                <input type="text" id="postAddress" name="locationText" placeholder="Ville / adresse…" autocomplete="street-address" required>
+                <input type="text" id="postAddress" name="locationText" placeholder="Ville / adresse…" autocomplete="off" required>
                 <p class="field-error" data-error-for="postAddress"></p>
               </div>
             </div>
@@ -591,7 +590,7 @@
             </div>
           </section>
 
-          <section class="post-section post-section--draft" aria-live="polite" hidden id="postDraftBanner">
+          <div class="post-section post-section--draft" aria-live="polite" hidden id="postDraftBanner">
             <div class="draft-banner">
               <div class="draft-info">
                 <strong>Brouillon retrouvé</strong>
@@ -602,7 +601,7 @@
                 <button type="button" class="mm-btn ghost" id="postDraftDiscard">Ignorer</button>
               </div>
             </div>
-          </section>
+          </div>
         </div>
 
         <footer class="post-footer">
@@ -684,7 +683,7 @@
               <div class="contact-body">
                 <textarea id="cpMessage" rows="3" maxlength="500"
                   placeholder="Bonjour, votre article est-il toujours disponible ? Puis-je venir le voir ce week-end ?"></textarea>
-                <div class="cp-suggestions" aria-label="Suggestions de message">
+                <div class="cp-suggestions">
                   <button type="button" class="chip">Toujours dispo ?</button>
                   <button type="button" class="chip">Prix négociable ?</button>
                   <button type="button" class="chip">Proposition RDV</button>
@@ -740,7 +739,7 @@
     </div>
   </div>
 
-  <div class="mm-confirm" id="confirmModal" aria-hidden="true" hidden>
+  <div class="mm-confirm" id="confirmModal" hidden>
     <div class="mm-confirm__backdrop" data-action="dismiss"></div>
     <div class="mm-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
       <div class="mm-confirm__icon" aria-hidden="true">💭</div>
@@ -755,7 +754,7 @@
     </div>
   </div>
 
-  <div class="lightbox" id="imageLightbox" aria-hidden="true" hidden>
+  <div class="lightbox" id="imageLightbox" hidden>
     <div class="lightbox__backdrop" data-action="dismiss"></div>
     <div class="lightbox__dialog" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle" tabindex="-1">
       <button type="button" class="lightbox__close" data-action="close" aria-label="Fermer l'image">✕</button>
@@ -766,7 +765,7 @@
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <img id="lightboxImage" alt="" draggable="false">
+        <img id="lightboxImage" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" draggable="false">
         <button type="button" class="lightbox__nav lightbox__nav--next" data-action="next" aria-label="Image suivante">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round">
@@ -820,7 +819,7 @@
     </div>
   </div>
 
-  <footer class="mm-footer" id="appFooter" role="contentinfo">
+  <footer class="mm-footer" id="appFooter">
     <div class="mm-footer__grid">
       <div class="mm-footer__brand">
         <div class="mm-footer__logo">📍 <strong>MapMarket</strong></div>
@@ -867,7 +866,7 @@
         <h2 id="legalTitle" class="mm-modal__title">Titre</h2>
         <button class="mm-modal__close" type="button" aria-label="Fermer" data-close="true">✕</button>
       </header>
-      <section id="legalBody" class="mm-modal__content" tabindex="0"></section>
+      <div id="legalBody" class="mm-modal__content" tabindex="0"></div>
       <footer class="mm-modal__footer">
         <button class="mm-btn" type="button" data-close="true">Fermer</button>
       </footer>
