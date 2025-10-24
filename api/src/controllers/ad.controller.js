@@ -159,10 +159,9 @@ export async function listAds(req, res, next) {
     const parsedPage = Math.max(1, Number(page) || 1);
     const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
 
-    const query = {};
+    const query = { status: status || 'active' }; // Par défaut, afficher seulement les annonces actives
     if (category) query.category = category;
     if (owner) query.owner = owner;
-    if (status) query.status = status;
     if (condition) query.condition = condition;
 
     if (search && search.trim()) {
@@ -249,6 +248,10 @@ export async function getAd(req, res, next) {
         message: 'Annonce introuvable.'
       });
     }
+    if (ad.owner?._id) {
+      const total = await Ad.countDocuments({ owner: ad.owner._id, status: 'active' });
+      ad.owner.activeAds = total;
+    }
     return sendSuccess(res, { data: { ad } });
   } catch (error) {
     next(error);
@@ -323,11 +326,14 @@ export async function deleteAd(req, res, next) {
       return sendError(res, {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Seul l’auteur peut supprimer cette annonce.'
+        message: 'Seul l\'auteur peut supprimer cette annonce.'
       });
     }
 
-    await ad.deleteOne();
+    // Archiver l'annonce au lieu de la supprimer
+    ad.status = 'archived';
+    await ad.save();
+    
     return sendSuccess(res, { message: 'Annonce supprimée' });
   } catch (error) {
     next(error);

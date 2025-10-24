@@ -1258,6 +1258,9 @@
       // ignore cleanup errors
     }
 
+    // Cache pour stocker les données complètes des favoris
+    const favDataCache = new Map();
+
     const getItemById = (id) => {
       const key = normalizeAdId(id);
       if (key == null) return null;
@@ -1575,6 +1578,14 @@
         const items = Array.isArray(response?.data?.items) ? response.data.items : [];
         allItems = items.map(mapAdFromApi).filter(Boolean);
         rebuildAllItemsIndex();
+        
+        // Mettre à jour le cache des favoris avec les nouvelles données
+        allItems.forEach(item => {
+          if (favStore.has(item.id)) {
+            favDataCache.set(String(item.id), item);
+          }
+        });
+        
         pagination.index = 0;
         filteredCache = [];
         
@@ -1614,8 +1625,16 @@
       if (favoriteMutations.has(key)) return false;
 
       const previous = favStore.values();
-      if (shouldAdd) favStore.add(key);
-      else favStore.delete(key);
+      if (shouldAdd) {
+        favStore.add(key);
+        // Ajouter au cache des favoris
+        const item = getItemById(key);
+        if (item) favDataCache.set(key, item);
+      } else {
+        favStore.delete(key);
+        // Retirer du cache des favoris
+        favDataCache.delete(key);
+      }
       updateFavBadge();
       syncFavoriteButtons(key, favStore.has(key));
       if (isFavModalOpen()) renderFavSheet();
@@ -1687,7 +1706,17 @@
 
     function getFavBaseItems() {
       return favStore.values()
-        .map((id) => getItemById(id) || null)
+        .map((id) => {
+          // Essayer d'abord le cache, puis allItems
+          const cached = favDataCache.get(id);
+          if (cached) return cached;
+          const item = getItemById(id);
+          if (item) {
+            // Mettre à jour le cache
+            favDataCache.set(id, item);
+          }
+          return item;
+        })
         .filter(Boolean);
     }
 
@@ -4662,6 +4691,7 @@
     const contactError = document.getElementById('cpError');
     const contactSuggestions = contactPopover ? Array.from(contactPopover.querySelectorAll('.chip')) : [];
     const detailsVisitBtn = document.getElementById('detailsVisit');
+    const detailsActionsContainer = document.querySelector('.details-actions');
     const detailsTags = document.getElementById('detailsTags');
     const detailsBodyEl = document.querySelector('.details-body');
     const imageLightbox = document.getElementById('imageLightbox');
@@ -4823,11 +4853,7 @@
         updateDescription();
       }
       renderSeller(ad);
-
-      if (detailsSave) {
-        detailsSave.dataset.id = String(ad.id ?? '');
-        setDetailsSaveState(favStore.has(ad.id));
-      }
+      updateDetailsActions(ad);
 
       if (replaceGallery) {
         detailsCurrentImages = gallery;
@@ -4967,11 +4993,19 @@
     function renderDetailsMeta(ad) {
       const badges = [];
       badges.push(
-        { class: 'location', text: ad.city || 'Localisation à préciser' },
-        { class: 'date', text: `Publiée le ${formatDateLong(ad.date)}` }
+        { 
+          class: 'location', 
+          text: ad.city || 'Localisation à préciser',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin w-3.5 h-3.5"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>'
+        },
+        { 
+          class: 'date', 
+          text: `Publiée le ${formatDateLong(ad.date)}`,
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+        }
       );
       detailsMeta.innerHTML = badges.map((badge) => {
-        return `<span class="details-meta-item ${badge.class} tag"><span class="label">${badge.text}</span></span>`;
+        return `<span class="details-meta-item ${badge.class} tag">${badge.icon}<span class="label">${badge.text}</span></span>`;
       }).join('');
     }
 
@@ -5153,7 +5187,7 @@
       const avatarBase = ad.sellerAvatar || DEFAULT_AVATAR;
       const avatarThumb = buildOptimizedImage(avatarBase, 160, 60);
       const memberDate = ad.sellerMemberSince ? formatDateLong(ad.sellerMemberSince) : formatDateLong(ad.date);
-      const activeCount = ad.sellerAnnouncements != null ? ad.sellerAnnouncements : Math.max(1, Math.round((ad.likes ?? 0) / 3));
+      const activeCount = ad.sellerAnnouncements ?? 1;
       detailsSeller.innerHTML = `
         <img src="${avatarThumb}" alt="${ad.sellerName || 'Vendeur'}" loading="lazy" decoding="async" width="52" height="52" style="width:52px;height:52px;">
         <div class="seller-meta">
@@ -5164,6 +5198,153 @@
       `;
     }
 
+    function updateDetailsActions(ad) {
+      if (!detailsActionsContainer) return;
+      const currentUser = authStore.get();
+      const isOwner = currentUser && ad.ownerId && String(currentUser._id) === String(ad.ownerId);
+
+      if (isOwner) {
+        // Boutons pour le propriétaire
+        detailsActionsContainer.innerHTML = `
+          <button class="cta-primary" id="detailsEdit" type="button" aria-label="Modifier l'annonce">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
+            <span>Modifier</span>
+          </button>
+          <button class="cta-outline danger" id="detailsDelete" type="button" aria-label="Supprimer l'annonce">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+            <span>Supprimer</span>
+          </button>
+          <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M12 19V6" />
+              <path d="m5 12 7-7 7 7" />
+            </svg>
+            <span>Voir sur la carte</span>
+          </button>
+        `;
+        
+        // Attacher les événements
+        const editBtn = document.getElementById('detailsEdit');
+        const deleteBtn = document.getElementById('detailsDelete');
+        const visitBtn = document.getElementById('detailsVisit');
+        
+        if (editBtn) {
+          editBtn.addEventListener('click', () => handleEditAd(ad));
+        }
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => handleDeleteAd(ad));
+        }
+        if (visitBtn) {
+          visitBtn.addEventListener('click', handleDetailsVisit);
+        }
+      } else {
+        // Boutons pour les visiteurs
+        detailsActionsContainer.innerHTML = `
+          <button class="cta-outline" id="detailsSave" type="button" aria-label="Ajouter aux favoris">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+            <span>Ajouter aux favoris</span>
+          </button>
+          <button class="cta-primary" id="detailsContact" type="button" aria-label="Contacter le vendeur">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M22 12h-4" />
+              <path d="M2 12h4" />
+              <path d="M12 2v4" />
+              <path d="M12 22v-4" />
+              <rect x="7" y="7" width="10" height="10" rx="2" />
+            </svg>
+            <span>Contacter</span>
+          </button>
+          <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M12 19V6" />
+              <path d="m5 12 7-7 7 7" />
+            </svg>
+            <span>Voir sur la carte</span>
+          </button>
+        `;
+        
+        // Réattacher les événements pour les visiteurs
+        const saveBtn = document.getElementById('detailsSave');
+        const contactBtn = document.getElementById('detailsContact');
+        const visitBtn = document.getElementById('detailsVisit');
+        
+        if (saveBtn) {
+          saveBtn.dataset.id = String(ad.id ?? '');
+          setDetailsSaveState(favStore.has(ad.id));
+          saveBtn.addEventListener('click', handleDetailsSaveClick);
+        }
+        if (contactBtn) {
+          contactBtn.addEventListener('click', openContactPopover);
+        }
+        if (visitBtn) {
+          visitBtn.addEventListener('click', handleDetailsVisit);
+        }
+      }
+    }
+
+    function handleEditAd(ad) {
+      // TODO: Implémenter l'édition d'annonce
+      showToast('Fonctionnalité de modification en cours de développement');
+      console.log('Edit ad:', ad);
+    }
+
+    async function handleDeleteAd(ad) {
+      const confirmed = await showConfirmDialog({
+        title: 'Supprimer l\'annonce',
+        message: 'Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.',
+        confirmLabel: 'Supprimer',
+        cancelLabel: 'Annuler'
+      });
+      
+      if (!confirmed) return;
+      
+      try {
+        const response = await api.del(`/api/ads/${ad.id}`);
+        if (response?.status === 'success') {
+          showToast('Annonce supprimée avec succès');
+          closeDetailsModal();
+          
+          // Retirer l'annonce de la liste locale
+          const index = allItems.findIndex((item) => String(item.id) === String(ad.id));
+          if (index !== -1) {
+            allItems.splice(index, 1);
+          }
+          
+          // Rafraîchir la vue liste si elle existe
+          if (typeof renderList === 'function') {
+            renderList(true);
+          }
+          
+          // Retirer du store des favoris si présent
+          if (favStore.has(ad.id)) {
+            favStore.delete(ad.id);
+          }
+        } else {
+          throw new Error('Échec de la suppression');
+        }
+      } catch (error) {
+        console.error('Delete ad error:', error);
+        showToast('Erreur lors de la suppression de l\'annonce');
+      }
+    }
     function updateContactCounter() {
       if (!contactCounter || !contactMessage) return;
       const remaining = Math.max(0, CONTACT_MAX_LENGTH - contactMessage.value.length);
@@ -5492,35 +5673,53 @@
       updateLightboxView();
     });
 
-    detailsSave.addEventListener('click', async () => {
+    function handleDetailsSaveClick() {
       if (!detailsCurrentAd) return;
       const auth = authStore.get();
       if (!auth) {
         showToast('Connectez-vous pour ajouter des favoris 🔐');
         return;
       }
-      const id = detailsSave.dataset.id ?? detailsCurrentAd.id;
+      const saveBtn = document.getElementById('detailsSave');
+      const id = saveBtn?.dataset.id ?? detailsCurrentAd.id;
       const shouldAdd = !favStore.has(id);
-      const success = await setFavoriteState(id, shouldAdd, { feedback: false });
-      if (success) {
-        if (shouldAdd) triggerFavAnimation(detailsSave);
-        showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
-      }
-    });
-
-    if (detailsContact) {
-      detailsContact.addEventListener('click', () => {
-        if (!contactPopover) {
-          showToast('Contact envoyé au vendeur 📬');
-          return;
-        }
-        if (contactSending) return;
-        if (contactPopover.hasAttribute('hidden')) {
-          openContactPopover();
-        } else {
-          closeContactPopover({ restoreFocus: false });
+      setFavoriteState(id, shouldAdd, { feedback: false }).then(success => {
+        if (success) {
+          if (shouldAdd && saveBtn) triggerFavAnimation(saveBtn);
+          showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
         }
       });
+    }
+
+    function handleDetailsVisit() {
+      if (!detailsCurrentAd) return;
+      const id = detailsDialog?.dataset?.itemId || detailsCurrentAd.id;
+      closeDetailsModal();
+      animateTo('map', { skipSameStateFocus: true });
+      setTimeout(async () => {
+        const instance = await ensureMap();
+        if (!instance) return;
+        instance.invalidateSize();
+        focusMarkerById(id);
+        const mapContainer = document.getElementById('map');
+        if (mapContainer) {
+          mapContainer.setAttribute('tabindex', '-1');
+          mapContainer.focus({ preventScroll: false });
+        }
+      }, prefersReducedMotion.matches ? 80 : 220);
+    }
+
+    // Attacher les événements initiaux (seront recréés si nécessaire)
+    if (detailsSave) {
+      detailsSave.addEventListener('click', handleDetailsSaveClick);
+    }
+
+    if (detailsContact) {
+      detailsContact.addEventListener('click', openContactPopover);
+    }
+
+    if (detailsVisitBtn) {
+      detailsVisitBtn.addEventListener('click', handleDetailsVisit);
     }
 
     contactCancelBtn?.addEventListener('click', () => {
@@ -5621,24 +5820,6 @@
       autoSizeContactMessage();
       updateContactPlacement();
       ensureContactVisibility();
-    });
-
-    detailsVisitBtn.addEventListener('click', () => {
-      if (!detailsCurrentAd) return;
-      const id = detailsDialog?.dataset?.itemId || detailsCurrentAd.id;
-      closeDetailsModal();
-      animateTo('map', { skipSameStateFocus: true });
-      setTimeout(async () => {
-        const instance = await ensureMap();
-        if (!instance) return;
-        instance.invalidateSize();
-        focusMarkerById(id);
-        const mapContainer = document.getElementById('map');
-        if (mapContainer) {
-          mapContainer.setAttribute('tabindex', '-1');
-          mapContainer.focus({ preventScroll: false });
-        }
-      }, prefersReducedMotion.matches ? 80 : 220);
     });
 
     detailsReadMore.addEventListener('click', () => {
