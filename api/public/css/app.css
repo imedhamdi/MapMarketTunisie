@@ -5161,107 +5161,100 @@ main.container {
 }
 
 /* ========== SKELETON LOADER ========== */
+/* ============================================
+   SKELETON CARDS - MINIMAL & CLEAN DESIGN
+   ============================================ */
 .skeleton-card {
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr;
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-faint);
   overflow: hidden;
-  box-shadow: 0 12px 26px rgba(var(--color-text-primary-rgb), 0.06);
+  box-shadow: 0 2px 8px rgba(var(--color-text-primary-rgb), 0.04);
 }
 
 .skeleton-card__media {
   width: 100%;
   height: 220px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  background: var(--color-surface-ghost);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Effet shimmer subtil qui traverse l'image */
+.skeleton-card__media::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer-slow 3s ease-in-out infinite;
 }
 
 .skeleton-card__body {
-  padding: 20px;
+  padding: 18px;
   display: grid;
-  gap: 12px;
+  gap: 11px;
 }
 
 .skeleton-chip {
-  width: 80px;
-  height: 24px;
-  border-radius: 12px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  width: 75px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--color-surface-alt);
 }
 
 .skeleton-price {
-  width: 100px;
-  height: 28px;
+  width: 95px;
+  height: 26px;
   border-radius: 8px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  background: var(--color-surface-muted);
 }
 
 .skeleton-title {
-  width: 75%;
-  height: 20px;
+  width: 70%;
+  height: 18px;
   border-radius: 6px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  background: var(--color-surface-alt);
 }
 
 .skeleton-meta {
   display: flex;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 5px;
 }
 
 .skeleton-meta-item {
-  width: 60px;
-  height: 16px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  width: 55px;
+  height: 15px;
+  border-radius: 5px;
+  background: var(--color-surface-muted);
 }
 
 .skeleton-button {
   width: 100%;
-  height: 40px;
+  height: 38px;
   border-radius: 10px;
-  margin-top: 8px;
-  background: linear-gradient(90deg, 
-    var(--color-surface-hover) 0%, 
-    var(--color-surface-elevated) 50%, 
-    var(--color-surface-hover) 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  margin-top: 10px;
+  background: var(--color-surface-ghost);
 }
 
-@keyframes skeleton-shimmer {
+/* Animation shimmer lente et subtile */
+@keyframes shimmer-slow {
   0% {
-    background-position: 200% 0;
+    left: -150%;
   }
   100% {
-    background-position: -200% 0;
+    left: 150%;
   }
 }
 
