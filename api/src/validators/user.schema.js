@@ -33,7 +33,11 @@ export const updateMeSchema = Joi.object({
   location: locationSchema
 }).min(1);
 
-export const updateLocationSchema = locationSchema.required();
+export const updateLocationSchema = Joi.object({
+  lat: Joi.number().min(-90).max(90).required(),
+  lng: Joi.number().min(-180).max(180).required(),
+  radiusKm: Joi.number().min(1).max(100).optional()
+}).required();
 
 const adIdSchema = Joi.alternatives()
   .try(

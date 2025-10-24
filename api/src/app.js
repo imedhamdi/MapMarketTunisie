@@ -82,7 +82,8 @@ app.use('/uploads/avatars', express.static(avatarsDir));
 app.use(express.static(publicDir));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/user', userRoutes);  // Singulier pour correspondre au frontend
+app.use('/api/users', userRoutes); // Alias pour compatibilité
 app.use('/api/ads', adRoutes);
 
 app.use('/api', (req, res) => {

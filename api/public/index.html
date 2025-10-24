@@ -2685,6 +2685,72 @@
         return 2 * R * Math.asin(Math.sqrt(sa));
       }
 
+      async function saveLocationToAPI(lat, lng, radiusKm) {
+        try {
+          const response = await fetch(buildApiUrl('/api/user/me/location'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ lat, lng, radiusKm })
+          });
+          
+          if (response.ok) {
+            console.log('Position sauvegardée dans la BDD');
+            return true;
+          } else {
+            console.warn('Impossible de sauvegarder la position:', response.status);
+            return false;
+          }
+        } catch (error) {
+          console.warn('Erreur lors de la sauvegarde de la position:', error);
+          return false;
+        }
+      }
+
+      async function loadSavedLocation() {
+        try {
+          const response = await fetch(buildApiUrl('/api/auth/me'), {
+            credentials: 'include'
+          });
+          
+          if (!response.ok) return null;
+          
+          const result = await response.json();
+          const user = result.data?.user;
+          
+          if (!user?.location?.coords?.coordinates) return null;
+          
+          const [lng, lat] = user.location.coords.coordinates;
+          const radiusKm = user.location.radiusKm || 10;
+          const lastUpdated = user.location.lastUpdated;
+          
+          return { lat, lng, radiusKm, lastUpdated };
+        } catch (error) {
+          console.warn('Impossible de charger la position sauvegardée:', error);
+          return null;
+        }
+      }
+
+      async function checkAndUpdateLocation(savedLocation, currentLat, currentLng) {
+        if (!savedLocation) return true; // Pas de position sauvegardée, on sauvegarde
+        
+        const distance = distKm(
+          { lat: savedLocation.lat, lng: savedLocation.lng },
+          { lat: currentLat, lng: currentLng }
+        );
+        
+        // Si la distance est > 10km, on met à jour
+        if (distance > 10) {
+          console.log(`Position a changé de ${distance.toFixed(2)} km, mise à jour...`);
+          return true;
+        }
+        
+        console.log(`Position similaire (${distance.toFixed(2)} km), pas de mise à jour nécessaire`);
+        return false;
+      }
+
       function showGeoToast(message, duration = 1600) {
         if (!toast) return;
         if (toastTimer) {
@@ -2920,6 +2986,11 @@
             navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
           });
           const { latitude, longitude } = position.coords;
+          
+          // Vérifier si on doit sauvegarder (nouvelle position ou changement > 10km)
+          const savedLocation = await loadSavedLocation();
+          const shouldSave = await checkAndUpdateLocation(savedLocation, latitude, longitude);
+          
           geo.active = true;
           geo.lat = latitude;
           geo.lng = longitude;
@@ -2927,6 +2998,12 @@
           updateRadiusLabel();
           syncRangeDisabledState(geo.radiusEnabled);
           applyRadius({ reFit: true, mapInstance });
+          
+          // Sauvegarder dans la BDD si nécessaire
+          if (shouldSave) {
+            await saveLocationToAPI(latitude, longitude, geo.radiusKm);
+          }
+          
           if (typeof window.mmSetRadius === 'function') {
             window.mmSetRadius(geo.radiusKm);
           }
@@ -2950,6 +3027,67 @@
         if (event.target instanceof Element && event.target.closest('#geoCaretBtn')) return;
         startLocate();
       });
+
+      // Auto-charger la position sauvegardée au démarrage
+      async function autoLoadSavedLocation() {
+        const savedLocation = await loadSavedLocation();
+        if (savedLocation && savedLocation.lat && savedLocation.lng) {
+          console.log('Position sauvegardée trouvée, restauration...');
+          geo.active = true;
+          geo.lat = savedLocation.lat;
+          geo.lng = savedLocation.lng;
+          geo.radiusKm = savedLocation.radiusKm || 10;
+          geo.radiusEnabled = toggle.checked;
+          
+          // Mettre à jour l'UI
+          range.value = String(geo.radiusKm);
+          updateRadiusLabel();
+          syncRangeDisabledState(geo.radiusEnabled);
+          
+          // Appliquer le rayon sur la carte si elle est déjà chargée
+          const mapInstance = getMap();
+          if (mapInstance) {
+            applyRadius({ reFit: true, mapInstance });
+          }
+          
+          if (typeof window.mmSetRadius === 'function') {
+            window.mmSetRadius(geo.radiusKm);
+          }
+          if (typeof window.mmEnableRadiusFilter === 'function') {
+            window.mmEnableRadiusFilter(geo.radiusEnabled);
+          }
+          if (typeof window.mmOnLocate === 'function') {
+            window.mmOnLocate([savedLocation.lat, savedLocation.lng]);
+          }
+          
+          // Optionnel: vérifier si la position actuelle a changé en arrière-plan
+          if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              async (position) => {
+                const { latitude, longitude } = position.coords;
+                const shouldUpdate = await checkAndUpdateLocation(savedLocation, latitude, longitude);
+                if (shouldUpdate) {
+                  console.log('Position actuelle différente, mise à jour silencieuse...');
+                  await saveLocationToAPI(latitude, longitude, geo.radiusKm);
+                  geo.lat = latitude;
+                  geo.lng = longitude;
+                  const mapInst = getMap();
+                  if (mapInst) {
+                    applyRadius({ reFit: false, mapInstance: mapInst });
+                  }
+                }
+              },
+              (error) => {
+                console.log('Impossible de vérifier la position actuelle:', error.message);
+              },
+              { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 } // 5 min de cache OK
+            );
+          }
+        }
+      }
+
+      // Lancer l'auto-chargement après un court délai (pour laisser l'auth se charger)
+      setTimeout(autoLoadSavedLocation, 500);
 
       geo.radiusKm = Number(range.value) || geo.radiusKm;
       geo.radiusEnabled = toggle.checked;

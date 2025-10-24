@@ -29,7 +29,8 @@ const LocationSchema = new Schema(
       default: undefined
     },
     radiusKm: { type: Number, default: 10 },
-    consent: { type: Boolean, default: false }
+    consent: { type: Boolean, default: false },
+    lastUpdated: { type: Date, default: null }
   },
   { _id: false }
 );

@@ -43,6 +43,7 @@ function applyLocation(user, locationPayload = {}) {
     const normalized = normalizeCoords(coords);
     if (normalized) {
       update.coords = { type: 'Point', coordinates: normalized };
+      update.lastUpdated = new Date(); // Mise à jour de la date quand les coords changent
     } else if (coords === null) {
       update.coords = undefined;
     }
@@ -114,7 +115,26 @@ export async function updateLocation(req, res) {
     });
   }
 
-  applyLocation(user, req.body);
+  // Support pour les deux formats: { lat, lng, radiusKm } et l'ancien format { coords, city, ... }
+  const { lat, lng, radiusKm } = req.body;
+  
+  if (lat != null && lng != null) {
+    // Nouveau format simplifié
+    const locationUpdate = {
+      coords: [Number(lng), Number(lat)],
+      consent: true
+    };
+    
+    if (radiusKm !== undefined) {
+      locationUpdate.radiusKm = Number(radiusKm);
+    }
+    
+    applyLocation(user, locationUpdate);
+  } else {
+    // Ancien format (support legacy)
+    applyLocation(user, req.body);
+  }
+  
   await user.save();
 
   return sendSuccess(res, {
