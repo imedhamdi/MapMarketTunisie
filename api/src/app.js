@@ -13,6 +13,7 @@ import errorHandler from './middlewares/error.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import adRoutes from './routes/ad.routes.js';
+import geocodeRoutes from './routes/geocode.routes.js';
 import { sendError } from './utils/responses.js';
 
 const app = express();
@@ -85,6 +86,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);  // Singulier pour correspondre au frontend
 app.use('/api/users', userRoutes); // Alias pour compatibilité
 app.use('/api/ads', adRoutes);
+app.use('/api/geocode', geocodeRoutes);
 
 app.use('/api', (req, res) => {
   sendError(res, {

@@ -8,7 +8,7 @@
     content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
+    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
   <link rel="canonical" href="https://tondomaine.com/">
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -615,18 +615,11 @@
                 <p class="map-hint">Déplacez le marqueur pour ajuster la position.</p>
               </div>
               <div id="postMap" class="post-map" role="application" aria-label="Carte de localisation"></div>
-              <div class="map-coords">
-                <div class="field">
-                  <label for="postLat">Latitude <span aria-hidden="true">*</span></label>
-                  <input type="number" id="postLat" name="latitude" step="0.000001" required>
-                  <p class="field-error" data-error-for="postLat"></p>
-                </div>
-                <div class="field">
-                  <label for="postLng">Longitude <span aria-hidden="true">*</span></label>
-                  <input type="number" id="postLng" name="longitude" step="0.000001" required>
-                  <p class="field-error" data-error-for="postLng"></p>
-                </div>
+              <div class="map-coords" id="mapCoords">
+                Latitude: <span id="coordsLat">--</span> | Longitude: <span id="coordsLng">--</span>
               </div>
+              <input type="hidden" id="postLat" name="latitude" required>
+              <input type="hidden" id="postLng" name="longitude" required>
             </div>
           </section>
 
@@ -1470,6 +1463,15 @@
     function applyFavoritesFromUser(user) {
       const favorites = Array.isArray(user?.favorites) ? user.favorites : [];
       favStore.load(favorites);
+      
+      // Nettoyer le cache des favoris pour les IDs qui ne sont plus dans les favoris
+      const favoriteIds = new Set(favorites.map(String));
+      for (const cachedId of favDataCache.keys()) {
+        if (!favoriteIds.has(cachedId)) {
+          favDataCache.delete(cachedId);
+        }
+      }
+      
       updateFavBadge();
       syncAllFavoriteButtons();
       if (isFavModalOpen()) renderFavSheet();
@@ -2664,9 +2666,14 @@
 
     (function () {
       const getMap = () => {
-        if (typeof map !== 'undefined' && map) return map;
+        if (typeof map !== 'undefined' && map && typeof map.addLayer === 'function') return map;
         if (typeof window !== 'undefined') {
-          return window.map || window.__leafletMap || window.leafletMap || null;
+          const candidates = [window.map, window.__leafletMap, window.leafletMap];
+          for (const candidate of candidates) {
+            if (candidate && typeof candidate.addLayer === 'function') {
+              return candidate;
+            }
+          }
         }
         return null;
       };
@@ -2835,9 +2842,9 @@
 
       function upsertLayers(mapInstance) {
         if (!mapInstance || geo.lat == null || geo.lng == null) return;
-        // Vérifier que mapInstance est bien une instance Leaflet valide
-        if (typeof mapInstance.addLayer !== 'function' || typeof mapInstance.hasLayer !== 'function') {
-          console.warn('Invalid map instance passed to upsertLayers');
+        // Vérifier que mapInstance est une vraie instance Leaflet avec les méthodes nécessaires
+        if (typeof mapInstance.addLayer !== 'function') {
+          console.warn('upsertLayers: mapInstance invalide', mapInstance);
           return;
         }
         const latlng = [geo.lat, geo.lng];
@@ -2855,7 +2862,7 @@
             geo.circle.addTo(mapInstance);
           } else {
             geo.circle.setLatLng(latlng).setRadius(meters);
-            if (!mapInstance.hasLayer(geo.circle)) {
+            if (typeof mapInstance.hasLayer === 'function' && !mapInstance.hasLayer(geo.circle)) {
               geo.circle.addTo(mapInstance);
             }
           }
@@ -4141,6 +4148,7 @@
     let postDraftLoaded = false;
     let postDraftTimer = null;
     let postIsSubmitting = false;
+    let reverseGeocodeTimer = null;
 
     function setPostModalHidden(hidden) {
       if (!postModal) return;
@@ -4169,6 +4177,7 @@
       postStatus.textContent = '';
       postDraftLoaded = false;
       postDraftBanner.hidden = true;
+      postAddressManuallyEdited = false; // Réinitialiser le flag
       initPostMap();
       buildAttributesForm(postCategory.value);
       const draft = loadDraft();
@@ -4472,16 +4481,36 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap'
         }).addTo(postMapInstance);
-        postMapMarker = L.marker(postMapInstance.getCenter(), { draggable: true }).addTo(postMapInstance);
+        const center = postMapInstance.getCenter();
+        postMapMarker = L.marker(center, { draggable: true }).addTo(postMapInstance);
+        // Initialiser l'affichage des coordonnées
+        const initLat = center.lat.toFixed(6);
+        const initLng = center.lng.toFixed(6);
+        postLat.value = initLat;
+        postLng.value = initLng;
+        document.getElementById('coordsLat').textContent = initLat;
+        document.getElementById('coordsLng').textContent = initLng;
+        // Remplir la ville par défaut
+        updateCityFromCoords(initLat, initLng);
         postMapMarker.on('move', ({ latlng }) => {
-          postLat.value = latlng.lat.toFixed(6);
-          postLng.value = latlng.lng.toFixed(6);
+          const lat = latlng.lat.toFixed(6);
+          const lng = latlng.lng.toFixed(6);
+          postLat.value = lat;
+          postLng.value = lng;
+          document.getElementById('coordsLat').textContent = lat;
+          document.getElementById('coordsLng').textContent = lng;
+          updateCityFromCoords(lat, lng);
           queueDraftSave();
         });
         postMapInstance.on('click', ({ latlng }) => {
           postMapMarker.setLatLng(latlng);
-          postLat.value = latlng.lat.toFixed(6);
-          postLng.value = latlng.lng.toFixed(6);
+          const lat = latlng.lat.toFixed(6);
+          const lng = latlng.lng.toFixed(6);
+          postLat.value = lat;
+          postLng.value = lng;
+          document.getElementById('coordsLat').textContent = lat;
+          document.getElementById('coordsLng').textContent = lng;
+          updateCityFromCoords(lat, lng);
           queueDraftSave();
         });
       }
@@ -4497,6 +4526,65 @@
       if (Number.isNaN(latNum) || Number.isNaN(lngNum)) return;
       postMapMarker.setLatLng([latNum, lngNum]);
       postMapInstance.setView([latNum, lngNum], Math.max(postMapInstance.getZoom(), 12));
+      // Mettre à jour l'affichage des coordonnées
+      const latStr = latNum.toFixed(6);
+      const lngStr = lngNum.toFixed(6);
+      postLat.value = latStr;
+      postLng.value = lngStr;
+      document.getElementById('coordsLat').textContent = latStr;
+      document.getElementById('coordsLng').textContent = lngStr;
+    }
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const response = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+        
+        if (!response.ok) {
+          console.warn('Reverse geocode failed:', response.status);
+          return null;
+        }
+        
+        const result = await response.json();
+        console.log('Reverse geocode result:', result);
+        
+        if (result.status === 'success' && result.data && result.data.city) {
+          return result.data.city;
+        }
+        
+        return null;
+      } catch (error) {
+        console.error('Erreur reverse geocoding:', error);
+        return null;
+      }
+    }
+
+    let postAddressManuallyEdited = false; // Track si l'utilisateur a modifié manuellement
+
+    async function updateCityFromCoords(lat, lng) {
+      const postAddress = document.getElementById('postAddress');
+      if (!postAddress) {
+        console.warn('Element postAddress not found');
+        return;
+      }
+      
+      // Debounce pour éviter trop d'appels API
+      if (reverseGeocodeTimer) clearTimeout(reverseGeocodeTimer);
+      
+      reverseGeocodeTimer = setTimeout(async () => {
+        // Ne pas écraser si l'utilisateur a modifié manuellement le champ
+        if (postAddressManuallyEdited) {
+          console.log('Address manually edited, skipping update');
+          return;
+        }
+        
+        console.log('Fetching city for coordinates:', lat, lng);
+        const city = await reverseGeocode(lat, lng);
+        console.log('City received:', city);
+        if (city) {
+          postAddress.value = city;
+          console.log('Address field updated with:', city);
+        }
+      }, 1000); // Attendre 1 seconde après le dernier mouvement
     }
 
     async function requestUserLocation() {
@@ -4514,6 +4602,7 @@
         postLat.value = latitude.toFixed(6);
         postLng.value = longitude.toFixed(6);
         updatePostMapMarker(latitude, longitude);
+        updateCityFromCoords(latitude.toFixed(6), longitude.toFixed(6));
         showToast('Position détectée ✅');
         queueDraftSave();
       } catch (error) {
@@ -4632,6 +4721,11 @@
     });
 
     postUseLocation?.addEventListener('click', () => requestUserLocation());
+
+    // Détecter si l'utilisateur modifie manuellement le champ adresse
+    document.getElementById('postAddress')?.addEventListener('input', () => {
+      postAddressManuallyEdited = true;
+    });
 
     postModal?.addEventListener('click', (event) => {
       if (event.target === postModal) {
@@ -5340,8 +5434,15 @@
           }
           
           // Retirer du store des favoris si présent
-          if (favStore.has(ad.id)) {
-            favStore.delete(ad.id);
+          const adId = String(ad.id);
+          if (favStore.has(adId)) {
+            favStore.delete(adId);
+            favDataCache.delete(adId);
+            updateFavBadge();
+            syncAllFavoriteButtons();
+            if (isFavModalOpen()) {
+              renderFavSheet();
+            }
           }
         } else {
           throw new Error('Échec de la suppression');

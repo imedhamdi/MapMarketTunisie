@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
 import Ad from '../models/ad.model.js';
+import User from '../models/user.model.js';
 import { sendSuccess, sendError } from '../utils/responses.js';
 import { createAdSchema, updateAdSchema } from '../validators/ad.schema.js';
 
@@ -333,6 +334,12 @@ export async function deleteAd(req, res, next) {
     // Archiver l'annonce au lieu de la supprimer
     ad.status = 'archived';
     await ad.save();
+    
+    // Retirer l'annonce des favoris de tous les utilisateurs
+    await User.updateMany(
+      { favorites: id },
+      { $pull: { favorites: id } }
+    );
     
     return sendSuccess(res, { message: 'Annonce supprimée' });
   } catch (error) {
