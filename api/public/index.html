@@ -2027,10 +2027,10 @@
         scheduleCloseHover(0);
         const sourceMarker = hoverCard?._sourceMarker;
         const data = sourceMarker?._itemData;
-        if (data && data.id === id && typeof openDetailsModal === 'function') {
-          openDetailsModal(data);
-        } else {
-          window.dispatchEvent(new CustomEvent('details:open', { detail: { id } }));
+        if (data && data.id === id) {
+          openDetailsById(id, data);
+        } else if (id) {
+          openDetailsById(id);
         }
       });
     }
@@ -2091,10 +2091,10 @@
 
     function handleMarkerDetails(marker) {
       const data = marker?._itemData;
-      if (data && typeof openDetailsModal === 'function') {
-        openDetailsModal(data);
-      } else if (marker?._item) {
-        window.dispatchEvent(new CustomEvent('details:open', { detail: { id: marker._item.id } }));
+      if (data && data.id) {
+        openDetailsById(data.id, data);
+      } else if (marker?._item && marker._item.id) {
+        openDetailsById(marker._item.id);
       }
     }
 
