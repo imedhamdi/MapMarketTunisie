@@ -1991,7 +1991,8 @@
       const card = event.target.closest('.mm-card');
       if (!card) return;
       const id = card.dataset.id;
-      const ad = getItemById(id);
+      // Essayer d'abord le cache des favoris, puis allItems
+      const ad = favDataCache.get(String(id)) || getItemById(id);
       if (ad) {
         if (favModal) {
           if (!favModal._stickyOpen) favModal._stickyOpen = true;
@@ -2834,6 +2835,11 @@
 
       function upsertLayers(mapInstance) {
         if (!mapInstance || geo.lat == null || geo.lng == null) return;
+        // Vérifier que mapInstance est bien une instance Leaflet valide
+        if (typeof mapInstance.addLayer !== 'function' || typeof mapInstance.hasLayer !== 'function') {
+          console.warn('Invalid map instance passed to upsertLayers');
+          return;
+        }
         const latlng = [geo.lat, geo.lng];
         if (!geo.marker) {
           geo.marker = L.marker(latlng, {
@@ -2849,7 +2855,7 @@
             geo.circle.addTo(mapInstance);
           } else {
             geo.circle.setLatLng(latlng).setRadius(meters);
-            if (typeof mapInstance.hasLayer === 'function' && !mapInstance.hasLayer(geo.circle)) {
+            if (!mapInstance.hasLayer(geo.circle)) {
               geo.circle.addTo(mapInstance);
             }
           }
