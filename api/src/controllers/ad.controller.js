@@ -263,6 +263,7 @@ export async function updateAd(req, res, next) {
   try {
     const { id } = req.params;
     const payload = await updateAdSchema.validateAsync(req.body, { abortEarly: false, stripUnknown: true });
+    
     const ad = await Ad.findById(id);
     if (!ad) {
       return sendError(res, {
@@ -271,11 +272,12 @@ export async function updateAd(req, res, next) {
         message: 'Annonce introuvable.'
       });
     }
+    
     if (String(ad.owner) !== String(req.user?._id)) {
       return sendError(res, {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Seul l’auteur peut modifier cette annonce.'
+        message: 'Seul l\'auteur peut modifier cette annonce.'
       });
     }
 
@@ -284,11 +286,13 @@ export async function updateAd(req, res, next) {
     if (payload.category) ad.category = payload.category;
     if (payload.condition) ad.condition = payload.condition;
     if (payload.price != null) ad.price = payload.price;
+    if (payload.status) ad.status = payload.status;
     if (payload.locationText) ad.locationText = stripTags(payload.locationText);
     if (payload.latitude != null && payload.longitude != null) {
       ad.location = buildLocation({ latitude: payload.latitude, longitude: payload.longitude });
     }
-    if (Array.isArray(payload.images)) {
+    // Only update images if explicitly provided and not empty
+    if (Array.isArray(payload.images) && payload.images.length > 0) {
       ad.images = payload.images.slice(0, 10);
     }
     if (payload.attributes) {
@@ -298,11 +302,13 @@ export async function updateAd(req, res, next) {
     ad.attributesNormalized = buildNormalizedAttributes(categoryForNormalization, ad.attributes);
 
     await ad.save();
+    
     await ad.populate('owner', 'name email avatar memberSince createdAt');
     if (ad.owner?._id) {
       const total = await Ad.countDocuments({ owner: ad.owner._id, status: 'active' });
       ad.owner.activeAds = total;
     }
+    
     return sendSuccess(res, {
       message: 'Annonce mise à jour',
       data: { ad }

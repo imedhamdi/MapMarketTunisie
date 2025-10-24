@@ -33,7 +33,7 @@ const AdSchema = new Schema(
     attributes: { type: Schema.Types.Mixed, default: {} },
     attributesNormalized: { type: Schema.Types.Mixed, default: {} },
     images: { type: [String], default: [] },
-    status: { type: String, enum: ['draft', 'active', 'archived'], default: 'active', index: true },
+    status: { type: String, enum: ['draft', 'active', 'archived', 'deleted'], default: 'active', index: true },
     views: { type: Number, default: 0 },
     favoritesCount: { type: Number, default: 0 }
   },

@@ -3,6 +3,7 @@ import sanitizeHtml from 'sanitize-html';
 
 import User from '../models/user.model.js';
 import Ad from '../models/ad.model.js';
+import logger from '../config/logger.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import { clearAuthCookies } from '../utils/generateTokens.js';
 
@@ -207,7 +208,7 @@ export async function updateFavorites(req, res) {
         await adDoc.save();
       }
     } catch (error) {
-      console.warn('Unable to sync favorites count', error);
+      logger.warn('Impossible de synchroniser le compteur de favoris', { error: error.message, adId: normalizedId });
     }
   }
 
@@ -224,4 +225,240 @@ export async function deleteMe(req, res) {
   return sendSuccess(res, {
     message: 'Compte supprimé'
   });
+}
+
+export async function getUserStats(req, res) {
+  try {
+    const userId = req.user._id;
+    
+    // Récupérer toutes les annonces de l'utilisateur
+    const userAds = await Ad.find({ owner: userId });
+    
+    // Calculer les statistiques
+    const stats = {
+      total: userAds.length,
+      active: userAds.filter(ad => ad.status === 'active').length,
+      draft: userAds.filter(ad => ad.status === 'draft').length,
+      archived: userAds.filter(ad => ad.status === 'archived').length,
+      totalViews: userAds.reduce((sum, ad) => sum + (ad.views || 0), 0),
+      totalFavorites: userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0)
+    };
+    
+    return sendSuccess(res, {
+      message: 'Statistiques récupérées',
+      data: { stats }
+    });
+  } catch (error) {
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors de la récupération des statistiques.'
+    });
+  }
+}
+
+export async function getUserAnalytics(req, res) {
+  try {
+    const userId = req.user._id;
+    
+    // Récupérer toutes les annonces de l'utilisateur
+    const userAds = await Ad.find({ owner: userId });
+    
+    if (userAds.length === 0) {
+      return sendSuccess(res, {
+        message: 'Analytics récupérées',
+        data: { analytics: null }
+      });
+    }
+    
+    // Calculer les métriques
+    const totalViews = userAds.reduce((sum, ad) => sum + (ad.views || 0), 0);
+    const totalFavorites = userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0);
+    const totalContacts = userAds.reduce((sum, ad) => sum + (ad.contacts || 0), 0);
+    
+    // Taux d'engagement (favoris / vues * 100)
+    const engagementRate = totalViews > 0 ? ((totalFavorites / totalViews) * 100).toFixed(1) : 0;
+    
+    // Taux de conversion (contacts / vues * 100)
+    const conversionRate = totalViews > 0 ? ((totalContacts / totalViews) * 100).toFixed(1) : 0;
+    
+    // Top performing ads (top 5 par vues)
+    const topAds = [...userAds]
+      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      .slice(0, 5)
+      .map(ad => ({
+        id: ad._id,
+        title: ad.title,
+        category: ad.category,
+        city: ad.city,
+        views: ad.views || 0,
+        favorites: ad.favoritesCount || 0,
+        contacts: ad.contacts || 0
+      }));
+    
+    // Analytics par catégorie
+    const categoryStats = {};
+    userAds.forEach(ad => {
+      const cat = ad.category || 'Non catégorisé';
+      if (!categoryStats[cat]) {
+        categoryStats[cat] = { count: 0, views: 0, favorites: 0 };
+      }
+      categoryStats[cat].count++;
+      categoryStats[cat].views += ad.views || 0;
+      categoryStats[cat].favorites += ad.favoritesCount || 0;
+    });
+    
+    // Analytics par ville
+    const cityStats = {};
+    userAds.forEach(ad => {
+      const city = ad.city || 'Non spécifié';
+      if (!cityStats[city]) {
+        cityStats[city] = { count: 0, views: 0 };
+      }
+      cityStats[city].count++;
+      cityStats[city].views += ad.views || 0;
+    });
+    
+    const analytics = {
+      overview: {
+        totalViews,
+        totalFavorites,
+        totalContacts,
+        engagementRate: parseFloat(engagementRate),
+        conversionRate: parseFloat(conversionRate)
+      },
+      topPerformingAds: topAds,
+      categoryStats,
+      cityStats,
+      averages: {
+        viewsPerAd: userAds.length > 0 ? (totalViews / userAds.length).toFixed(1) : 0,
+        favoritesPerAd: userAds.length > 0 ? (totalFavorites / userAds.length).toFixed(1) : 0
+      }
+    };
+    
+    return sendSuccess(res, {
+      message: 'Analytics récupérées',
+      data: { analytics }
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération des analytics', { error: error.message });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors de la récupération des analytics.'
+    });
+  }
+}
+
+export async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return sendError(res, {
+        statusCode: 400,
+        code: 'MISSING_FIELDS',
+        message: 'Tous les champs sont requis.'
+      });
+    }
+    
+    if (newPassword.length < 8) {
+      return sendError(res, {
+        statusCode: 400,
+        code: 'INVALID_PASSWORD',
+        message: 'Le mot de passe doit contenir au moins 8 caractères.'
+      });
+    }
+    
+    // Récupérer l'utilisateur avec le mot de passe
+    const user = await User.findById(req.user._id).select('+password');
+    
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur introuvable.'
+      });
+    }
+    
+    // Vérifier le mot de passe actuel
+    const bcrypt = await import('bcryptjs');
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    
+    if (!isMatch) {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'INVALID_PASSWORD',
+        message: 'Mot de passe actuel incorrect.'
+      });
+    }
+    
+    // Hasher et sauvegarder le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedPassword;
+    await user.save();
+    
+    return sendSuccess(res, {
+      message: 'Mot de passe modifié avec succès'
+    });
+  } catch (error) {
+    logger.error('Erreur lors du changement de mot de passe', { error: error.message });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors du changement de mot de passe.'
+    });
+  }
+}
+
+/**
+ * Upload/update user avatar
+ */
+export async function uploadAvatar(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Non authentifié'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return sendError(res, {
+        statusCode: 400,
+        code: 'NO_FILE',
+        message: 'Aucun fichier fourni'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Update user avatar with the filename
+    user.avatar = req.file.filename;
+    await user.save();
+
+    return sendSuccess(res, {
+      message: 'Avatar mis à jour avec succès',
+      data: {
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur lors de l\'upload de l\'avatar', { error: error.message });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors de l\'upload de l\'avatar'
+    });
+  }
 }

@@ -7,7 +7,11 @@ import {
   updateLocation,
   updateAvatar,
   updateFavorites,
-  deleteMe
+  deleteMe,
+  getUserStats,
+  getUserAnalytics,
+  changePassword,
+  uploadAvatar
 } from '../controllers/user.controller.js';
 import { authRequired } from '../middlewares/auth.js';
 import validate from '../middlewares/validate.js';
@@ -48,7 +52,11 @@ router.use(authRequired);
 router.patch('/me', validate(updateMeSchema), updateMe);
 router.post('/me/location', validate(updateLocationSchema), updateLocation);
 router.patch('/me/avatar', upload.single('avatar'), updateAvatar);
+router.post('/me/avatar', upload.single('avatar'), uploadAvatar);
 router.post('/me/favorites', validate(favoritesSchema), updateFavorites);
+router.get('/me/stats', getUserStats);
+router.get('/me/analytics', getUserAnalytics);
+router.post('/me/change-password', changePassword);
 router.delete('/me', deleteMe);
 
 export default router;

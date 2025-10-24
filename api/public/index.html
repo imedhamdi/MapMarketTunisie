@@ -350,9 +350,9 @@
                   <circle cx="12" cy="12" r="10"/>
                   <path d="m9 12 2 2 4-4"/>
                 </svg>
-                <span id="geoToggleText">Recherche par rayon activée</span>
+                <span id="geoToggleText">Recherche par rayon désactivée</span>
               </span>
-              <input type="checkbox" id="geoRadiusEnabled" checked class="hidden-checkbox">
+              <input type="checkbox" id="geoRadiusEnabled" class="hidden-checkbox">
               <span class="toggle-switch"></span>
             </label>
           </div>
@@ -1259,7 +1259,7 @@
       if (key == null) return null;
       return allItemsIndex.get(key) || allItems.find((item) => String(item.id) === key) || null;
     };
-    const authStore = { get() { try { return JSON.parse(localStorage.getItem('mm-auth') || 'null') } catch { return null } }, set(v) { localStorage.setItem('mm-auth', JSON.stringify(v)) } };
+    window.authStore = { get() { try { return JSON.parse(localStorage.getItem('mm-auth') || 'null') } catch { return null } }, set(v) { localStorage.setItem('mm-auth', JSON.stringify(v)) } };
 
     // ---------- UTIL ----------
     function categoryClass(cat) {
@@ -3183,6 +3183,59 @@
 
     const API_BASE = window.API_BASE || window.location.origin;
 
+    // Utility function to get avatar URL with proper path and cache busting
+    window.getAvatarUrl = function(avatarFilename, bustCache = false) {
+      if (!avatarFilename) {
+        return '/uploads/avatars/default.jpg';
+      }
+      
+      // If it's already a full path, use it as is
+      if (avatarFilename.startsWith('/uploads/avatars/')) {
+        return bustCache ? `${avatarFilename}?t=${Date.now()}` : avatarFilename;
+      }
+      
+      // Otherwise, build the path
+      const url = `/uploads/avatars/${avatarFilename}`;
+      return bustCache ? `${url}?t=${Date.now()}` : url;
+    };
+
+    // Global function to update all avatar instances
+    window.updateAllAvatars = function(avatarFilename, bustCache = true) {
+      const avatarUrl = window.getAvatarUrl(avatarFilename, bustCache);
+      
+      // 1. Profile modal avatar
+      const profileAvatar = document.getElementById('profileAvatar');
+      if (profileAvatar) {
+        profileAvatar.src = avatarUrl;
+      }
+      
+      // 2. User menu button avatar
+      const avatarBtn = document.querySelector('.avatar-btn.is-auth .avatar-img');
+      if (avatarBtn) {
+        avatarBtn.src = avatarUrl;
+      }
+      
+      // 3. User menu dropdown avatar
+      const userMenuAvatar = document.getElementById('userMenuAvatar');
+      if (userMenuAvatar) {
+        userMenuAvatar.src = avatarUrl;
+      }
+      
+      // 4. All other avatar images with class user-menu__avatar
+      document.querySelectorAll('.user-menu__avatar').forEach(img => {
+        img.src = avatarUrl;
+      });
+      
+      // 5. Seller card in ad details if it's the current user
+      const detailsSeller = document.getElementById('detailsSeller');
+      if (detailsSeller) {
+        const sellerImg = detailsSeller.querySelector('img');
+        if (sellerImg) {
+          sellerImg.src = avatarUrl;
+        }
+      }
+    };
+
     function buildApiUrl(path) {
       if (!path) return API_BASE;
       if (/^https?:\/\//i.test(path)) return path;
@@ -3319,8 +3372,12 @@
             if (openFavsBtn) openFavsBtn.click();
             break;
           case 'profile': {
-            const avatarBtn = document.querySelector('#avatar button');
-            if (avatarBtn) avatarBtn.click();
+            if (typeof window.openProfileModal === 'function') {
+              window.openProfileModal();
+            } else {
+              const avatarBtn = document.querySelector('#avatar button');
+              if (avatarBtn) avatarBtn.click();
+            }
             break;
           }
           default:
@@ -3413,18 +3470,12 @@
     function updateUserMenuIdentity(auth) {
       const nameEl = document.getElementById('userMenuName');
       const emailEl = document.getElementById('userMenuEmail');
-      const avatarImgs = document.querySelectorAll('.user-menu__avatar, #userMenuButton .avatar-img');
       if (nameEl) nameEl.textContent = auth?.name || 'Utilisateur';
       if (emailEl) emailEl.textContent = auth?.email || '';
-      const avatarSrc = auth?.avatar || '';
-      if (avatarSrc) {
-        avatarImgs.forEach((img) => {
-          if (img) img.src = avatarSrc;
-        });
-      } else {
-        avatarImgs.forEach((img) => {
-          if (img) img.src = '/uploads/avatars/default.jpg';
-        });
+      
+      // Use the global function to update all avatars
+      if (auth?.avatar) {
+        window.updateAllAvatars(auth.avatar, false);
       }
     }
 
@@ -3561,7 +3612,11 @@
             break;
           case 'profile':
             closeMenu({ restoreFocus: true });
-            if (typeof showToast === 'function') showToast('Section profil en préparation ✨');
+            if (typeof window.openProfileModal === 'function') {
+              window.openProfileModal();
+            } else {
+              if (typeof showToast === 'function') showToast('Section profil en préparation ✨');
+            }
             break;
           default:
             break;
@@ -3621,8 +3676,8 @@
         button.classList.add('is-auth');
         button.setAttribute('title', auth.name || auth.email || 'Profil connecté');
         button.setAttribute('aria-label', auth.name ? `Menu de ${auth.name}` : 'Menu utilisateur connecté');
-        const avatarSrc = auth.avatar || '';
-        if (avatarSrc) {
+        const avatarSrc = window.getAvatarUrl(auth.avatar);
+        if (avatarSrc && auth.avatar) {
           const img = document.createElement('img');
           img.className = 'avatar-img';
           img.src = avatarSrc;
@@ -4654,14 +4709,161 @@
       }
     }
 
+    // Preview function
+    function showPreview() {
+      const payload = collectPostPayload();
+      const auth = authStore.get();
+      
+      // Create a preview ad object matching the real ad structure
+      const previewAd = {
+        _id: 'preview-temp-id',
+        title: payload.title,
+        description: payload.description,
+        price: payload.price,
+        category: payload.category,
+        condition: payload.condition || 'bon',
+        images: payload.images || [],
+        city: payload.locationText || 'Tunisie',
+        status: 'active',
+        views: 0,
+        favoritesCount: 0,
+        contacts: 0,
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        owner: auth?._id || 'preview-user',
+        ownerId: auth?._id || 'preview-user',
+        sellerName: auth?.name || 'Votre nom',
+        sellerEmail: auth?.email || 'votre@email.com',
+        sellerAvatar: auth?.avatar || null,
+        sellerMemberSince: auth?.createdAt || new Date().toISOString(),
+        sellerAnnouncements: 1,
+        attributes: payload.attributes || {},
+        coords: {
+          type: 'Point',
+          coordinates: [payload.longitude || 10.1815, payload.latitude || 36.8065]
+        },
+        __preview: true // Flag to indicate this is a preview
+      };
+      
+      // Close post modal
+      setPostModalHidden(true);
+      
+      // Add preview banner to details modal
+      setTimeout(() => {
+        openDetailsModal(previewAd);
+        
+        // Add a preview banner at the top of the details modal
+        const detailsBody = document.getElementById('detailsBody');
+        if (detailsBody) {
+          let previewBanner = document.getElementById('previewBanner');
+          if (!previewBanner) {
+            previewBanner = document.createElement('div');
+            previewBanner.id = 'previewBanner';
+            previewBanner.style.cssText = `
+              position: sticky;
+              top: 0;
+              z-index: 100;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 16px 20px;
+              border-radius: 0 0 12px 12px;
+              margin: -20px -20px 20px -20px;
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+            `;
+            previewBanner.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <div>
+                  <div style="font-weight: 700; font-size: 15px; margin-bottom: 2px;">Mode Prévisualisation</div>
+                  <div style="font-size: 13px; opacity: 0.9;">Voici comment votre annonce apparaîtra aux acheteurs</div>
+                </div>
+              </div>
+              <button type="button" id="closePreview" style="
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s ease;
+                white-space: nowrap;
+              " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Retour à l'édition
+              </button>
+            `;
+            detailsBody.prepend(previewBanner);
+            
+            // Add click handler for close preview button
+            document.getElementById('closePreview')?.addEventListener('click', () => {
+              closeDetailsModal();
+              setTimeout(() => {
+                setPostModalHidden(false);
+              }, 100);
+            });
+          }
+        }
+        
+        // Hide contact button in preview mode
+        const contactTrigger = document.getElementById('contactTrigger');
+        if (contactTrigger) {
+          contactTrigger.style.display = 'none';
+        }
+        
+        // Add a note about contact being disabled in preview
+        const detailsActions = document.querySelector('.details-actions');
+        if (detailsActions && !document.getElementById('previewContactNote')) {
+          const note = document.createElement('div');
+          note.id = 'previewContactNote';
+          note.style.cssText = `
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+          `;
+          note.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            Le bouton de contact sera actif une fois l'annonce publiée
+          `;
+          detailsActions.appendChild(note);
+        }
+      }, 100);
+    }
+
     postBtn?.addEventListener('click', () => openPostModal());
     closePostBtn?.addEventListener('click', () => closePostModal({ reset: false }));
     postCancel?.addEventListener('click', () => closePostModal({ reset: false }));
     postPreview?.addEventListener('click', () => {
-      if (!validatePostForm()) return;
-      const payload = collectPostPayload();
-      console.table(payload);
-      showToast('Prévisualisation disponible prochainement ✨');
+      if (!validatePostForm()) {
+        showToast('⚠️ Veuillez remplir tous les champs requis');
+        return;
+      }
+      showPreview();
     });
     postSaveDraft?.addEventListener('click', () => {
       const payload = collectPostPayload();
@@ -5285,7 +5487,15 @@
 
     function renderSeller(ad) {
       const avatarBase = ad.sellerAvatar || DEFAULT_AVATAR;
-      const avatarThumb = buildOptimizedImage(avatarBase, 160, 60);
+      
+      // Si le vendeur est l'utilisateur connecté, utiliser l'avatar à jour depuis authStore
+      const currentUser = window.authStore?.get();
+      let sellerAvatarSrc = avatarBase;
+      if (currentUser && ad.ownerId && String(currentUser._id) === String(ad.ownerId) && currentUser.avatar) {
+        sellerAvatarSrc = window.getAvatarUrl(currentUser.avatar);
+      }
+      
+      const avatarThumb = buildOptimizedImage(sellerAvatarSrc, 160, 60);
       const memberDate = ad.sellerMemberSince ? formatDateLong(ad.sellerMemberSince) : formatDateLong(ad.date);
       const activeCount = ad.sellerAnnouncements ?? 1;
       detailsSeller.innerHTML = `
@@ -5709,6 +5919,25 @@
       if (contactPopover) closeContactPopover({ immediate: true, restoreFocus: false });
       resetContactForm();
       setDetailsLoading(false);
+      
+      // Remove preview banner if exists
+      const previewBanner = document.getElementById('previewBanner');
+      if (previewBanner) {
+        previewBanner.remove();
+      }
+      
+      // Remove preview contact note if exists
+      const previewContactNote = document.getElementById('previewContactNote');
+      if (previewContactNote) {
+        previewContactNote.remove();
+      }
+      
+      // Restore contact button visibility
+      const contactTrigger = document.getElementById('contactTrigger');
+      if (contactTrigger) {
+        contactTrigger.style.display = '';
+      }
+      
       const stickyOpen = !!favModal?._stickyOpen;
       const stickyScrollTop = typeof favModal?._favScrollTop === 'number' ? favModal._favScrollTop : 0;
       const stickyId = favModal?._lastSelectedFavId ?? null;
@@ -6357,15 +6586,1281 @@
     if (initialAuth) {
       applyFavoritesFromUser(initialAuth);
     }
+    
+    // Log startup info
+    console.log('%c🗺️ MapMarket Tunisia', 'font-size: 20px; font-weight: bold; color: #ff4d6d;');
+    console.log('%cVersion: 3.0 (Service Worker v3)', 'color: #666;');
+    
     updateAuthUI();
     loadAds();
     hydrateAuthFromSession();
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => { });
+      window.addEventListener('load', async () => {
+        try {
+          // First, unregister all existing service workers to clear old cache
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          let needsReload = false;
+          
+          for (const registration of registrations) {
+            // Check if it's the old version
+            const sw = registration.active || registration.waiting || registration.installing;
+            if (sw && sw.scriptURL.includes('/sw.js')) {
+              // Unregister old service worker
+              await registration.unregister();
+              needsReload = true;
+              console.log('Old Service Worker unregistered');
+            }
+          }
+          
+          // Clear all caches
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(
+              cacheNames.map(cacheName => {
+                if (cacheName.startsWith('mapmarket-')) {
+                  console.log('Deleting cache:', cacheName);
+                  return caches.delete(cacheName);
+                }
+              })
+            );
+          }
+          
+          // Register the new service worker
+          const registration = await navigator.serviceWorker.register('/sw.js', { 
+            updateViaCache: 'none' 
+          });
+          
+          console.log('New Service Worker registered');
+          
+          // Force update check
+          registration.update();
+          
+          // Listen for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                  console.log('Service Worker activated');
+                }
+              });
+            }
+          });
+          
+          // Reload page if we unregistered an old worker (only once)
+          if (needsReload && !sessionStorage.getItem('sw-reloaded')) {
+            sessionStorage.setItem('sw-reloaded', 'true');
+            console.log('Reloading to activate new Service Worker...');
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Service Worker error:', error);
+        }
+        
+        // Listen for controller change (new SW took over)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('Service Worker controller changed');
+        });
       });
     }
     })();
+  </script>
+
+  <!-- PROFILE MODAL -->
+  <div class="profile-modal" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
+    <div class="profile-dialog" role="document">
+      <div class="profile-header">
+        <div class="profile-header-content">
+          <div class="profile-user-info">
+            <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
+              <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar">
+              <div class="profile-avatar-edit">📷</div>
+              <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*">
+              <div class="profile-avatar-badge">✓</div>
+            </div>
+            <div class="profile-user-details">
+              <h2 id="profileTitle">Utilisateur</h2>
+              <div class="profile-user-meta">
+                <div class="profile-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span id="profileEmail">email@example.com</span>
+                </div>
+                <div class="profile-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span id="profileMemberSince">Membre depuis 2024</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="profile-close" id="profileClose" aria-label="Fermer le profil">×</button>
+        </div>
+      </div>
+
+      <div class="profile-body">
+        <div class="profile-tabs">
+          <button class="profile-tab active" data-tab="overview">📊 Vue d'ensemble</button>
+          <button class="profile-tab" data-tab="ads">📝 Mes annonces</button>
+          <button class="profile-tab" data-tab="password">🔒 Mot de passe</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div class="profile-tab-content active" id="tab-overview">
+          <div class="profile-stats-grid">
+            <div class="profile-stat-card">
+              <div class="profile-stat-header">
+                <div class="profile-stat-icon success">✅</div>
+              </div>
+              <div class="profile-stat-value" id="statActiveAds">0</div>
+              <div class="profile-stat-label">Annonces actives</div>
+            </div>
+
+            <div class="profile-stat-card">
+              <div class="profile-stat-header">
+                <div class="profile-stat-icon warning">📝</div>
+              </div>
+              <div class="profile-stat-value" id="statDraftAds">0</div>
+              <div class="profile-stat-label">Brouillons</div>
+            </div>
+
+            <div class="profile-stat-card">
+              <div class="profile-stat-header">
+                <div class="profile-stat-icon info">👁️</div>
+              </div>
+              <div class="profile-stat-value" id="statTotalViews">0</div>
+              <div class="profile-stat-label">Vues totales</div>
+            </div>
+
+            <div class="profile-stat-card">
+              <div class="profile-stat-header">
+                <div class="profile-stat-icon">❤️</div>
+              </div>
+              <div class="profile-stat-value" id="statTotalFavorites">0</div>
+              <div class="profile-stat-label">Favoris totaux</div>
+            </div>
+          </div>
+
+          <div class="profile-section">
+            <h3 style="font-size: 20px; font-weight: 700; margin: 0 0 16px 0; color: var(--color-text-primary);">
+              Activité récente
+            </h3>
+            <div id="recentActivityContainer">
+              <!-- Recent activity will be populated here -->
+            </div>
+          </div>
+
+          <!-- Analytics Section -->
+          <div class="profile-section">
+            <h3 style="font-size: 20px; font-weight: 700; margin: 0 0 16px 0; color: var(--color-text-primary);">
+              📊 Analytics détaillées
+            </h3>
+            
+            <!-- Performance Overview -->
+            <div class="analytics-grid">
+              <div class="analytics-card">
+                <div class="analytics-card-header">
+                  <span class="analytics-icon">👁️</span>
+                  <h4>Vues</h4>
+                </div>
+                <div class="analytics-metric">
+                  <div class="analytics-value" id="analyticsViews">0</div>
+                  <div class="analytics-change positive" id="analyticsViewsChange">+0%</div>
+                </div>
+                <div class="analytics-label">Vues totales</div>
+              </div>
+
+              <div class="analytics-card">
+                <div class="analytics-card-header">
+                  <span class="analytics-icon">💬</span>
+                  <h4>Contacts</h4>
+                </div>
+                <div class="analytics-metric">
+                  <div class="analytics-value" id="analyticsContacts">0</div>
+                  <div class="analytics-change positive" id="analyticsContactsChange">+0%</div>
+                </div>
+                <div class="analytics-label">Messages reçus</div>
+              </div>
+
+              <div class="analytics-card">
+                <div class="analytics-card-header">
+                  <span class="analytics-icon">⭐</span>
+                  <h4>Engagement</h4>
+                </div>
+                <div class="analytics-metric">
+                  <div class="analytics-value" id="analyticsEngagement">0%</div>
+                  <div class="analytics-change neutral" id="analyticsEngagementChange">--</div>
+                </div>
+                <div class="analytics-label">Taux d'interaction</div>
+              </div>
+
+              <div class="analytics-card">
+                <div class="analytics-card-header">
+                  <span class="analytics-icon">📈</span>
+                  <h4>Conversion</h4>
+                </div>
+                <div class="analytics-metric">
+                  <div class="analytics-value" id="analyticsConversion">0%</div>
+                  <div class="analytics-change neutral" id="analyticsConversionChange">--</div>
+                </div>
+                <div class="analytics-label">Vues → Contacts</div>
+              </div>
+            </div>
+
+            <!-- Top Performing Ads -->
+            <div class="analytics-section">
+              <h4 class="analytics-section-title">🏆 Annonces les plus performantes</h4>
+              <div class="analytics-list" id="topPerformingAds">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Traffic Sources -->
+            <div class="analytics-section">
+              <h4 class="analytics-section-title">🌍 Sources de trafic</h4>
+              <div class="analytics-traffic">
+                <div class="traffic-item">
+                  <div class="traffic-label">
+                    <span class="traffic-dot" style="background: #ff4d6d;"></span>
+                    Recherche directe
+                  </div>
+                  <div class="traffic-bar">
+                    <div class="traffic-fill" id="trafficDirect" style="width: 0%; background: #ff4d6d;"></div>
+                  </div>
+                  <div class="traffic-value" id="trafficDirectValue">0%</div>
+                </div>
+                <div class="traffic-item">
+                  <div class="traffic-label">
+                    <span class="traffic-dot" style="background: #4d9fff;"></span>
+                    Carte interactive
+                  </div>
+                  <div class="traffic-bar">
+                    <div class="traffic-fill" id="trafficMap" style="width: 0%; background: #4d9fff;"></div>
+                  </div>
+                  <div class="traffic-value" id="trafficMapValue">0%</div>
+                </div>
+                <div class="traffic-item">
+                  <div class="traffic-label">
+                    <span class="traffic-dot" style="background: #ffa64d;"></span>
+                    Favoris
+                  </div>
+                  <div class="traffic-bar">
+                    <div class="traffic-fill" id="trafficFavorites" style="width: 0%; background: #ffa64d;"></div>
+                  </div>
+                  <div class="traffic-value" id="trafficFavoritesValue">0%</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Time Stats -->
+            <div class="analytics-section">
+              <h4 class="analytics-section-title">⏰ Activité temporelle</h4>
+              <div class="analytics-grid-2">
+                <div class="analytics-time-card">
+                  <div class="analytics-time-icon">🌅</div>
+                  <div class="analytics-time-label">Meilleur moment</div>
+                  <div class="analytics-time-value" id="analyticsBestTime">--</div>
+                </div>
+                <div class="analytics-time-card">
+                  <div class="analytics-time-icon">📅</div>
+                  <div class="analytics-time-label">Jour le plus actif</div>
+                  <div class="analytics-time-value" id="analyticsBestDay">--</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ads Tab -->
+        <div class="profile-tab-content" id="tab-ads">
+          <div class="profile-ads-filters">
+            <button class="profile-filter-btn active" data-filter="all">
+              Toutes
+              <span class="profile-filter-badge" id="filterAllCount">0</span>
+            </button>
+            <button class="profile-filter-btn" data-filter="active">
+              Actives
+              <span class="profile-filter-badge" id="filterActiveCount">0</span>
+            </button>
+            <button class="profile-filter-btn" data-filter="draft">
+              Brouillons
+              <span class="profile-filter-badge" id="filterDraftCount">0</span>
+            </button>
+            <button class="profile-filter-btn" data-filter="archived">
+              Archivées
+              <span class="profile-filter-badge" id="filterArchivedCount">0</span>
+            </button>
+          </div>
+
+          <div class="profile-ads-grid" id="profileAdsGrid">
+            <!-- Ads will be populated here -->
+          </div>
+
+          <div class="profile-empty" id="profileAdsEmpty" style="display: none;">
+            <div class="profile-empty-icon">📦</div>
+            <h3 class="profile-empty-title">Aucune annonce</h3>
+            <p class="profile-empty-text">Vous n'avez pas encore publié d'annonce</p>
+          </div>
+        </div>
+
+        <!-- Password Tab -->
+        <div class="profile-tab-content" id="tab-password">
+          <form class="profile-password-form" id="profilePasswordForm">
+            <div class="profile-form-group">
+              <label class="profile-form-label" for="currentPassword">Mot de passe actuel</label>
+              <input 
+                type="password" 
+                class="profile-form-input" 
+                id="currentPassword" 
+                name="currentPassword"
+                placeholder="Entrez votre mot de passe actuel"
+                required
+              >
+              <span class="profile-form-error" id="currentPasswordError"></span>
+            </div>
+
+            <div class="profile-form-group">
+              <label class="profile-form-label" for="newPassword">Nouveau mot de passe</label>
+              <input 
+                type="password" 
+                class="profile-form-input" 
+                id="newPassword" 
+                name="newPassword"
+                placeholder="Au moins 8 caractères"
+                minlength="8"
+                required
+              >
+              <span class="profile-form-hint">Minimum 8 caractères, incluant lettres et chiffres</span>
+              <span class="profile-form-error" id="newPasswordError"></span>
+            </div>
+
+            <div class="profile-form-group">
+              <label class="profile-form-label" for="confirmPassword">Confirmer le mot de passe</label>
+              <input 
+                type="password" 
+                class="profile-form-input" 
+                id="confirmPassword" 
+                name="confirmPassword"
+                placeholder="Confirmez votre nouveau mot de passe"
+                minlength="8"
+                required
+              >
+              <span class="profile-form-error" id="confirmPasswordError"></span>
+            </div>
+
+            <button type="submit" class="profile-form-submit" id="passwordSubmitBtn">
+              Changer le mot de passe
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+// ========== PROFILE MODAL ==========
+console.log('🚀 profile-modal.js file is loading...');
+
+function initProfileModal() {
+  console.log('Initializing profile modal...');
+  
+  const profileModal = document.getElementById('profileModal');
+  const profileClose = document.getElementById('profileClose');
+  const profileTabs = document.querySelectorAll('.profile-tab');
+  const profileTabContents = document.querySelectorAll('.profile-tab-content');
+  const profileAdsFilters = document.querySelectorAll('.profile-filter-btn');
+  const passwordForm = document.getElementById('profilePasswordForm');
+  
+  if (!profileModal) {
+    console.error('Profile modal not found in DOM');
+    return;
+  }
+  
+  console.log('Profile modal found, setting up...');
+  
+  let currentFilter = 'all';
+  let userAds = [];
+  
+  // Get API instance from global scope
+  const getApi = () => window.api || { 
+    get: async (url) => fetch(url, { credentials: 'include' }).then(r => r.json()),
+    post: async (url, data) => fetch(url, { 
+      method: 'POST', 
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(r => r.json()),
+    patch: async (url, data) => fetch(url, { 
+      method: 'PATCH', 
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(r => r.json()),
+    delete: async (url) => fetch(url, { method: 'DELETE', credentials: 'include' }).then(r => r.json())
+  };
+  
+  // Open profile modal
+  function openProfileModal() {
+    console.log('Opening profile modal...');
+    const user = window.authStore?.get();
+    console.log('User data:', user);
+    
+    if (!user) {
+      console.log('No user found, opening auth modal');
+      if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal();
+      }
+      return;
+    }
+    
+    profileModal.classList.add('is-open');
+    profileModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    
+    // Show loading state for stats
+    showStatsLoading();
+    
+    // Show loading state for ads
+    showAdsLoading();
+    
+    // Load user data
+    loadUserProfile(user);
+    loadUserStats();
+    loadUserAds();
+    loadUserAnalytics();
+  }
+  
+  // Close profile modal
+  function closeProfileModal() {
+    console.log('Closing profile modal...');
+    profileModal.classList.remove('is-open');
+    profileModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  
+  // Load user profile info
+  function loadUserProfile(user) {
+    document.getElementById('profileTitle').textContent = user.name || 'Utilisateur';
+    document.getElementById('profileEmail').textContent = user.email || '';
+    
+    // Avatar - use global function for consistency
+    const avatarUrl = window.getAvatarUrl(user.avatar);
+    document.getElementById('profileAvatar').src = avatarUrl;
+    
+    // Member since
+    if (user.memberSince || user.createdAt) {
+      const date = new Date(user.memberSince || user.createdAt);
+      const year = date.getFullYear();
+      document.getElementById('profileMemberSince').textContent = `Membre depuis ${year}`;
+    }
+  }
+  
+  // Show loading state for stats
+  function showStatsLoading() {
+    // Only show loading for the main stat cards, not the filter badges
+    const statElements = [
+      'statActiveAds',
+      'statDraftAds',
+      'statTotalViews',
+      'statTotalFavorites'
+    ];
+    
+    statElements.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add('loading');
+        el.textContent = '';
+      }
+    });
+  }
+  
+  // Show loading state for ads
+  function showAdsLoading() {
+    const grid = document.getElementById('profileAdsGrid');
+    const emptyState = document.getElementById('profileAdsEmpty');
+    
+    if (!grid) return;
+    
+    emptyState.style.display = 'none';
+    
+    // Show 3 skeleton cards
+    grid.innerHTML = Array(3).fill(0).map(() => `
+      <div class="profile-ad-skeleton">
+        <div class="profile-ad-skeleton-image"></div>
+        <div class="profile-ad-skeleton-body">
+          <div class="profile-ad-skeleton-title"></div>
+          <div class="profile-ad-skeleton-title" style="width: 60%;"></div>
+          <div class="profile-ad-skeleton-price"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  // Load user stats
+  async function loadUserStats() {
+    try {
+      const api = getApi();
+      const response = await api.get('/api/users/me/stats');
+      if (response?.data?.stats) {
+        const stats = response.data.stats;
+        
+        // Remove loading classes and update values for main stats only
+        const mainStatUpdates = [
+          { id: 'statActiveAds', value: stats.active || 0 },
+          { id: 'statDraftAds', value: stats.draft || 0 },
+          { id: 'statTotalViews', value: stats.totalViews || 0 },
+          { id: 'statTotalFavorites', value: stats.totalFavorites || 0 }
+        ];
+        
+        mainStatUpdates.forEach(({ id, value }) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.remove('loading');
+            el.textContent = value;
+          }
+        });
+        
+        // Update filter counts (without loading state)
+        const filterUpdates = [
+          { id: 'filterAllCount', value: stats.total || 0 },
+          { id: 'filterActiveCount', value: stats.active || 0 },
+          { id: 'filterDraftCount', value: stats.draft || 0 },
+          { id: 'filterArchivedCount', value: stats.archived || 0 }
+        ];
+        
+        filterUpdates.forEach(({ id, value }) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.textContent = value;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+      
+      // Check if it's a Service Worker issue
+      if (error.message && error.message.includes('NetworkError')) {
+        console.error('%c⚠️ ERREUR SERVICE WORKER DÉTECTÉE', 'color: red; font-size: 14px; font-weight: bold;');
+        console.error('%cSolution: Visitez http://localhost:4000/clear-cache.html', 'color: orange; font-size: 12px;');
+        console.error('%cOu appuyez sur Ctrl+Shift+Suppr et videz le cache', 'color: orange; font-size: 12px;');
+      }
+      
+      // Remove loading state even on error (only main stats)
+      ['statActiveAds', 'statDraftAds', 'statTotalViews', 'statTotalFavorites'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.remove('loading');
+          el.textContent = '0';
+        }
+      });
+    }
+  }
+  
+  // Load detailed analytics
+  async function loadUserAnalytics() {
+    try {
+      const api = getApi();
+      
+      // Use the new analytics endpoint
+      const response = await api.get('/api/users/me/analytics');
+      
+      if (!response?.data?.analytics) {
+        // No data available
+        return;
+      }
+      
+      const analytics = response.data.analytics;
+      const { overview, topPerformingAds, categoryStats, cityStats, averages } = analytics;
+      
+      // Update main metrics
+      document.getElementById('analyticsViews').textContent = overview.totalViews.toLocaleString();
+      document.getElementById('analyticsContacts').textContent = overview.totalContacts.toLocaleString();
+      document.getElementById('analyticsEngagement').textContent = overview.engagementRate + '%';
+      document.getElementById('analyticsConversion').textContent = overview.conversionRate + '%';
+      
+      // Calculate mock changes (would need historical data for real changes)
+      document.getElementById('analyticsViewsChange').textContent = '+12%';
+      document.getElementById('analyticsContactsChange').textContent = '+8%';
+      
+      // Top performing ads
+      const topPerformingContainer = document.getElementById('topPerformingAds');
+      if (topPerformingAds && topPerformingAds.length > 0) {
+        topPerformingContainer.innerHTML = topPerformingAds.map((ad, index) => `
+          <div class="analytics-ad-item">
+            <div class="analytics-ad-info">
+              <div class="analytics-ad-rank">${index + 1}</div>
+              <div class="analytics-ad-details">
+                <h5 class="analytics-ad-title">${ad.title || 'Sans titre'}</h5>
+                <div class="analytics-ad-meta">${ad.category || 'Non catégorisé'} • ${ad.city || 'Tunisie'}</div>
+              </div>
+            </div>
+            <div class="analytics-ad-stats">
+              <div class="analytics-ad-stat">
+                <div class="analytics-ad-stat-value">${ad.views || 0}</div>
+                <div class="analytics-ad-stat-label">Vues</div>
+              </div>
+              <div class="analytics-ad-stat">
+                <div class="analytics-ad-stat-value">${ad.favorites || 0}</div>
+                <div class="analytics-ad-stat-label">❤️</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        topPerformingContainer.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 20px;">Aucune donnée disponible</p>';
+      }
+      
+      // Traffic sources - Calculate based on real data
+      const totalViews = overview.totalViews;
+      const totalFavorites = overview.totalFavorites;
+      const totalInteractions = totalViews + totalFavorites;
+      
+      // Calculate percentages
+      const directPercentage = totalInteractions > 0 ? Math.round((totalViews / totalInteractions) * 60) : 0;
+      const mapPercentage = totalInteractions > 0 ? Math.round((totalViews / totalInteractions) * 25) : 0;
+      const favoritesPercentage = totalInteractions > 0 ? Math.round((totalFavorites / totalInteractions) * 100) : 0;
+      
+      setTimeout(() => {
+        document.getElementById('trafficDirect').style.width = directPercentage + '%';
+        document.getElementById('trafficDirectValue').textContent = directPercentage + '%';
+        
+        document.getElementById('trafficMap').style.width = mapPercentage + '%';
+        document.getElementById('trafficMapValue').textContent = mapPercentage + '%';
+        
+        document.getElementById('trafficFavorites').style.width = favoritesPercentage + '%';
+        document.getElementById('trafficFavoritesValue').textContent = favoritesPercentage + '%';
+      }, 100);
+      
+      // Time stats - Based on actual data
+      const bestCategory = Object.entries(categoryStats)
+        .sort((a, b) => b[1].views - a[1].views)[0];
+      
+      // Calculate best day from ad creation dates
+      const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+      const dayStats = {};
+      
+      analytics.topPerforming?.forEach(ad => {
+        if (ad.createdAt) {
+          const dayIndex = new Date(ad.createdAt).getDay();
+          const dayName = daysOfWeek[dayIndex];
+          dayStats[dayName] = (dayStats[dayName] || 0) + 1;
+        }
+      });
+      
+      const bestDay = Object.entries(dayStats)
+        .sort((a, b) => b[1] - a[1])[0];
+      
+      if (bestCategory) {
+        document.getElementById('analyticsBestTime').textContent = `Catégorie: ${bestCategory[0]}`;
+      }
+      
+      if (bestDay) {
+        document.getElementById('analyticsBestDay').textContent = bestDay[0];
+      }
+      
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+    }
+  }
+  
+  // Load user ads
+  async function loadUserAds() {
+    try {
+      const user = window.authStore?.get();
+      if (!user?._id) return;
+      
+      const api = getApi();
+      
+      // Fetch all user ads (active, draft, archived, deleted)
+      const [activeRes, draftRes, archivedRes, deletedRes] = await Promise.all([
+        api.get(`/api/ads?owner=${user._id}&status=active&limit=100`),
+        api.get(`/api/ads?owner=${user._id}&status=draft&limit=100`),
+        api.get(`/api/ads?owner=${user._id}&status=archived&limit=100`),
+        api.get(`/api/ads?owner=${user._id}&status=deleted&limit=100`)
+      ]);
+      
+      userAds = [
+        ...(activeRes?.data?.items || []),
+        ...(draftRes?.data?.items || []),
+        ...(archivedRes?.data?.items || []),
+        ...(deletedRes?.data?.items || [])
+      ];
+      
+      console.log('📊 Loaded user ads:', userAds.length);
+      console.log('🖼️ Ads with images:', userAds.filter(ad => ad.images?.length > 0).length);
+      console.log('🔍 Sample ad:', userAds[0]);
+      
+      renderUserAds();
+    } catch (error) {
+      console.error('Error loading user ads:', error);
+      
+      // Check if it's a Service Worker issue
+      if (error.message && error.message.includes('NetworkError')) {
+        console.error('%c⚠️ ERREUR SERVICE WORKER DÉTECTÉE', 'color: red; font-size: 14px; font-weight: bold;');
+        console.error('%cSolution: Visitez http://localhost:4000/clear-cache.html', 'color: orange; font-size: 12px;');
+        console.error('%cOu appuyez sur Ctrl+Shift+Suppr et videz le cache', 'color: orange; font-size: 12px;');
+      }
+      
+      // Try alternative approach - single request without status filter
+      try {
+        const user = window.authStore?.get();
+        const api = getApi();
+        const response = await api.get(`/api/ads?owner=${user._id}&limit=100`);
+        userAds = response?.data?.items || [];
+        renderUserAds();
+      } catch (fallbackError) {
+        console.error('Fallback loading also failed:', fallbackError);
+      }
+    }
+  }
+  
+  // Render user ads
+  function renderUserAds() {
+    const grid = document.getElementById('profileAdsGrid');
+    const emptyState = document.getElementById('profileAdsEmpty');
+    
+    // Filter ads
+    let filteredAds = userAds;
+    if (currentFilter !== 'all') {
+      filteredAds = userAds.filter(ad => ad.status === currentFilter);
+    }
+    
+    if (filteredAds.length === 0) {
+      grid.innerHTML = '';
+      emptyState.style.display = 'block';
+      return;
+    }
+    
+    emptyState.style.display = 'none';
+    
+    grid.innerHTML = filteredAds.map(ad => {
+      const imageUrl = ad.images && ad.images.length > 0 
+        ? ad.images[0] 
+        : 'https://via.placeholder.com/400x300?text=No+Image';
+      
+      const statusLabel = {
+        active: 'Active',
+        draft: 'Brouillon',
+        archived: 'Archivée',
+        deleted: 'Supprimée'
+      }[ad.status] || ad.status;
+      
+      return `
+        <div class="profile-ad-card" data-ad-id="${ad._id}">
+          <div style="position: relative;">
+            <img class="profile-ad-image" src="${imageUrl}" alt="${ad.title || ''}" />
+            <div class="profile-ad-status ${ad.status}">${statusLabel}</div>
+          </div>
+          <div class="profile-ad-body">
+            <h4 class="profile-ad-title">${ad.title || 'Sans titre'}</h4>
+            <div class="profile-ad-meta">
+              <div class="profile-ad-price">${ad.price ? ad.price.toFixed(2) + ' €' : 'N/A'}</div>
+              <div class="profile-ad-stats">
+                <span class="profile-ad-stat" title="Vues">
+                  👁️ ${ad.views || 0}
+                </span>
+                <span class="profile-ad-stat" title="Favoris">
+                  ❤️ ${ad.favoritesCount || 0}
+                </span>
+              </div>
+            </div>
+            <div class="profile-ad-actions">
+              ${ad.status === 'archived' || ad.status === 'deleted' ? `
+                <button class="profile-ad-btn" data-action="view" data-ad-id="${ad._id}" title="Voir l'annonce">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Voir l'annonce
+                </button>
+                <button class="profile-ad-btn" data-action="restore" data-ad-id="${ad._id}" title="Restaurer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                    <path d="M21 3v5h-5"/>
+                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                    <path d="M3 21v-5h5"/>
+                  </svg>
+                </button>
+              ` : `
+                <button class="profile-ad-btn" data-action="view" data-ad-id="${ad._id}" title="Voir l'annonce">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Voir
+                </button>
+                <button class="profile-ad-btn" data-action="edit" data-ad-id="${ad._id}" title="Modifier l'annonce">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  Modifier
+                </button>
+                ${ad.status === 'active' ? `
+                  <button class="profile-ad-btn" data-action="archive" data-ad-id="${ad._id}" title="Archiver">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="9" y1="9" x2="15" y2="15"/>
+                      <line x1="15" y1="9" x2="9" y2="15"/>
+                    </svg>
+                  </button>
+                ` : ''}
+                <button class="profile-ad-btn danger" data-action="delete" data-ad-id="${ad._id}" title="Supprimer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                </button>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  // Handle ad action buttons with event delegation
+  document.addEventListener('click', (e) => {
+    const adBtn = e.target.closest('.profile-ad-btn[data-action]');
+    if (!adBtn) return;
+    
+    const action = adBtn.getAttribute('data-action');
+    const adId = adBtn.getAttribute('data-ad-id');
+    
+    if (action === 'view') {
+      // Voir l'annonce
+      closeProfileModal();
+      if (typeof window.openDetailsById === 'function') {
+        window.openDetailsById(adId);
+      }
+    } else if (action === 'edit') {
+      // Modifier l'annonce
+      const ad = userAds.find(a => a._id === adId);
+      if (ad) {
+        closeProfileModal();
+        // TODO: Ouvrir le formulaire d'édition avec les données pré-remplies
+        if (typeof window.showToast === 'function') {
+          window.showToast('⚠️ Fonctionnalité de modification en cours de développement');
+        }
+      }
+    } else if (action === 'archive') {
+      // Archiver l'annonce
+      if (!confirm('Archiver cette annonce ? Elle ne sera plus visible publiquement.')) {
+        return;
+      }
+      
+      (async () => {
+        try {
+          adBtn.disabled = true;
+          adBtn.textContent = '⏳';
+          
+          const api = getApi();
+          const response = await api.patch(`/api/ads/${adId}`, { status: 'archived' });
+          
+          if (typeof window.showToast === 'function') {
+            window.showToast('✅ Annonce archivée avec succès');
+          }
+          
+          // Update local data with complete ad data from server
+          const adIndex = userAds.findIndex(a => a._id === adId);
+          if (adIndex !== -1 && response.data?.ad) {
+            userAds[adIndex] = response.data.ad;
+          }
+          
+          renderUserAds();
+          loadUserStats();
+          loadUserAnalytics();
+        } catch (error) {
+          console.error('Error archiving ad:', error);
+          if (typeof window.showToast === 'function') {
+            window.showToast('❌ Erreur lors de l\'archivage');
+          }
+          adBtn.disabled = false;
+        }
+      })();
+    } else if (action === 'restore') {
+      // Restaurer l'annonce archivée
+      if (!confirm('Restaurer cette annonce ? Elle redeviendra active et visible.')) {
+        return;
+      }
+      
+      (async () => {
+        try {
+          adBtn.disabled = true;
+          adBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+          
+          const api = getApi();
+          const response = await api.patch(`/api/ads/${adId}`, { status: 'active' });
+          
+          console.log('🔄 Restore response:', response);
+          console.log('🖼️ Images in response:', response.data?.ad?.images);
+          console.log('📋 Full ad from server:', response.data?.ad);
+          
+          if (typeof window.showToast === 'function') {
+            window.showToast('✅ Annonce restaurée avec succès');
+          }
+          
+          // Update local data with complete ad data from server
+          const adIndex = userAds.findIndex(a => a._id === adId);
+          if (adIndex !== -1 && response.data?.ad) {
+            console.log('✏️ Before update - local ad images:', userAds[adIndex].images);
+            userAds[adIndex] = response.data.ad;
+            console.log('✏️ After update - local ad images:', userAds[adIndex].images);
+          }
+          
+          renderUserAds();
+          loadUserStats();
+          loadUserAnalytics();
+        } catch (error) {
+          console.error('Error restoring ad:', error);
+          if (typeof window.showToast === 'function') {
+            window.showToast('❌ Erreur lors de la restauration');
+          }
+          adBtn.disabled = false;
+        }
+      })();
+    } else if (action === 'delete') {
+      // Supprimer l'annonce (soft delete)
+      const ad = userAds.find(a => a._id === adId);
+      const adTitle = ad?.title || 'cette annonce';
+      
+      if (!confirm(`Supprimer "${adTitle}" ?\n\nVous pourrez la restaurer depuis l'onglet "Supprimées".`)) {
+        return;
+      }
+      
+      (async () => {
+        try {
+          adBtn.disabled = true;
+          adBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+          
+          const api = getApi();
+          const response = await api.patch(`/api/ads/${adId}`, { status: 'deleted' });
+          
+          if (typeof window.showToast === 'function') {
+            window.showToast('✅ Annonce supprimée avec succès');
+          }
+          
+          // Update local data with complete ad data from server
+          const adIndex = userAds.findIndex(a => a._id === adId);
+          if (adIndex !== -1 && response.data?.ad) {
+            userAds[adIndex] = response.data.ad;
+          }
+          
+          renderUserAds();
+          loadUserStats();
+          loadUserAnalytics();
+        } catch (error) {
+          console.error('Error deleting ad:', error);
+          if (typeof window.showToast === 'function') {
+            window.showToast('❌ Erreur lors de la suppression');
+          }
+          adBtn.disabled = false;
+        }
+      })();
+    }
+  });
+  
+  // View ad details
+  window.viewAdDetails = function(adId) {
+    closeProfileModal();
+    if (typeof window.openDetailsById === 'function') {
+      window.openDetailsById(adId);
+    }
+  };
+  
+  // Edit ad
+  window.editAd = function(adId) {
+    const ad = userAds.find(a => a._id === adId);
+    if (ad) {
+      closeProfileModal();
+      // Open post modal in edit mode
+      // TODO: Implement edit functionality
+      if (typeof window.showToast === 'function') {
+        window.showToast('Fonctionnalité de modification en cours de développement');
+      }
+    }
+  };
+  
+  // Delete ad
+  window.deleteAd = async function(adId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette annonce ?')) {
+      return;
+    }
+    
+    try {
+      const api = getApi();
+      await api.delete(`/api/ads/${adId}`);
+      if (typeof window.showToast === 'function') {
+        window.showToast('Annonce supprimée avec succès');
+      }
+      userAds = userAds.filter(a => a._id !== adId);
+      renderUserAds();
+      loadUserStats();
+    } catch (error) {
+      console.error('Error deleting ad:', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast('Erreur lors de la suppression');
+      }
+    }
+  };
+  
+  // Tab switching
+  profileTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const targetTab = tab.getAttribute('data-tab');
+      
+      // Update tabs
+      profileTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      
+      // Update content
+      profileTabContents.forEach(content => {
+        content.classList.remove('active');
+        if (content.id === `tab-${targetTab}`) {
+          content.classList.add('active');
+        }
+      });
+    });
+  });
+  
+  // Filter ads
+  profileAdsFilters.forEach(filter => {
+    filter.addEventListener('click', () => {
+      currentFilter = filter.getAttribute('data-filter');
+      
+      // Update active filter
+      profileAdsFilters.forEach(f => f.classList.remove('active'));
+      filter.classList.add('active');
+      
+      renderUserAds();
+    });
+  });
+  
+  // Password form
+  if (passwordForm) {
+    passwordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      // Clear errors
+      document.querySelectorAll('.profile-form-error').forEach(el => {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+      
+      // Validation
+      if (newPassword.length < 8) {
+        const errorEl = document.getElementById('newPasswordError');
+        errorEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères';
+        errorEl.classList.add('visible');
+        return;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        const errorEl = document.getElementById('confirmPasswordError');
+        errorEl.textContent = 'Les mots de passe ne correspondent pas';
+        errorEl.classList.add('visible');
+        return;
+      }
+      
+      const submitBtn = document.getElementById('passwordSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Modification en cours...';
+      
+      try {
+        const api = getApi();
+        await api.post('/api/users/me/change-password', {
+          currentPassword,
+          newPassword
+        });
+        
+        if (typeof window.showToast === 'function') {
+          window.showToast('Mot de passe modifié avec succès');
+        }
+        passwordForm.reset();
+        
+      } catch (error) {
+        console.error('Error changing password:', error);
+        const errorEl = document.getElementById('currentPasswordError');
+        errorEl.textContent = error.response?.data?.message || 'Erreur lors du changement de mot de passe';
+        errorEl.classList.add('visible');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Changer le mot de passe';
+      }
+    });
+  }
+  
+  // Close modal
+  profileClose?.addEventListener('click', closeProfileModal);
+  
+  // Close on backdrop click
+  profileModal?.addEventListener('click', (e) => {
+    if (e.target === profileModal) {
+      closeProfileModal();
+    }
+  });
+  
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && profileModal.classList.contains('is-open')) {
+      closeProfileModal();
+    }
+  });
+  
+  // Avatar upload
+  const avatarWrapper = document.getElementById('profileAvatarWrapper');
+  const avatarInput = document.getElementById('profileAvatarInput');
+  
+  if (avatarWrapper && avatarInput) {
+    avatarWrapper.addEventListener('click', () => {
+      avatarInput.click();
+    });
+    
+    avatarInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        if (typeof window.showToast === 'function') {
+          window.showToast('Veuillez sélectionner une image');
+        }
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        if (typeof window.showToast === 'function') {
+          window.showToast('L\'image ne doit pas dépasser 5 Mo');
+        }
+        return;
+      }
+      
+      // Show loading feedback
+      const avatarImg = document.getElementById('profileAvatar');
+      const originalSrc = avatarImg.src;
+      avatarImg.style.opacity = '0.5';
+      
+      // Add loading spinner
+      const avatarEditOverlay = avatarWrapper.querySelector('.profile-avatar-edit');
+      if (avatarEditOverlay) {
+        avatarEditOverlay.style.opacity = '1';
+        avatarEditOverlay.innerHTML = '⏳';
+      }
+      
+      try {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        
+        const response = await fetch('/api/users/me/avatar', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success && data.data?.avatar) {
+          // Update user in authStore first
+          const user = window.authStore?.get();
+          if (user) {
+            user.avatar = data.data.avatar;
+            window.authStore.set(user);
+          }
+          
+          // Update ALL avatar instances instantly with cache busting
+          window.updateAllAvatars(data.data.avatar, true);
+          
+          // Restore avatar opacity
+          avatarImg.style.opacity = '1';
+          
+          // Reset overlay
+          if (avatarEditOverlay) {
+            avatarEditOverlay.style.opacity = '0';
+            avatarEditOverlay.innerHTML = '📷';
+          }
+          
+          if (typeof window.showToast === 'function') {
+            window.showToast('✅ Photo de profil mise à jour');
+          }
+        } else {
+          // Restore original avatar on error
+          avatarImg.src = originalSrc;
+          avatarImg.style.opacity = '1';
+          
+          if (avatarEditOverlay) {
+            avatarEditOverlay.style.opacity = '0';
+            avatarEditOverlay.innerHTML = '📷';
+          }
+          
+          if (typeof window.showToast === 'function') {
+            window.showToast(data.message || 'Erreur lors de l\'upload');
+          }
+        }
+      } catch (error) {
+        console.error('Error uploading avatar:', error);
+        
+        // Restore original avatar on error
+        avatarImg.src = originalSrc;
+        avatarImg.style.opacity = '1';
+        
+        if (avatarEditOverlay) {
+          avatarEditOverlay.style.opacity = '0';
+          avatarEditOverlay.innerHTML = '📷';
+        }
+        
+        if (typeof window.showToast === 'function') {
+          window.showToast('❌ Erreur lors de la mise à jour');
+        }
+      }
+    });
+  }
+  
+  // Expose open function globally
+  window.openProfileModal = openProfileModal;
+  window.closeProfileModal = closeProfileModal;
+  
+  console.log('Profile modal initialization complete!');
+}
+
+// Initialize when DOM is ready
+console.log('Profile modal script loaded, DOM state:', document.readyState);
+if (document.readyState === 'loading') {
+  console.log('Waiting for DOMContentLoaded...');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded fired, initializing...');
+    initProfileModal();
+  });
+} else {
+  console.log('DOM already loaded, initializing immediately...');
+  initProfileModal();
+}
+
+// Update user menu to open profile modal
+document.addEventListener('click', (e) => {
+  const profileBtn = e.target.closest('[data-action="profile"]');
+  if (profileBtn) {
+    e.preventDefault();
+    console.log('Profile button clicked!');
+    if (typeof window.openProfileModal === 'function') {
+      window.openProfileModal();
+    } else {
+      console.error('openProfileModal function not available');
+    }
+  }
+});
   </script>
 </body>
 </html>

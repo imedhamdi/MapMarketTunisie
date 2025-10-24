@@ -25,10 +25,11 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.1",
-    "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^7.0.9",
-    "sanitize-html": "^2.13.0"
+    "sanitize-html": "^2.13.0",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

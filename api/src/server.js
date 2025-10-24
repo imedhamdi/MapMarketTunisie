@@ -4,20 +4,62 @@ import path from 'node:path';
 
 import app from './app.js';
 import env from './config/env.js';
+import logger from './config/logger.js';
 import connectMongoose from './db/mongoose.js';
 
 const server = http.createServer(app);
 const port = env.port;
 
 async function start() {
-  await mkdir(path.resolve('uploads/avatars'), { recursive: true });
-  await connectMongoose();
-  server.listen(port, () => {
-    console.log(`🚀 API + Front servis sur http://localhost:${port} (${env.nodeEnv})`);
-  });
+  try {
+    // Créer les répertoires nécessaires
+    await mkdir(path.resolve('uploads/avatars'), { recursive: true });
+    await mkdir(path.resolve('logs'), { recursive: true });
+    
+    // Connexion à MongoDB
+    await connectMongoose();
+    
+    // Démarrer le serveur
+    server.listen(port, () => {
+      logger.info(`🚀 Serveur démarré sur http://localhost:${port}`, {
+        environment: env.nodeEnv,
+        port
+      });
+    });
+    
+    // Gestion propre de l'arrêt
+    const shutdown = async () => {
+      logger.info('🛑 Arrêt du serveur en cours...');
+      
+      server.close(() => {
+        logger.info('✅ Serveur arrêté proprement');
+        process.exit(0);
+      });
+      
+      // Force la fermeture après 10 secondes
+      setTimeout(() => {
+        logger.error('⚠️ Arrêt forcé du serveur');
+        process.exit(1);
+      }, 10000);
+    };
+    
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+    
+  } catch (error) {
+    logger.error('❌ Impossible de démarrer le serveur', { error: error.message });
+    process.exit(1);
+  }
 }
 
-start().catch((error) => {
-  console.error('Impossible de démarrer le serveur', error);
+// Gestion des erreurs non capturées
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Promesse rejetée non gérée', { reason, promise });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Exception non capturée', { error: error.message, stack: error.stack });
   process.exit(1);
 });
+
+start();

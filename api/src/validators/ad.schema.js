@@ -131,15 +131,24 @@ export const updateAdSchema = Joi.object({
   locationText: locationSchema.extract('locationText').optional(),
   latitude: locationSchema.extract('latitude').optional(),
   longitude: locationSchema.extract('longitude').optional(),
-  attributes: Joi.object().unknown(true).optional()
+  attributes: Joi.object().unknown(true).optional(),
+  status: Joi.string().valid('active', 'archived', 'deleted', 'sold').optional()
 })
   .min(1)
   .custom((value, helpers) => {
-    if (!value.category && !helpers.state.ancestors[0].category) return value;
-    const category = value.category || helpers.state.ancestors[0].category;
-    const schema = attributeSchemas[category];
+    // Skip validation if only changing status
+    if (Object.keys(value).length === 1 && value.status) {
+      return value;
+    }
+    
+    // Skip validation if no category and no attributes
+    if (!value.category || !value.attributes) {
+      return value;
+    }
+    
+    const schema = attributeSchemas[value.category];
     if (!schema) return value;
-    if (value.attributes == null) return value;
+    
     const { error } = schema.validate(value.attributes, { abortEarly: false, presence: 'optional' });
     if (error) return helpers.error('any.custom', { message: error.details[0].message });
     return value;

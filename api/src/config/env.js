@@ -2,28 +2,58 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Valider qu'une variable d'environnement existe
+ */
+function requireEnv(key, defaultValue = undefined) {
+  const value = process.env[key];
+  
+  if (!value && defaultValue === undefined && process.env.NODE_ENV === 'production') {
+    throw new Error(`Variable d'environnement requise manquante: ${key}`);
+  }
+  
+  return value || defaultValue;
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  
   get isDev() {
     return this.nodeEnv !== 'production';
   },
+  
   get isProd() {
     return this.nodeEnv === 'production';
   },
+  
   port: Number(process.env.PORT ?? 4000),
+  
   clientOrigins: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  
   get clientOrigin() {
     return this.clientOrigins[0] ?? 'http://localhost:5173';
   },
-  mongoUri: process.env.MONGO_URI ?? 'mongodb+srv://imedhamdi007:imed25516242@api-nodejs.lpnpgx4.mongodb.net/?retryWrites=true&w=majority&appName=API-NodeJS',
+  
+  // MongoDB
+  mongoUri: requireEnv('MONGO_URI', process.env.NODE_ENV === 'development' 
+    ? 'mongodb+srv://imedhamdi007:imed25516242@api-nodejs.lpnpgx4.mongodb.net/?retryWrites=true&w=majority&appName=API-NodeJS'
+    : undefined),
   mongoDbName: process.env.MONGO_DB_NAME ?? 'mapmarket',
-  jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? 'change-me-access',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? 'change-me-refresh',
+  
+  // JWT
+  jwtAccessSecret: requireEnv('JWT_ACCESS_SECRET', process.env.NODE_ENV === 'development' 
+    ? 'dev-access-secret-change-in-production'
+    : undefined),
+  jwtRefreshSecret: requireEnv('JWT_REFRESH_SECRET', process.env.NODE_ENV === 'development' 
+    ? 'dev-refresh-secret-change-in-production'
+    : undefined),
   jwtAccessExpires: process.env.JWT_ACCESS_EXPIRES ?? '15m',
   jwtRefreshExpires: process.env.JWT_REFRESH_EXPIRES ?? '30d',
+  
+  // Email
   mail: {
     from: process.env.MAIL_FROM ?? 'MapMarket <no-reply@mapmarket.local>',
     host: process.env.SMTP_HOST ?? 'localhost',
@@ -31,12 +61,35 @@ const env = {
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? ''
   },
+  
   resetBaseUrl: process.env.RESET_BASE_URL ?? 'http://localhost:5173/reset-password',
+  
+  // Cookies
   cookie: {
-    sameSite: 'lax',
+    sameSite: process.env.COOKIE_SAME_SITE ?? 'lax',
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true
   }
 };
+
+// Validation en production
+if (env.isProd) {
+  const requiredVars = [
+    'MONGO_URI',
+    'JWT_ACCESS_SECRET',
+    'JWT_REFRESH_SECRET'
+  ];
+  
+  const missing = requiredVars.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Variables d'environnement requises manquantes en production: ${missing.join(', ')}`);
+  }
+  
+  // Avertir si les secrets par défaut sont utilisés
+  if (env.jwtAccessSecret.includes('dev-') || env.jwtRefreshSecret.includes('dev-')) {
+    throw new Error('Les secrets JWT par défaut ne doivent pas être utilisés en production');
+  }
+}
 
 export default Object.freeze(env);
