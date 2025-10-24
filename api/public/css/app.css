@@ -5159,3 +5159,124 @@ main.container {
     max-height: 82vh;
   }
 }
+
+/* ========== SKELETON LOADER ========== */
+.skeleton-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-default);
+  overflow: hidden;
+  box-shadow: 0 12px 26px rgba(var(--color-text-primary-rgb), 0.06);
+}
+
+.skeleton-card__media {
+  width: 100%;
+  height: 220px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-card__body {
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-chip {
+  width: 80px;
+  height: 24px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-price {
+  width: 100px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-title {
+  width: 75%;
+  height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.skeleton-meta-item {
+  width: 60px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-button {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, 
+    var(--color-surface-hover) 0%, 
+    var(--color-surface-elevated) 50%, 
+    var(--color-surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Animation de suppression pour les skeletons */
+.skeleton-card.fade-out {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}

@@ -1420,6 +1420,48 @@
       };
     }
 
+    // ========== SKELETON LOADER ==========
+    function createSkeletonCard() {
+      return `
+        <div class="skeleton-card">
+          <div class="skeleton-card__media"></div>
+          <div class="skeleton-card__body">
+            <div class="skeleton-chip"></div>
+            <div class="skeleton-price"></div>
+            <div class="skeleton-title"></div>
+            <div class="skeleton-meta">
+              <div class="skeleton-meta-item"></div>
+              <div class="skeleton-meta-item"></div>
+            </div>
+            <div class="skeleton-button"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showSkeletons(count = 6) {
+      if (!listView) return;
+      listView.innerHTML = Array(count).fill(createSkeletonCard()).join('');
+    }
+
+    function removeSkeletons(callback) {
+      if (!listView) {
+        if (callback) callback();
+        return;
+      }
+      const skeletons = listView.querySelectorAll('.skeleton-card');
+      if (skeletons.length === 0) {
+        if (callback) callback();
+        return;
+      }
+      skeletons.forEach(skeleton => skeleton.classList.add('fade-out'));
+      setTimeout(() => {
+        listView.innerHTML = '';
+        if (callback) callback();
+      }, 300);
+    }
+
+
     async function loadAds({ filters = null, toastOnError = true } = {}) {
       if (isLoadingAds) {
         if (filters) pendingFilters = { ...filters };
@@ -1428,6 +1470,10 @@
       isLoadingAds = true;
       try {
         if (loading) loading.hidden = false;
+        
+        // Afficher les skeletons pendant le chargement
+        showSkeletons(6);
+        
         if (filters) {
           currentFilters = { ...currentFilters, ...filters };
         }
@@ -1446,14 +1492,19 @@
         allItems = items.map(mapAdFromApi).filter(Boolean);
         rebuildAllItemsIndex();
         pagination.index = 0;
-        listView.innerHTML = '';
         filteredCache = [];
-        renderList(true);
-        renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
-        syncAllFavoriteButtons();
-        if (isFavModalOpen()) renderFavSheet();
+        
+        // Retirer les skeletons avec animation avant d'afficher les vraies annonces
+        removeSkeletons(() => {
+          renderList(true);
+          renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
+          syncAllFavoriteButtons();
+          if (isFavModalOpen()) renderFavSheet();
+        });
       } catch (error) {
         console.error('loadAds error', error);
+        // Retirer les skeletons même en cas d'erreur
+        removeSkeletons();
         if (toastOnError) showToast(error?.message || 'Impossible de charger les annonces.');
       } finally {
         if (loading) loading.hidden = true;
