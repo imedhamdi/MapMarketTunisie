@@ -247,7 +247,7 @@
     </section>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 2px 8px" class="muted"><span
-        id="count">0 annonce</span>
+        id="count"><span style="display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>Chargement...</span></span>
       <div class="tabs" role="tablist">
         <div class="tab active" role="tab" aria-selected="true" id="tab-list"><svg width="16" height="16"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -273,6 +273,30 @@
     <div class="view-wrapper show-list" id="viewWrapper" aria-live="polite">
       <section class="results view" aria-hidden="false" aria-label="Résultats en liste">
         <div class="grid list-view" id="listView"></div>
+        <div class="empty-state" id="emptyState" hidden>
+          <div class="empty-state-icon" aria-hidden="true">🔍</div>
+          <h3 class="empty-state-title">Aucune annonce trouvée</h3>
+          <p class="empty-state-text">Essayez d'élargir votre recherche en modifiant les filtres ou la localisation.</p>
+          <div class="empty-state-actions">
+            <button class="btn-empty-reset" id="btnResetFilters" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                <line x1="10" x2="10" y1="11" y2="17"/>
+                <line x1="14" x2="14" y1="11" y2="17"/>
+              </svg>
+              Réinitialiser les filtres
+            </button>
+            <button class="btn-empty-publish" id="btnPublishFromEmpty" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14"/>
+                <path d="M5 12h14"/>
+              </svg>
+              Déposer une annonce
+            </button>
+          </div>
+        </div>
       </section>
       <div class="view map-view" id="mapView" role="region" aria-labelledby="tab-map">
         <div id="map"></div>
@@ -289,15 +313,47 @@
             <span class="geo-toast" id="geoToast" role="status" aria-live="polite" hidden>Position détectée ✅</span>
           </button>
 
-          <div class="geo-dropdown" id="geoDropdown" role="group" aria-label="Options de recherche par rayon" hidden>
-            <div class="geo-row" id="geoRadiusRow">
-              <label for="geoRadius" class="geo-caption">Rayon&nbsp;<span id="geoRadiusVal">10</span>&nbsp;km</label>
-              <input id="geoRadius" class="geo-range" type="range" min="1" max="100" step="1" value="10"
-                aria-label="Rayon de recherche en kilomètres">
+          <div class="geo-dropdown geo-dropdown--modern" id="geoDropdown" role="group" aria-label="Options de recherche par rayon" hidden>
+            <div class="radius-modern__visual">
+              <div class="radius-modern__circle">
+                <svg class="radius-modern__pin" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <div class="radius-modern__value" id="geoRadiusVal">10</div>
+                <div class="radius-modern__unit">kilomètres</div>
+              </div>
             </div>
-            <label class="geo-toggle">
-              <input type="checkbox" id="geoRadiusEnabled" checked>
-              <span>Désactiver la recherche par rayon</span>
+
+            <div class="radius-modern__slider" id="geoRadiusRow">
+              <input 
+                type="range" 
+                class="radius-modern__input" 
+                id="geoRadius"
+                min="1" 
+                max="100" 
+                step="1" 
+                value="10"
+                style="--progress: 10%"
+                aria-label="Rayon de recherche en kilomètres"
+              >
+              <div class="radius-modern__marks">
+                <span class="radius-modern__mark">1 km</span>
+                <span class="radius-modern__mark">50 km</span>
+                <span class="radius-modern__mark">100 km</span>
+              </div>
+            </div>
+
+            <label class="radius-modern__toggle geo-toggle" for="geoRadiusEnabled">
+              <span class="radius-modern__toggle-label">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+                <span id="geoToggleText">Recherche par rayon activée</span>
+              </span>
+              <input type="checkbox" id="geoRadiusEnabled" checked class="hidden-checkbox">
+              <span class="toggle-switch"></span>
             </label>
           </div>
         </div>
@@ -928,6 +984,7 @@
     }
 
     const DEFAULT_IMAGE = 'https://via.placeholder.com/640x480?text=MapMarket';
+    const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
 
     function capitalize(text = '') {
       if (!text) return '';
@@ -1352,6 +1409,24 @@
       loadAds({ filters: getFilterValues() });
     });
 
+    // Empty state buttons
+    const btnResetFilters = document.getElementById('btnResetFilters');
+    const btnPublishFromEmpty = document.getElementById('btnPublishFromEmpty');
+    
+    btnResetFilters?.addEventListener('click', () => {
+      [search, cat, etat, sort, pmin, pmax, city].forEach(el => {
+        if (!el) return;
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else el.value = '';
+      });
+      viewState.userAdjustedView = false;
+      loadAds({ filters: getFilterValues() });
+    });
+    
+    btnPublishFromEmpty?.addEventListener('click', () => {
+      openPostModal();
+    });
+
     // ---------- LIST RENDER + INFINITE ----------
     const listView = document.getElementById('listView');
     const count = document.getElementById('count');
@@ -1469,6 +1544,14 @@
         return;
       }
       isLoadingAds = true;
+      
+      // Afficher le message de chargement
+      count.innerHTML = '<span style="display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>Chargement...</span>';
+      
+      // Masquer l'empty state pendant le chargement
+      const emptyState = document.getElementById('emptyState');
+      if (emptyState) emptyState.hidden = true;
+      
       try {
         if (loading) loading.hidden = false;
         
@@ -1959,9 +2042,28 @@
     function renderList(reset) {
       filteredCache = getFiltered();
       updateFavBadge();
-      count.textContent = filteredCache.length + (filteredCache.length > 1 ? ' annonces trouvées' : ' annonce trouvée');
-      if (reset) { listView.innerHTML = ''; pagination.index = 0; }
-      renderChunk();
+      
+      const emptyState = document.getElementById('emptyState');
+      
+      if (filteredCache.length === 0) {
+        count.textContent = 'Aucune annonce';
+        if (emptyState) {
+          emptyState.hidden = false;
+        }
+        if (reset) {
+          listView.innerHTML = '';
+        }
+      } else {
+        count.textContent = filteredCache.length + (filteredCache.length > 1 ? ' annonces trouvées' : ' annonce trouvée');
+        if (emptyState) {
+          emptyState.hidden = true;
+        }
+        if (reset) { 
+          listView.innerHTML = ''; 
+          pagination.index = 0; 
+        }
+        renderChunk();
+      }
     }
 
     const io = new IntersectionObserver(entries => {
@@ -2615,6 +2717,10 @@
         if (val) {
           val.textContent = geo.radiusKm;
         }
+        // Update slider progress for modern design
+        if (range) {
+          range.style.setProperty('--progress', `${geo.radiusKm}%`);
+        }
       }
 
       function syncRangeDisabledState(enabled) {
@@ -2767,6 +2873,13 @@
         const enabled = toggle.checked;
         geo.radiusEnabled = enabled;
         syncRangeDisabledState(enabled);
+        
+        // Update toggle label text
+        const toggleText = document.getElementById('geoToggleText');
+        if (toggleText) {
+          toggleText.textContent = enabled ? 'Recherche par rayon activée' : 'Recherche par rayon désactivée';
+        }
+        
         applyRadius({ reFit: enabled });
         if (typeof window.mmEnableRadiusFilter === 'function') {
           window.mmEnableRadiusFilter(enabled);
@@ -4893,17 +5006,13 @@
         detailsReadMore.textContent = 'Lire la suite';
       } else {
         detailsDescEl.textContent = detailsDescFull;
-        if (detailsDescFull.length > limit) {
-          detailsReadMore.classList.add('visible');
-          detailsReadMore.textContent = 'Réduire';
-        } else {
-          detailsReadMore.classList.remove('visible');
-        }
+        // Masquer le bouton une fois le texte complet affiché
+        detailsReadMore.classList.remove('visible');
       }
     }
 
     function renderSeller(ad) {
-      const avatarBase = ad.sellerAvatar || ad.img || DEFAULT_IMAGE;
+      const avatarBase = ad.sellerAvatar || DEFAULT_AVATAR;
       const avatarThumb = buildOptimizedImage(avatarBase, 160, 60);
       const memberDate = ad.sellerMemberSince ? formatDateLong(ad.sellerMemberSince) : formatDateLong(ad.date);
       const activeCount = ad.sellerAnnouncements != null ? ad.sellerAnnouncements : Math.max(1, Math.round((ad.likes ?? 0) / 3));

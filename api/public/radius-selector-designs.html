@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Designs pour le Sélecteur de Rayon - MapMarket</title>
+  <link rel="stylesheet" href="./css/tokens.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #f6f7fb 0%, #e9ecf5 100%);
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--color-text-strong);
+      margin-bottom: 16px;
+      font-size: 32px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--color-text-muted);
+      margin-bottom: 48px;
+      font-size: 16px;
+    }
+
+    .designs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+      margin-bottom: 60px;
+    }
+
+    .design-card {
+      background: white;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 12px 32px rgba(17, 24, 39, 0.08);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .design-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 48px rgba(17, 24, 39, 0.12);
+    }
+
+    .design-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--color-border-soft);
+    }
+
+    .design-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-text-strong);
+      margin: 0 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .design-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-gradient-end));
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .design-desc {
+      color: var(--color-text-subtle);
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .design-features {
+      margin: 16px 0 24px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .design-features li {
+      padding: 6px 0;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .design-features li::before {
+      content: "✓";
+      color: var(--color-success-500);
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    /* ============= DESIGN 1: Modern Circular ============= */
+    .radius-modern {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(255, 77, 109, 0.05) 100%);
+      border-radius: 16px;
+      border: 1px solid var(--color-border-soft);
+    }
+
+    .radius-modern__visual {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 180px;
+    }
+
+    .radius-modern__circle {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+      border: 3px solid var(--color-brand-500);
+    }
+
+    .radius-modern__value {
+      font-size: 48px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin: 0;
+    }
+
+    .radius-modern__unit {
+      font-size: 16px;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .radius-modern__pin {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.15;
+    }
+
+    .radius-modern__slider {
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .radius-modern__input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 20px;
+      background: linear-gradient(to right, var(--color-brand-500) 0%, var(--color-brand-500) var(--progress, 18%), var(--color-surface-alt) var(--progress, 18%), var(--color-surface-alt) 100%);
+      outline: none;
+      transition: background 0.2s;
+    }
+
+    .radius-modern__input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.4), 0 0 0 3px var(--color-brand-500);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .radius-modern__input::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(255, 77, 109, 0.5), 0 0 0 4px var(--color-brand-500);
+    }
+
+    .radius-modern__input::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.4), 0 0 0 3px var(--color-brand-500);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .radius-modern__input::-moz-range-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(255, 77, 109, 0.5), 0 0 0 4px var(--color-brand-500);
+    }
+
+    .radius-modern__marks {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 0 4px;
+    }
+
+    .radius-modern__mark {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+
+    .radius-modern__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--color-border-default);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radius-modern__toggle:hover {
+      border-color: var(--color-brand-500);
+      background: var(--color-brand-tint);
+    }
+
+    .radius-modern__toggle-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      background: var(--color-border-default);
+      border-radius: 20px;
+      transition: background 0.3s;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.3s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .toggle-switch {
+      background: var(--color-success-500);
+    }
+
+    input:checked + .toggle-switch::after {
+      transform: translateX(22px);
+    }
+
+    /* ============= DESIGN 2: Segmented Control ============= */
+    .radius-segmented {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 16px;
+      border: 1px solid var(--color-border-soft);
+    }
+
+    .radius-segmented__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .radius-segmented__title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text-strong);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .radius-segmented__current {
+      padding: 6px 14px;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-gradient-end));
+      color: white;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.25);
+    }
+
+    .radius-segmented__presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 12px;
+      background: var(--color-surface-alt);
+      border-radius: 12px;
+    }
+
+    .radius-segmented__preset {
+      padding: 12px 8px;
+      background: white;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+
+    .radius-segmented__preset:hover {
+      border-color: var(--color-brand-500);
+      background: var(--color-brand-tint);
+      color: var(--color-brand-500);
+      transform: translateY(-2px);
+    }
+
+    .radius-segmented__preset.active {
+      background: var(--color-brand-500);
+      color: white;
+      border-color: var(--color-brand-500);
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.3);
+    }
+
+    .radius-segmented__custom {
+      padding: 16px;
+      background: var(--color-surface-ghost);
+      border-radius: 12px;
+      border: 1px dashed var(--color-border-default);
+    }
+
+    .radius-segmented__custom-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .radius-segmented__slider-container {
+      position: relative;
+    }
+
+    .radius-segmented__slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 10px;
+      background: var(--color-border-default);
+      outline: none;
+    }
+
+    .radius-segmented__slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--color-brand-500);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(255, 77, 109, 0.4);
+    }
+
+    .radius-segmented__slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--color-brand-500);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(255, 77, 109, 0.4);
+    }
+
+    /* ============= DESIGN 3: Card Stack ============= */
+    .radius-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-radius: 16px;
+      border: 1px solid var(--color-border-soft);
+    }
+
+    .radius-stack__main {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+    }
+
+    .radius-stack__icon-box {
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(255, 77, 109, 0.1), rgba(99, 102, 241, 0.1));
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .radius-stack__icon-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--color-brand-500) 0%, var(--color-info-500) 100%);
+      opacity: 0.1;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.1; transform: scale(1); }
+      50% { opacity: 0.2; transform: scale(1.05); }
+    }
+
+    .radius-stack__icon {
+      width: 36px;
+      height: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .radius-stack__content {
+      flex: 1;
+    }
+
+    .radius-stack__label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .radius-stack__value-display {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--color-text-strong);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .radius-stack__unit-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+
+    .radius-stack__control {
+      padding: 16px 20px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(17, 24, 39, 0.04);
+    }
+
+    .radius-stack__slider-wrapper {
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .radius-stack__slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      border-radius: 20px;
+      background: linear-gradient(to right, 
+        var(--color-success-500) 0%, 
+        var(--color-brand-500) 50%, 
+        var(--color-warning-500) 100%);
+      outline: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .radius-stack__slider::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: calc(100% - var(--progress, 18%));
+      background: var(--color-surface-alt);
+      border-radius: 20px;
+    }
+
+    .radius-stack__slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: white;
+      cursor: grab;
+      box-shadow: 0 4px 16px rgba(17, 24, 39, 0.2), 0 0 0 4px rgba(255, 77, 109, 0.2);
+      position: relative;
+      z-index: 2;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .radius-stack__slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.15);
+    }
+
+    .radius-stack__slider::-moz-range-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: white;
+      cursor: grab;
+      border: none;
+      box-shadow: 0 4px 16px rgba(17, 24, 39, 0.2), 0 0 0 4px rgba(255, 77, 109, 0.2);
+      position: relative;
+      z-index: 2;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .radius-stack__slider::-moz-range-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.15);
+    }
+
+    .radius-stack__hints {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding: 0 4px;
+    }
+
+    .radius-stack__hint {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .radius-stack__hint-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .radius-stack__toggle-card {
+      padding: 14px 18px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--color-border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radius-stack__toggle-card:hover {
+      border-color: var(--color-brand-500);
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.1);
+    }
+
+    .radius-stack__toggle-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ============= DESIGN 4: Minimal Chips ============= */
+    .radius-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 20px;
+      background: white;
+      border-radius: 16px;
+      border: 1px solid var(--color-border-soft);
+    }
+
+    .radius-chips__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--color-surface-alt);
+    }
+
+    .radius-chips__title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text-strong);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .radius-chips__status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--color-surface-ghost);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-brand-500);
+    }
+
+    .radius-chips__status-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-brand-500);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .radius-chips__options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .radius-chips__chip {
+      padding: 10px 18px;
+      background: var(--color-surface-ghost);
+      border: 2px solid transparent;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .radius-chips__chip::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .radius-chips__chip span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .radius-chips__chip:hover {
+      border-color: var(--color-brand-500);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 77, 109, 0.2);
+    }
+
+    .radius-chips__chip.active {
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 6px 16px rgba(255, 77, 109, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .radius-chips__chip.active::before {
+      opacity: 1;
+    }
+
+    .radius-chips__custom {
+      margin-top: 6px;
+    }
+
+    .radius-chips__custom-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .radius-chips__custom-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .radius-chips__custom-value {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-brand-500);
+    }
+
+    .radius-chips__slider-area {
+      position: relative;
+      padding: 6px 0;
+    }
+
+    .radius-chips__slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 10px;
+      background: var(--color-surface-alt);
+      outline: none;
+      position: relative;
+    }
+
+    .radius-chips__slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(255, 77, 109, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .radius-chips__slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .radius-chips__slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 3px 10px rgba(255, 77, 109, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .radius-chips__slider::-moz-range-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .radius-chips__divider {
+      height: 1px;
+      background: var(--color-border-soft);
+      margin: 4px 0;
+    }
+
+    .radius-chips__toggle-wrapper {
+      padding: 12px 16px;
+      background: var(--color-surface-ghost);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .radius-chips__toggle-wrapper:hover {
+      background: var(--color-surface-mist);
+    }
+
+    .radius-chips__toggle-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    /* Hidden checkbox for toggle */
+    .hidden-checkbox {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Comparison Section */
+    .comparison {
+      margin-top: 60px;
+      padding: 40px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(17, 24, 39, 0.08);
+    }
+
+    .comparison h2 {
+      font-size: 28px;
+      color: var(--color-text-strong);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .comparison-table th {
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-info-500));
+      color: white;
+      padding: 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .comparison-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--color-border-soft);
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    .comparison-table tr:hover {
+      background: var(--color-surface-ghost);
+    }
+
+    .checkmark {
+      color: var(--color-success-500);
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .cross {
+      color: var(--color-text-muted);
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .recommendation {
+      margin-top: 40px;
+      padding: 28px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(255, 77, 109, 0.08));
+      border-radius: 16px;
+      border: 2px solid var(--color-brand-500);
+    }
+
+    .recommendation h3 {
+      font-size: 22px;
+      color: var(--color-text-strong);
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .recommendation p {
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 8px 0;
+    }
+
+    .rec-icon {
+      font-size: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 4 Designs Modernes pour le Sélecteur de Rayon</h1>
+    <p class="subtitle">Choisissez le design qui correspond le mieux à l'expérience utilisateur de MapMarket</p>
+
+    <div class="designs-grid">
+      <!-- DESIGN 1: Modern Circular -->
+      <div class="design-card">
+        <div class="design-header">
+          <h2 class="design-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" stroke="url(#grad1)"/>
+              <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ff4d6d;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+                </linearGradient>
+              </defs>
+            </svg>
+            Design 1: Circular Visuel
+            <span class="design-badge">Premium</span>
+          </h2>
+          <p class="design-desc">Design visuel moderne avec indicateur circulaire central</p>
+        </div>
+
+        <ul class="design-features">
+          <li>Affichage visuel impactant</li>
+          <li>Slider avec gradient progressif</li>
+          <li>Animation fluide et élégante</li>
+          <li>Excellente lisibilité</li>
+        </ul>
+
+        <div class="radius-modern">
+          <div class="radius-modern__visual">
+            <div class="radius-modern__circle">
+              <svg class="radius-modern__pin" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <div class="radius-modern__value" id="modern-value">18</div>
+              <div class="radius-modern__unit">kilomètres</div>
+            </div>
+          </div>
+
+          <div class="radius-modern__slider">
+            <input 
+              type="range" 
+              class="radius-modern__input" 
+              id="modern-range"
+              min="1" 
+              max="100" 
+              value="18" 
+              style="--progress: 18%"
+            >
+            <div class="radius-modern__marks">
+              <span class="radius-modern__mark">1 km</span>
+              <span class="radius-modern__mark">50 km</span>
+              <span class="radius-modern__mark">100 km</span>
+            </div>
+          </div>
+
+          <label class="radius-modern__toggle">
+            <input type="checkbox" class="hidden-checkbox" checked>
+            <span class="radius-modern__toggle-label">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+              Recherche par rayon activée
+            </span>
+            <div class="toggle-switch"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- DESIGN 2: Segmented Control -->
+      <div class="design-card">
+        <div class="design-header">
+          <h2 class="design-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+              <rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            Design 2: Presets & Chips
+            <span class="design-badge">Rapide</span>
+          </h2>
+          <p class="design-desc">Sélection rapide avec valeurs prédéfinies + personnalisation</p>
+        </div>
+
+        <ul class="design-features">
+          <li>Accès rapide aux distances communes</li>
+          <li>Mode personnalisé optionnel</li>
+          <li>UX optimisée pour mobile</li>
+          <li>Moins de clics requis</li>
+        </ul>
+
+        <div class="radius-segmented">
+          <div class="radius-segmented__header">
+            <div class="radius-segmented__title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0"/>
+              </svg>
+              Rayon de recherche
+            </div>
+            <div class="radius-segmented__current" id="segmented-current">5 km</div>
+          </div>
+
+          <div class="radius-segmented__presets">
+            <button class="radius-segmented__preset active" data-value="5">5 km</button>
+            <button class="radius-segmented__preset" data-value="10">10 km</button>
+            <button class="radius-segmented__preset" data-value="25">25 km</button>
+            <button class="radius-segmented__preset" data-value="50">50 km</button>
+          </div>
+
+          <div class="radius-segmented__custom">
+            <label class="radius-segmented__custom-label">Distance personnalisée</label>
+            <div class="radius-segmented__slider-container">
+              <input 
+                type="range" 
+                class="radius-segmented__slider" 
+                min="1" 
+                max="100" 
+                value="5"
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESIGN 3: Card Stack -->
+      <div class="design-card">
+        <div class="design-header">
+          <h2 class="design-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z" opacity="0.3"/>
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            Design 3: Card Colorée
+            <span class="design-badge">Moderne</span>
+          </h2>
+          <p class="design-desc">Layout carte avec slider coloré et indicateurs visuels</p>
+        </div>
+
+        <ul class="design-features">
+          <li>Slider avec gradient de couleurs</li>
+          <li>Icône animée avec pulse</li>
+          <li>Indicateurs de proximité</li>
+          <li>Design premium et élégant</li>
+        </ul>
+
+        <div class="radius-stack">
+          <div class="radius-stack__main">
+            <div class="radius-stack__icon-box">
+              <svg class="radius-stack__icon" viewBox="0 0 24 24" fill="none" stroke="url(#grad2)" stroke-width="2.5">
+                <circle cx="12" cy="12" r="3"/>
+                <circle cx="12" cy="12" r="8" opacity="0.5"/>
+                <defs>
+                  <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ff4d6d;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="radius-stack__content">
+              <div class="radius-stack__label">Zone de recherche</div>
+              <div class="radius-stack__value-display">
+                <span id="stack-value">18</span>
+                <span class="radius-stack__unit-text">km</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="radius-stack__control">
+            <div class="radius-stack__slider-wrapper">
+              <input 
+                type="range" 
+                class="radius-stack__slider" 
+                id="stack-range"
+                min="1" 
+                max="100" 
+                value="18"
+                style="--progress: 18%"
+              >
+            </div>
+            <div class="radius-stack__hints">
+              <span class="radius-stack__hint" style="color: var(--color-success-500)">
+                <span class="radius-stack__hint-dot"></span>
+                Proximité
+              </span>
+              <span class="radius-stack__hint" style="color: var(--color-brand-500)">
+                <span class="radius-stack__hint-dot"></span>
+                Moyen
+              </span>
+              <span class="radius-stack__hint" style="color: var(--color-warning-500)">
+                <span class="radius-stack__hint-dot"></span>
+                Étendu
+              </span>
+            </div>
+          </div>
+
+          <label class="radius-stack__toggle-card">
+            <input type="checkbox" class="hidden-checkbox" checked>
+            <span class="radius-stack__toggle-text">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0"/>
+              </svg>
+              Activer le filtre géographique
+            </span>
+            <div class="toggle-switch"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- DESIGN 4: Minimal Chips -->
+      <div class="design-card">
+        <div class="design-header">
+          <h2 class="design-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+            Design 4: Chips Minimal
+            <span class="design-badge">Simple</span>
+          </h2>
+          <p class="design-desc">Interface épurée avec chips sélectionnables et slider compact</p>
+        </div>
+
+        <ul class="design-features">
+          <li>Design minimaliste et propre</li>
+          <li>Chips avec effet gradient</li>
+          <li>Parfait pour petits espaces</li>
+          <li>Transitions fluides</li>
+        </ul>
+
+        <div class="radius-chips">
+          <div class="radius-chips__header">
+            <div class="radius-chips__title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="6"/>
+                <circle cx="12" cy="12" r="2"/>
+              </svg>
+              Distance
+            </div>
+            <div class="radius-chips__status">
+              <span class="radius-chips__status-icon"></span>
+              <span id="chips-status">Activé • 10 km</span>
+            </div>
+          </div>
+
+          <div class="radius-chips__options">
+            <button class="radius-chips__chip" data-value="2"><span>2 km</span></button>
+            <button class="radius-chips__chip" data-value="5"><span>5 km</span></button>
+            <button class="radius-chips__chip active" data-value="10"><span>10 km</span></button>
+            <button class="radius-chips__chip" data-value="20"><span>20 km</span></button>
+            <button class="radius-chips__chip" data-value="50"><span>50 km</span></button>
+          </div>
+
+          <div class="radius-chips__custom">
+            <div class="radius-chips__custom-header">
+              <span class="radius-chips__custom-label">Personnaliser</span>
+              <span class="radius-chips__custom-value" id="chips-value">10 km</span>
+            </div>
+            <div class="radius-chips__slider-area">
+              <input 
+                type="range" 
+                class="radius-chips__slider" 
+                id="chips-range"
+                min="1" 
+                max="100" 
+                value="10"
+              >
+            </div>
+          </div>
+
+          <div class="radius-chips__divider"></div>
+
+          <label class="radius-chips__toggle-wrapper">
+            <input type="checkbox" class="hidden-checkbox" checked>
+            <span class="radius-chips__toggle-label">Utiliser la géolocalisation</span>
+            <div class="toggle-switch"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="comparison">
+      <h2>📊 Tableau Comparatif des Designs</h2>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Critère</th>
+            <th>Design 1: Circular</th>
+            <th>Design 2: Presets</th>
+            <th>Design 3: Card</th>
+            <th>Design 4: Chips</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Impact Visuel</strong></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Rapidité d'utilisation</strong></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Espace requis</strong></td>
+            <td>Moyen</td>
+            <td>Grand</td>
+            <td>Grand</td>
+            <td>Compact</td>
+          </tr>
+          <tr>
+            <td><strong>Mobile-friendly</strong></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Personnalisation</strong></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Modernité</strong></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Accessibilité</strong></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+            <td><span class="checkmark">✓✓</span></td>
+            <td><span class="checkmark">✓✓✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="recommendation">
+        <h3><span class="rec-icon">🏆</span> Recommandation</h3>
+        <p><strong>Pour MapMarket, je recommande le Design 1 (Circular Visuel) ou le Design 3 (Card Colorée)</strong></p>
+        <p><strong>Design 1</strong> offre une expérience visuelle premium avec un indicateur central très lisible, parfait pour une application moderne axée sur la géolocalisation.</p>
+        <p><strong>Design 3</strong> combine élégance et fonctionnalité avec son slider coloré qui donne un feedback visuel immédiat (vert = proximité, rouge = distance éloignée).</p>
+        <p><strong>Alternative mobile :</strong> Le Design 4 (Chips) est excellent pour les petits écrans et offre une navigation ultra-rapide.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Design 1: Modern Circular
+    const modernRange = document.getElementById('modern-range');
+    const modernValue = document.getElementById('modern-value');
+    
+    modernRange?.addEventListener('input', (e) => {
+      const value = e.target.value;
+      modernValue.textContent = value;
+      modernRange.style.setProperty('--progress', `${value}%`);
+    });
+
+    // Design 2: Segmented Control
+    const segmentedPresets = document.querySelectorAll('.radius-segmented__preset');
+    const segmentedCurrent = document.getElementById('segmented-current');
+    
+    segmentedPresets.forEach(preset => {
+      preset.addEventListener('click', () => {
+        segmentedPresets.forEach(p => p.classList.remove('active'));
+        preset.classList.add('active');
+        const value = preset.dataset.value;
+        segmentedCurrent.textContent = `${value} km`;
+      });
+    });
+
+    // Design 3: Card Stack
+    const stackRange = document.getElementById('stack-range');
+    const stackValue = document.getElementById('stack-value');
+    
+    stackRange?.addEventListener('input', (e) => {
+      const value = e.target.value;
+      stackValue.textContent = value;
+      stackRange.style.setProperty('--progress', `${value}%`);
+    });
+
+    // Design 4: Minimal Chips
+    const chipsButtons = document.querySelectorAll('.radius-chips__chip');
+    const chipsRange = document.getElementById('chips-range');
+    const chipsValue = document.getElementById('chips-value');
+    const chipsStatus = document.getElementById('chips-status');
+    
+    chipsButtons.forEach(chip => {
+      chip.addEventListener('click', () => {
+        chipsButtons.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const value = chip.dataset.value;
+        chipsValue.textContent = `${value} km`;
+        chipsStatus.textContent = `Activé • ${value} km`;
+        if (chipsRange) chipsRange.value = value;
+      });
+    });
+    
+    chipsRange?.addEventListener('input', (e) => {
+      const value = e.target.value;
+      chipsValue.textContent = `${value} km`;
+      chipsStatus.textContent = `Activé • ${value} km`;
+    });
+  </script>
+</body>
+</html>
