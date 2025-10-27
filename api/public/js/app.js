@@ -1,4 +1,17 @@
     (() => {
+    const appLogger = (() => {
+      if (window.__APP_LOGGER__) {
+        return window.__APP_LOGGER__;
+      }
+      const fallback = {
+        error: (...args) => console.warn('[AppError]', ...args),
+        warn: (...args) => console.warn('[AppWarn]', ...args),
+        info: (...args) => console.info('[AppInfo]', ...args)
+      };
+      window.__APP_LOGGER__ = fallback;
+      return fallback;
+    })();
+
     const originalCreateElement = Document.prototype.createElement;
     Document.prototype.createElement = function(tagName, options) {
       const element = originalCreateElement.call(this, tagName, options);
@@ -47,7 +60,7 @@
       }
 
       return profileModalLoader.catch((error) => {
-        console.error('Impossible de charger le module profil', error);
+        appLogger.error('Impossible de charger le module profil', error);
         throw error;
       });
     }
@@ -726,7 +739,7 @@
           if (isFavModalOpen()) renderFavSheet();
         });
       } catch (error) {
-        console.error('loadAds error', error);
+      appLogger.error('loadAds error', error);
         // Retirer les skeletons même en cas d'erreur
         removeSkeletons();
         if (toastOnError) showToast(error?.message || 'Impossible de charger les annonces.');
@@ -2710,7 +2723,7 @@
         try {
           await api.post('/api/auth/logout');
         } catch (error) {
-          console.error('Logout error', error);
+          appLogger.error('Logout error', error);
         } finally {
           authStore.set(null);
           updateAuthUI();
@@ -3763,7 +3776,7 @@
         
         return null;
       } catch (error) {
-        console.error('Erreur reverse geocoding:', error);
+        appLogger.error('Erreur reverse geocoding:', error);
         return null;
       }
     }
@@ -3835,7 +3848,7 @@
           populateFormWithAdData(adData);
         }
       } catch (error) {
-        console.error('Error loading ad for edit:', error);
+        appLogger.error('Error loading ad for edit:', error);
         showToast('Erreur lors du chargement de l\'annonce');
         closePostModal({ reset: true });
       }
@@ -3952,7 +3965,7 @@
         editingAdId = null;
         postStatus.textContent = '';
       } catch (error) {
-        console.error('Post error', error);
+        appLogger.error('Post error', error);
         const message = error?.payload?.message || error?.message || 'Impossible de publier l’annonce.';
         postStatus.textContent = message;
         showToast(message);
@@ -4864,8 +4877,11 @@
     }
 
     function handleEditAd(ad) {
-      // TODO: Implémenter l'édition d'annonce
-      showToast('Fonctionnalité de modification en cours de développement');
+      if (!ad) {
+        appLogger.warn('handleEditAd appelé sans annonce');
+        return;
+      }
+      openPostModal({ adId: ad.id || ad._id, adData: ad });
     }
 
     async function handleDeleteAd(ad) {
@@ -4910,7 +4926,7 @@
           throw new Error('Échec de la suppression');
         }
       } catch (error) {
-        console.error('Delete ad error:', error);
+        appLogger.error('Delete ad error:', error);
         showToast('Erreur lors de la suppression de l\'annonce');
       }
     }
@@ -5387,7 +5403,7 @@
         resetContactForm();
         closeContactPopover({ restoreFocus: true });
       } catch (error) {
-        console.error(error);
+        appLogger.error(error);
         setContactLoading(false);
         showContactError('Une erreur est survenue. Merci de réessayer.');
         contactMessage.focus({ preventScroll: true });
@@ -5396,7 +5412,7 @@
 
     function sendContactRequest(adId, message) {
       const payload = { adId, message, sentAt: new Date().toISOString() };
-      console.info('[contact] Simulated send', payload);
+      appLogger.info('[contact] Simulated send', payload);
       const delay = prefersReducedMotion.matches ? 280 : 640 + Math.random() * 320;
       return new Promise((resolve) => {
         setTimeout(() => resolve({ ok: true }), delay);
@@ -5528,7 +5544,7 @@
           return mapped;
         }
       } catch (error) {
-        console.error('fetchAdById error', error);
+        appLogger.error('fetchAdById error', error);
       }
       return null;
     }
@@ -5899,7 +5915,7 @@
             window.location.reload();
           }
         } catch (error) {
-          console.error('Service Worker error:', error);
+        appLogger.error('Service Worker error:', error);
         }
         
         // Listen for controller change (new SW took over)

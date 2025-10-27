@@ -4,6 +4,7 @@ import Ad from '../models/ad.model.js';
 import { CATEGORY_ATTRIBUTES, AD_STATUS, PAGINATION } from '../config/constants.js';
 import { createError } from '../utils/asyncHandler.js';
 import logger from '../config/logger.js';
+import redis from '../config/redis.js';
 
 /**
  * Service de gestion des annonces
@@ -281,6 +282,35 @@ class AdService {
       sortOrder._id = direction;
     }
 
+    const statusIsDefault = !filters.status || filters.status === AD_STATUS.ACTIVE;
+    const hasExtraFilters = Boolean(
+      filters.category ||
+        filters.owner ||
+        filters.condition ||
+        filters.minPrice ||
+        filters.maxPrice ||
+        filters.city ||
+        (filters.status && !statusIsDefault) ||
+        (filters.search && filters.search.trim())
+    );
+
+    const shouldCachePopular =
+      redis.isConnected &&
+      !cursor &&
+      !hasExtraFilters &&
+      statusIsDefault &&
+      filters.sort === 'views';
+
+    let cachedPopular = null;
+    let popularCacheKey = null;
+    if (shouldCachePopular) {
+      popularCacheKey = `cache:ads:popular:${limit}`;
+      cachedPopular = await redis.get(popularCacheKey);
+      if (cachedPopular) {
+        return cachedPopular;
+      }
+    }
+
     const cursorFilter = this.buildCursorFilter(sortOrder, cursor);
     if (cursorFilter) {
       query.$and = query.$and ? [...query.$and, cursorFilter] : [cursorFilter];
@@ -306,7 +336,7 @@ class AdService {
 
     logger.logDB('listAds', 'ads', Date.now() - startTime);
 
-    return {
+    const result = {
       items,
       pagination: {
         limit,
@@ -317,6 +347,14 @@ class AdService {
         pages: total != null ? Math.ceil(total / limit) : null
       }
     };
+
+    if (shouldCachePopular && popularCacheKey) {
+      redis.set(popularCacheKey, result, 600).catch((error) => {
+        logger.warn('Impossible de mettre en cache les annonces populaires', { error: error.message });
+      });
+    }
+
+    return result;
   }
 
   /**

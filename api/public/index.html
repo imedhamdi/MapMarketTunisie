@@ -31,6 +31,12 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <link rel="stylesheet" href="./dist/tokens.min.css">
   <link rel="stylesheet" href="./dist/app.min.css">
+  <script>
+    window.__CDN_BASE__ = window.__CDN_BASE__ || '';
+    window.__ASSETS__ = Object.assign({}, window.__ASSETS__, {
+      profileModal: (window.__CDN_BASE__ || '') + '/dist/profile-modal.min.js'
+    });
+  </script>
 </head>
 
 <body>

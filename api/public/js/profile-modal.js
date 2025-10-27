@@ -2,6 +2,7 @@
 
 function initProfileModal() {
 
+  const logger = window.__APP_LOGGER__ || console;
   const profileModal = document.getElementById('profileModal');
   const profileOverlay = document.getElementById('profileOverlay');
   const profileClose = document.getElementById('profileClose');
@@ -11,7 +12,7 @@ function initProfileModal() {
   const passwordForm = document.getElementById('profilePasswordForm');
 
   if (!profileModal) {
-    console.error('Profile modal not found in DOM');
+    logger.warn('Profile modal not found in DOM');
     return;
   }
 
@@ -150,7 +151,7 @@ function initProfileModal() {
         document.getElementById('filterArchivedCount').textContent = stats.archived || 0;
       }
     } catch (error) {
-      console.error('Error loading stats:', error);
+      logger.error('Error loading stats:', error);
     }
   }
 
@@ -226,7 +227,7 @@ function initProfileModal() {
         if (analyticsBestDayEl) analyticsBestDayEl.textContent = 'Dimanche';
       }
     } catch (error) {
-      console.error('Error loading analytics:', error);
+      logger.error('Error loading analytics:', error);
     }
   }
 
@@ -273,7 +274,7 @@ function initProfileModal() {
         `;
       }).join('');
     } catch (error) {
-      console.error('Error loading recent activity:', error);
+      logger.error('Error loading recent activity:', error);
     }
   }
 
@@ -318,7 +319,7 @@ function initProfileModal() {
 
       renderUserAds();
     } catch (error) {
-      console.error('Error loading user ads:', error);
+      logger.error('Error loading user ads:', error);
       // Try alternative approach - single request without status filter
       try {
         const user = window.authStore?.get();
@@ -327,7 +328,7 @@ function initProfileModal() {
         userAds = response?.data?.items || [];
         renderUserAds();
       } catch (fallbackError) {
-        console.error('Fallback loading also failed:', fallbackError);
+        logger.error('Fallback loading also failed:', fallbackError);
       }
     }
   }
@@ -354,11 +355,10 @@ function initProfileModal() {
     grid.innerHTML = filteredAds
       .map((ad) => {
         const imageUrl =
-          ad.thumbnails && ad.thumbnails.length > 0
-            ? ad.thumbnails[0]
-            : ad.images && ad.images.length > 0
-              ? ad.images[0]
-              : 'https://via.placeholder.com/400x300?text=No+Image';
+          (ad.previews && ad.previews.length > 0 && ad.previews[0]) ||
+          (ad.thumbnails && ad.thumbnails.length > 0 && ad.thumbnails[0]) ||
+          (ad.images && ad.images.length > 0 && ad.images[0]) ||
+          'https://via.placeholder.com/400x300?text=No+Image';
 
         const statusLabel =
           {
@@ -457,7 +457,7 @@ function initProfileModal() {
         }
       }
     } catch (error) {
-      console.error('Error opening edit modal:', error);
+      logger.error('Error opening edit modal:', error);
       if (typeof window.showToast === 'function') {
         window.showToast('Erreur lors de l\'ouverture de l\'éditeur');
       }
@@ -480,7 +480,7 @@ function initProfileModal() {
       renderUserAds();
       loadUserStats();
     } catch (error) {
-      console.error('Error deleting ad:', error);
+      logger.error('Error deleting ad:', error);
       if (typeof window.showToast === 'function') {
         window.showToast('Erreur lors de la suppression');
       }
@@ -580,7 +580,7 @@ function initProfileModal() {
         }
         passwordForm.reset();
       } catch (error) {
-        console.error('Error changing password:', error);
+        logger.error('Error changing password:', error);
         const errorEl = document.getElementById('currentPasswordError');
         errorEl.textContent =
           error.response?.data?.message || 'Erreur lors du changement de mot de passe';
@@ -664,7 +664,7 @@ function initProfileModal() {
         }
       }
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      logger.error('Error uploading avatar:', error);
       if (typeof window.showToast === 'function') {
         window.showToast('Erreur lors de la mise à jour de l\'avatar');
       }

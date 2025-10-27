@@ -1,6 +1,8 @@
 // This file contains the replacement for submitPost function
 // Line 3845-3878 in app.js
 
+    const logger = window.__APP_LOGGER__ || console;
+
     async function submitPost(event) {
       event.preventDefault();
       if (postIsSubmitting) return;
@@ -49,7 +51,7 @@
         editingAdId = null;
         postStatus.textContent = '';
       } catch (error) {
-        console.error('Post error', error);
+        logger.error('Post error', error);
         const message = error?.payload?.message || error?.message || 
           (editMode ? 'Impossible de mettre à jour l\'annonce.' : 'Impossible de publier l\'annonce.');
         postStatus.textContent = message;

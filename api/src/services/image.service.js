@@ -14,10 +14,9 @@ import logger from '../config/logger.js';
  * Tailles d'images prédéfinies
  */
 export const IMAGE_SIZES = {
-  thumbnail: { width: 150, height: 150 },
-  small: { width: 400, height: 300 },
-  medium: { width: 800, height: 600 },
-  large: { width: 1200, height: 900 },
+  thumbnail: { width: 200, height: 200 },
+  preview: { width: 400, height: 400 },
+  large: { width: 800, height: 800 },
   avatar: { width: 200, height: 200 }
 };
 
@@ -58,7 +57,7 @@ function parseDataUri(value) {
  */
 export async function optimizeImage(inputPath, outputDir, baseName, options = {}) {
   const {
-    sizes = ['thumbnail', 'small', 'medium', 'large'],
+    sizes = ['thumbnail', 'preview', 'large'],
     formats = ['jpeg', 'webp'],
     keepOriginal = false
   } = options;
@@ -200,13 +199,32 @@ export async function optimizeAvatar(inputPath, outputDir, userId) {
  */
 export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
   if (!Array.isArray(images) || images.length === 0) {
-    return { images: [], thumbnails: [] };
+    return {
+      images: [],
+      previews: [],
+      thumbnails: [],
+      webpImages: [],
+      webpPreviews: [],
+      webpThumbnails: []
+    };
   }
 
   await mkdir(ADS_UPLOAD_DIR, { recursive: true });
 
-  const optimized = [];
-  const thumbnails = [];
+  const results = {
+    images: [],
+    previews: [],
+    thumbnails: [],
+    webpImages: [],
+    webpPreviews: [],
+    webpThumbnails: []
+  };
+
+  const variants = [
+    { key: 'thumbnails', webpKey: 'webpThumbnails', label: '200', size: 200 },
+    { key: 'previews', webpKey: 'webpPreviews', label: '400', size: 400 },
+    { key: 'images', webpKey: 'webpImages', label: '800', size: 800 }
+  ];
 
   for (const rawImage of images) {
     if (!rawImage) {
@@ -218,43 +236,49 @@ export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
         const { buffer } = parseDataUri(rawImage);
         const uid = randomUUID();
         const baseName = `${prefix}-${uid}`;
+        const baseImage = sharp(buffer).rotate();
 
-        const originalName = `${baseName}.jpg`;
-        const originalPath = path.join(ADS_UPLOAD_DIR, originalName);
+        for (const variant of variants) {
+          const jpgName = `${baseName}-${variant.label}.jpg`;
+          const jpgPath = path.join(ADS_UPLOAD_DIR, jpgName);
+          await baseImage
+            .clone()
+            .resize(variant.size, variant.size, { fit: 'cover', position: 'center' })
+            .jpeg({ quality: 85 })
+            .toFile(jpgPath);
 
-        await sharp(buffer)
-          .rotate()
-          .resize({ width: 1280, withoutEnlargement: true })
-          .jpeg({ quality: 82 })
-          .toFile(originalPath);
+          const webpName = `${baseName}-${variant.label}.webp`;
+          const webpPath = path.join(ADS_UPLOAD_DIR, webpName);
+          await baseImage
+            .clone()
+            .resize(variant.size, variant.size, { fit: 'cover', position: 'center' })
+            .webp({ quality: 85 })
+            .toFile(webpPath);
 
-        const thumbName = `${baseName}-thumb.jpg`;
-        const thumbPath = path.join(ADS_UPLOAD_DIR, thumbName);
+          results[variant.key].push(`/uploads/ads/${jpgName}`);
+          results[variant.webpKey].push(`/uploads/ads/${webpName}`);
+        }
 
-        await sharp(buffer)
-          .rotate()
-          .resize(360, 240, { fit: 'cover', position: 'centre' })
-          .jpeg({ quality: 78 })
-          .toFile(thumbPath);
-
-        optimized.push(`/uploads/ads/${originalName}`);
-        thumbnails.push(`/uploads/ads/${thumbName}`);
         continue;
       } catch (error) {
         logger.error('Erreur traitement image annonce', { error: error.message });
-        // En cas d'erreur, ignorer l'image pour éviter de bloquer complètement la création
         continue;
       }
     }
 
-    // Conserver les URL/chemins déjà optimisés tels quels pour l'image et la miniature
-    optimized.push(rawImage);
-    thumbnails.push(rawImage);
+    // Chemins déjà optimisés : les répliquer dans chaque variante JPEG, pas de WebP disponible
+    results.images.push(rawImage);
+    results.previews.push(rawImage);
+    results.thumbnails.push(rawImage);
   }
 
   return {
-    images: optimized,
-    thumbnails
+    images: results.images,
+    previews: results.previews,
+    thumbnails: results.thumbnails,
+    webpImages: results.webpImages,
+    webpPreviews: results.webpPreviews,
+    webpThumbnails: results.webpThumbnails
   };
 }
 

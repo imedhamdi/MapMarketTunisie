@@ -37,7 +37,11 @@ const AdSchema = new Schema(
     attributes: { type: Schema.Types.Mixed, default: {} },
     attributesNormalized: { type: Schema.Types.Mixed, default: {} },
     images: { type: [String], default: [] },
+    previews: { type: [String], default: [] },
     thumbnails: { type: [String], default: [] },
+    webpImages: { type: [String], default: [] },
+    webpPreviews: { type: [String], default: [] },
+    webpThumbnails: { type: [String], default: [] },
     status: {
       type: String,
       enum: ['draft', 'active', 'archived', 'deleted'],

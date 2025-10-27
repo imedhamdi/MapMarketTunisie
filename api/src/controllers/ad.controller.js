@@ -127,7 +127,14 @@ export async function createAd(req, res, next) {
       });
     }
     const rawImages = Array.isArray(payload.images) ? payload.images.slice(0, 10) : [];
-    const { images: optimizedImages, thumbnails } = await processAdImages(rawImages, {
+    const {
+      images: optimizedImages,
+      previews,
+      thumbnails,
+      webpImages,
+      webpPreviews,
+      webpThumbnails
+    } = await processAdImages(rawImages, {
       prefix: `ad-${typeof owner === 'object' && owner !== null ? owner.toString() : owner}`
     });
 
@@ -145,7 +152,11 @@ export async function createAd(req, res, next) {
       attributes: sanitizedAttributes,
       attributesNormalized: buildNormalizedAttributes(payload.category, sanitizedAttributes),
       images: optimizedImages,
+      previews,
       thumbnails,
+      webpImages,
+      webpPreviews,
+      webpThumbnails,
       status: 'active',
       views: 0,
       favoritesCount: 0
@@ -289,13 +300,22 @@ export async function updateAd(req, res, next) {
     // Only update images if explicitly provided and not empty
     if (Array.isArray(payload.images) && payload.images.length > 0) {
       const rawImages = payload.images.slice(0, 10);
-      const { images: optimizedImages, thumbnails } = await processAdImages(rawImages, {
+      const {
+        images: optimizedImages,
+        previews,
+        thumbnails,
+        webpImages,
+        webpPreviews,
+        webpThumbnails
+      } = await processAdImages(rawImages, {
         prefix: `ad-${ad._id}`
       });
-      ad.images = optimizedImages;
-      if (thumbnails.length) {
-        ad.thumbnails = thumbnails;
-      }
+      if (optimizedImages.length) ad.images = optimizedImages;
+      if (previews.length) ad.previews = previews;
+      if (thumbnails.length) ad.thumbnails = thumbnails;
+      if (webpImages.length) ad.webpImages = webpImages;
+      if (webpPreviews.length) ad.webpPreviews = webpPreviews;
+      if (webpThumbnails.length) ad.webpThumbnails = webpThumbnails;
     }
     if (payload.attributes) {
       ad.attributes = sanitizeAttributes(payload.attributes);
