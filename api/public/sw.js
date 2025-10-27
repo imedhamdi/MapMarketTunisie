@@ -1,4 +1,4 @@
-const CACHE = 'mapmarket-v5';
+const CACHE = 'mapmarket-v6';
 const ASSETS = [
   '/',
   '/index.html',
@@ -7,7 +7,9 @@ const ASSETS = [
   '/icons/icon-512.png',
   '/dist/tokens.min.css',
   '/dist/app.min.css',
-  '/dist/critical.min.css'
+  '/dist/critical.min.css',
+  '/dist/app.min.js',
+  '/dist/profile-modal.min.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -57,19 +59,61 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache static assets only
-  event.respondWith(
-    caches
-      .match(event.request)
-      .then((cached) => {
-        if (cached) {
-          return cached;
-        }
-        return fetch(event.request);
-      })
-      .catch(() => {
-        // Return a network fetch as fallback
-        return fetch(event.request);
-      })
-  );
+  const isHtmlRequest = event.request.headers.get('accept')?.includes('text/html');
+  const isStaticAsset =
+    requestUrl.pathname.startsWith('/dist/') ||
+    requestUrl.pathname.startsWith('/icons/') ||
+    requestUrl.pathname.endsWith('.css') ||
+    requestUrl.pathname.endsWith('.js');
+
+  if (isHtmlRequest) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  if (isStaticAsset) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
 });
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    fetch(request)
+      .then((response) => {
+        if (response && response.status === 200) {
+          cache.put(request, response.clone());
+        }
+      })
+      .catch(() => {});
+    return cached;
+  }
+
+  const response = await fetch(request);
+  if (response && response.status === 200) {
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
+}

@@ -15,6 +15,11 @@ function initProfileModal() {
     return;
   }
 
+  if (window.__profileModalInitialized) {
+    return;
+  }
+  window.__profileModalInitialized = true;
+
   // Helper functions for body scroll lock
   const lockBodyScroll = () => {
     document.body.style.overflow = 'hidden';
@@ -349,9 +354,11 @@ function initProfileModal() {
     grid.innerHTML = filteredAds
       .map((ad) => {
         const imageUrl =
-          ad.images && ad.images.length > 0
-            ? ad.images[0]
-            : 'https://via.placeholder.com/400x300?text=No+Image';
+          ad.thumbnails && ad.thumbnails.length > 0
+            ? ad.thumbnails[0]
+            : ad.images && ad.images.length > 0
+              ? ad.images[0]
+              : 'https://via.placeholder.com/400x300?text=No+Image';
 
         const statusLabel =
           {
@@ -363,7 +370,7 @@ function initProfileModal() {
         return `
         <div class="profile-ad-card" data-ad-id="${ad._id}">
           <div style="position: relative;">
-            <img class="profile-ad-image" src="${imageUrl}" alt="${ad.title || ''}" />
+            <img class="profile-ad-image" src="${imageUrl}" alt="${ad.title || ''}" loading="lazy" decoding="async" />
             <div class="profile-ad-status ${ad.status}">${statusLabel}</div>
           </div>
           <div class="profile-ad-body">
@@ -700,15 +707,4 @@ if (document.readyState === 'loading') {
   initProfileModal();
 }
 
-// Update user menu to open profile modal
-document.addEventListener('click', (e) => {
-  const profileBtn = e.target.closest('[data-action="profile"]');
-  if (profileBtn) {
-    e.preventDefault();
-    if (typeof window.openProfileModal === 'function') {
-      window.openProfileModal();
-    } else {
-      console.error('openProfileModal function not available');
-    }
-  }
-});
+window.profileModalInit = initProfileModal;

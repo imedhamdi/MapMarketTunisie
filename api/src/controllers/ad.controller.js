@@ -5,6 +5,8 @@ import Ad from '../models/ad.model.js';
 import User from '../models/user.model.js';
 import { sendSuccess, sendError } from '../utils/responses.js';
 import { createAdSchema, updateAdSchema } from '../validators/ad.schema.js';
+import { processAdImages } from '../services/image.service.js';
+import adService from '../services/ad.service.js';
 
 const categoryDefinitions = {
   auto: {
@@ -124,6 +126,13 @@ export async function createAd(req, res, next) {
         message: 'Authentification requise.'
       });
     }
+    const rawImages = Array.isArray(payload.images) ? payload.images.slice(0, 10) : [];
+    const { images: optimizedImages, thumbnails } = await processAdImages(rawImages, {
+      prefix: `ad-${typeof owner === 'object' && owner !== null ? owner.toString() : owner}`
+    });
+
+    const sanitizedAttributes = sanitizeAttributes(payload.attributes || {});
+
     const adData = {
       owner,
       title: stripTags(payload.title),
@@ -133,9 +142,10 @@ export async function createAd(req, res, next) {
       price: payload.price,
       locationText: stripTags(payload.locationText),
       location: buildLocation(payload),
-      attributes: sanitizeAttributes(payload.attributes || {}),
-      attributesNormalized: buildNormalizedAttributes(payload.category, payload.attributes),
-      images: Array.isArray(payload.images) ? payload.images.slice(0, 10) : [],
+      attributes: sanitizedAttributes,
+      attributesNormalized: buildNormalizedAttributes(payload.category, sanitizedAttributes),
+      images: optimizedImages,
+      thumbnails,
       status: 'active',
       views: 0,
       favoritesCount: 0
@@ -162,8 +172,6 @@ export async function createAd(req, res, next) {
 export async function listAds(req, res, next) {
   try {
     const {
-      page = 1,
-      limit = 20,
       category,
       owner,
       status,
@@ -171,99 +179,35 @@ export async function listAds(req, res, next) {
       condition,
       minPrice,
       maxPrice,
-      city
+      city,
+      sort,
+      cursor,
+      after,
+      limit
     } = req.query;
-    const parsedPage = Math.max(1, Number(page) || 1);
-    const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
 
-    const query = { status: status || 'active' }; // Par défaut, afficher seulement les annonces actives
-    if (category) {
-      query.category = category;
-    }
-    if (owner) {
-      query.owner = owner;
-    }
-    if (condition) {
-      query.condition = condition;
-    }
+    const filters = {
+      category,
+      owner,
+      status,
+      search,
+      condition,
+      minPrice,
+      maxPrice,
+      city,
+      sort
+    };
 
-    if (search && search.trim()) {
-      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escaped, 'i');
-      query.$or = [{ title: regex }, { description: regex }, { locationText: regex }];
-    }
+    const pagination = {
+      limit,
+      cursor,
+      after
+    };
 
-    const priceConditions = {};
-    const min = Number(minPrice);
-    const max = Number(maxPrice);
-    if (!Number.isNaN(min)) {
-      priceConditions.$gte = min;
-    }
-    if (!Number.isNaN(max)) {
-      priceConditions.$lte = max;
-    }
-    if (Object.keys(priceConditions).length) {
-      query.price = priceConditions;
-    }
-
-    if (city && city.trim()) {
-      const escapedCity = city.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.locationText = new RegExp(escapedCity, 'i');
-    }
-
-    let sortOrder = { createdAt: -1 };
-    if (req.query.sort === 'priceAsc') {
-      sortOrder = { price: 1 };
-    } else if (req.query.sort === 'priceDesc') {
-      sortOrder = { price: -1 };
-    }
-
-    const [items, total] = await Promise.all([
-      Ad.find(query)
-        .sort(sortOrder)
-        .skip((parsedPage - 1) * parsedLimit)
-        .limit(parsedLimit)
-        .populate('owner', 'name email avatar memberSince createdAt')
-        .lean(),
-      Ad.countDocuments(query)
-    ]);
-
-    const ownerIds = Array.from(
-      new Set(
-        items
-          .map((item) => (item.owner && item.owner._id ? item.owner._id.toString() : null))
-          .filter(Boolean)
-      )
-    );
-
-    if (ownerIds.length) {
-      const counts = await Ad.aggregate([
-        {
-          $match: {
-            owner: { $in: ownerIds.map((id) => new mongoose.Types.ObjectId(id)) },
-            status: 'active'
-          }
-        },
-        { $group: { _id: '$owner', total: { $sum: 1 } } }
-      ]);
-      const map = Object.fromEntries(counts.map((entry) => [entry._id.toString(), entry.total]));
-      items.forEach((item) => {
-        if (item.owner && item.owner._id) {
-          item.owner.activeAds = map[item.owner._id.toString()] ?? 0;
-        }
-      });
-    }
+    const result = await adService.listAds(filters, pagination);
 
     return sendSuccess(res, {
-      data: {
-        items,
-        pagination: {
-          total,
-          page: parsedPage,
-          limit: parsedLimit,
-          pages: Math.ceil(total / parsedLimit)
-        }
-      }
+      data: result
     });
   } catch (error) {
     next(error);
@@ -344,7 +288,14 @@ export async function updateAd(req, res, next) {
     }
     // Only update images if explicitly provided and not empty
     if (Array.isArray(payload.images) && payload.images.length > 0) {
-      ad.images = payload.images.slice(0, 10);
+      const rawImages = payload.images.slice(0, 10);
+      const { images: optimizedImages, thumbnails } = await processAdImages(rawImages, {
+        prefix: `ad-${ad._id}`
+      });
+      ad.images = optimizedImages;
+      if (thumbnails.length) {
+        ad.thumbnails = thumbnails;
+      }
     }
     if (payload.attributes) {
       ad.attributes = sanitizeAttributes(payload.attributes);

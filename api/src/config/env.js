@@ -70,7 +70,7 @@ const env = {
   resetBaseUrl: process.env.RESET_BASE_URL ?? 'http://localhost:5173/reset-password',
 
   // Redis (cache optionnel)
-  redisEnabled: process.env.REDIS_ENABLED === 'true',
+  redisEnabled: process.env.REDIS_ENABLED !== 'false',
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   redisPassword: process.env.REDIS_PASSWORD ?? '',
 

@@ -37,6 +37,7 @@ const AdSchema = new Schema(
     attributes: { type: Schema.Types.Mixed, default: {} },
     attributesNormalized: { type: Schema.Types.Mixed, default: {} },
     images: { type: [String], default: [] },
+    thumbnails: { type: [String], default: [] },
     status: {
       type: String,
       enum: ['draft', 'active', 'archived', 'deleted'],
@@ -50,5 +51,7 @@ const AdSchema = new Schema(
 );
 
 AdSchema.index({ location: '2dsphere' });
+AdSchema.index({ status: 1, createdAt: -1 });
+AdSchema.index({ owner: 1, status: 1 });
 
 export default mongoose.model('Ad', AdSchema);

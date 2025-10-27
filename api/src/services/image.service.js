@@ -5,8 +5,8 @@
 
 import sharp from 'sharp';
 import path from 'node:path';
-import { createReadStream, createWriteStream } from 'node:fs';
-import { unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { unlink, mkdir } from 'node:fs/promises';
 
 import logger from '../config/logger.js';
 
@@ -29,6 +29,24 @@ const QUALITY_OPTIONS = {
   webp: { quality: 85 },
   png: { compressionLevel: 9 }
 };
+
+const ADS_UPLOAD_DIR = path.resolve('uploads/ads');
+
+function isDataUri(value) {
+  return typeof value === 'string' && value.startsWith('data:image/');
+}
+
+function parseDataUri(value) {
+  const matches = value.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error('Data URI invalide');
+  }
+  const [, mime, data] = matches;
+  return {
+    mime,
+    buffer: Buffer.from(data, 'base64')
+  };
+}
 
 /**
  * Optimise une image et génère plusieurs tailles
@@ -171,6 +189,73 @@ export async function optimizeAvatar(inputPath, outputDir, userId) {
     logger.error('Erreur optimisation avatar', { error: error.message, userId });
     throw error;
   }
+}
+
+/**
+ * Traite et compresse les images d'annonces
+ * @param {string[]} images - Tableau d'images (base64, URLs ou chemins déjà optimisés)
+ * @param {Object} [options]
+ * @param {string} [options.prefix='ad'] - Préfixe des fichiers générés
+ * @returns {Promise<{images: string[], thumbnails: (string|null)[]}>}
+ */
+export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
+  if (!Array.isArray(images) || images.length === 0) {
+    return { images: [], thumbnails: [] };
+  }
+
+  await mkdir(ADS_UPLOAD_DIR, { recursive: true });
+
+  const optimized = [];
+  const thumbnails = [];
+
+  for (const rawImage of images) {
+    if (!rawImage) {
+      continue;
+    }
+
+    if (isDataUri(rawImage)) {
+      try {
+        const { buffer } = parseDataUri(rawImage);
+        const uid = randomUUID();
+        const baseName = `${prefix}-${uid}`;
+
+        const originalName = `${baseName}.jpg`;
+        const originalPath = path.join(ADS_UPLOAD_DIR, originalName);
+
+        await sharp(buffer)
+          .rotate()
+          .resize({ width: 1280, withoutEnlargement: true })
+          .jpeg({ quality: 82 })
+          .toFile(originalPath);
+
+        const thumbName = `${baseName}-thumb.jpg`;
+        const thumbPath = path.join(ADS_UPLOAD_DIR, thumbName);
+
+        await sharp(buffer)
+          .rotate()
+          .resize(360, 240, { fit: 'cover', position: 'centre' })
+          .jpeg({ quality: 78 })
+          .toFile(thumbPath);
+
+        optimized.push(`/uploads/ads/${originalName}`);
+        thumbnails.push(`/uploads/ads/${thumbName}`);
+        continue;
+      } catch (error) {
+        logger.error('Erreur traitement image annonce', { error: error.message });
+        // En cas d'erreur, ignorer l'image pour éviter de bloquer complètement la création
+        continue;
+      }
+    }
+
+    // Conserver les URL/chemins déjà optimisés tels quels pour l'image et la miniature
+    optimized.push(rawImage);
+    thumbnails.push(rawImage);
+  }
+
+  return {
+    images: optimized,
+    thumbnails
+  };
 }
 
 /**

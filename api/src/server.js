@@ -7,6 +7,7 @@ import env from './config/env.js';
 import logger from './config/logger.js';
 import connectMongoose from './db/mongoose.js';
 import redis from './config/redis.js';
+import Ad from './models/ad.model.js';
 
 const server = http.createServer(app);
 const port = env.port;
@@ -16,9 +17,13 @@ async function start() {
     // Créer les répertoires nécessaires
     await mkdir(path.resolve('uploads/avatars'), { recursive: true });
     await mkdir(path.resolve('logs'), { recursive: true });
+    await mkdir(path.resolve('uploads/ads'), { recursive: true });
 
     // Connexion à MongoDB
     await connectMongoose();
+    await Ad.syncIndexes().catch((error) => {
+      logger.warn('Synchronisation des index échouée', { error: error.message });
+    });
 
     // Connexion à Redis (optionnel)
     if (env.redisEnabled) {

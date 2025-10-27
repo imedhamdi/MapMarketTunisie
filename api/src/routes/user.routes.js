@@ -21,6 +21,7 @@ import {
   favoritesSchema
 } from '../validators/user.schema.js';
 import { uploadLimiter } from '../middlewares/rateLimit.js';
+import { cacheUser, invalidateUserCache } from '../middlewares/cache.js';
 
 const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
 const storage = multer.diskStorage({
@@ -54,14 +55,26 @@ const router = Router();
 
 router.use(authRequired);
 
-router.patch('/me', validate(updateMeSchema), updateMe);
-router.post('/me/location', validate(updateLocationSchema), updateLocation);
-router.patch('/me/avatar', uploadLimiter, upload.single('avatar'), updateAvatar);
-router.post('/me/avatar', uploadLimiter, upload.single('avatar'), uploadAvatar);
-router.post('/me/favorites', validate(favoritesSchema), updateFavorites);
-router.get('/me/stats', getUserStats);
-router.get('/me/analytics', getUserAnalytics);
-router.post('/me/change-password', changePassword);
-router.delete('/me', deleteMe);
+router.patch('/me', validate(updateMeSchema), invalidateUserCache(), updateMe);
+router.post('/me/location', validate(updateLocationSchema), invalidateUserCache(), updateLocation);
+router.patch(
+  '/me/avatar',
+  uploadLimiter,
+  upload.single('avatar'),
+  invalidateUserCache(),
+  updateAvatar
+);
+router.post(
+  '/me/avatar',
+  uploadLimiter,
+  upload.single('avatar'),
+  invalidateUserCache(),
+  uploadAvatar
+);
+router.post('/me/favorites', validate(favoritesSchema), invalidateUserCache(), updateFavorites);
+router.get('/me/stats', cacheUser(300), getUserStats);
+router.get('/me/analytics', cacheUser(300), getUserAnalytics);
+router.post('/me/change-password', invalidateUserCache(), changePassword);
+router.delete('/me', invalidateUserCache(), deleteMe);
 
 export default router;

@@ -95,8 +95,35 @@ export function invalidateCache(pattern) {
  */
 export function cacheAds(ttl = 300) {
   return cacheMiddleware(ttl, (req) => {
-    const { page = 1, limit = 20, category, owner, status } = req.query;
-    return `cache:ads:p${page}:l${limit}:c${category || 'all'}:o${owner || 'all'}:s${status || 'all'}`;
+    const {
+      cursor = 'start',
+      limit = 20,
+      category,
+      owner,
+      status,
+      sort,
+      search,
+      minPrice,
+      maxPrice,
+      city,
+      condition
+    } = req.query;
+
+    return [
+      'cache',
+      'ads',
+      `cursor:${cursor || 'start'}`,
+      `limit:${limit}`,
+      `category:${category || 'all'}`,
+      `owner:${owner || 'all'}`,
+      `status:${status || 'all'}`,
+      `sort:${sort || 'createdAt'}`,
+      `search:${search || 'none'}`,
+      `condition:${condition || 'all'}`,
+      `min:${minPrice || 'none'}`,
+      `max:${maxPrice || 'none'}`,
+      `city:${city || 'all'}`
+    ].join(':');
   });
 }
 

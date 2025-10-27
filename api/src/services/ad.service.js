@@ -196,46 +196,125 @@ class AdService {
     return ads;
   }
 
+  decodeCursor(cursor) {
+    if (!cursor) {
+      return null;
+    }
+
+    try {
+      const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'));
+      return decoded;
+    } catch (error) {
+      logger.warn('Cursor invalide ignoré', { cursor, error: error.message });
+      return null;
+    }
+  }
+
+  encodeCursor(doc, sortOrder) {
+    const [[field]] = Object.entries(sortOrder);
+    const value = doc[field];
+
+    const payload = {
+      _id: doc._id?.toString()
+    };
+
+    if (value instanceof Date) {
+      payload[field] = value.toISOString();
+    } else {
+      payload[field] = value;
+    }
+
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+  }
+
+  buildCursorFilter(sortOrder, cursor) {
+    if (!cursor) {
+      return null;
+    }
+
+    const [[field, direction]] = Object.entries(sortOrder);
+    const operator = direction === 1 ? '$gt' : '$lt';
+    const equalsOperator = direction === 1 ? '$gt' : '$lt';
+
+    let fieldValue = cursor[field];
+    if (fieldValue === undefined) {
+      return null;
+    }
+
+    if (field === 'createdAt') {
+      fieldValue = new Date(fieldValue);
+    }
+
+    const idValue = cursor._id ? new mongoose.Types.ObjectId(cursor._id) : null;
+    if (!idValue) {
+      return null;
+    }
+
+    return {
+      $or: [
+        { [field]: { [operator]: fieldValue } },
+        {
+          [field]: fieldValue,
+          _id: { [equalsOperator]: idValue }
+        }
+      ]
+    };
+  }
+
   /**
    * Lister les annonces avec pagination et filtres
    */
   async listAds(filters = {}, pagination = {}) {
     const startTime = Date.now();
 
-    const page = Math.max(
-      PAGINATION.DEFAULT_PAGE,
-      Number(pagination.page) || PAGINATION.DEFAULT_PAGE
-    );
     const limit = Math.min(
       PAGINATION.MAX_LIMIT,
       Math.max(PAGINATION.MIN_LIMIT, Number(pagination.limit) || PAGINATION.DEFAULT_LIMIT)
     );
+    const cursor = this.decodeCursor(pagination.cursor || pagination.after);
 
     const query = this.buildSearchQuery(filters);
     const sortOrder = this.getSortOrder(filters.sort);
+    // Ajouter un tri secondaire pour garantir l'ordre déterministe
+    if (!Object.prototype.hasOwnProperty.call(sortOrder, '_id')) {
+      const [[, direction]] = Object.entries(sortOrder);
+      sortOrder._id = direction;
+    }
 
-    const [items, total] = await Promise.all([
-      Ad.find(query)
-        .sort(sortOrder)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .populate('owner', 'name email avatar memberSince createdAt')
-        .lean(),
-      Ad.countDocuments(query)
+    const cursorFilter = this.buildCursorFilter(sortOrder, cursor);
+    if (cursorFilter) {
+      query.$and = query.$and ? [...query.$and, cursorFilter] : [cursorFilter];
+    }
+
+    const itemsQuery = Ad.find(query)
+      .sort(sortOrder)
+      .limit(limit + 1)
+      .populate('owner', 'name email avatar memberSince createdAt')
+      .lean();
+
+    const [rawItems, total] = await Promise.all([
+      itemsQuery,
+      cursorFilter ? Promise.resolve(null) : Ad.countDocuments(this.buildSearchQuery(filters))
     ]);
 
-    // Enrichir avec les stats des propriétaires
+    const hasNextPage = rawItems.length > limit;
+    const items = hasNextPage ? rawItems.slice(0, limit) : rawItems;
+
     await this.enrichWithOwnerStats(items);
+
+    const nextCursor = hasNextPage ? this.encodeCursor(items[items.length - 1], sortOrder) : null;
 
     logger.logDB('listAds', 'ads', Date.now() - startTime);
 
     return {
       items,
       pagination: {
-        total,
-        page,
         limit,
-        pages: Math.ceil(total / limit)
+        hasNextPage,
+        nextCursor,
+        total,
+        page: cursor ? null : PAGINATION.DEFAULT_PAGE,
+        pages: total != null ? Math.ceil(total / limit) : null
       }
     };
   }

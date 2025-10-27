@@ -1,4 +1,57 @@
     (() => {
+    const originalCreateElement = Document.prototype.createElement;
+    Document.prototype.createElement = function(tagName, options) {
+      const element = originalCreateElement.call(this, tagName, options);
+      if (typeof tagName === 'string' && tagName.toLowerCase() === 'img') {
+        if (!element.hasAttribute('loading')) element.setAttribute('loading', 'lazy');
+        if (!element.hasAttribute('decoding')) element.setAttribute('decoding', 'async');
+      }
+      return element;
+    };
+
+    const applyLazyLoadingToExistingImages = () => {
+      document.querySelectorAll('img').forEach((img) => {
+        if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
+        if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
+      });
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyLazyLoadingToExistingImages, {
+        once: true
+      });
+    } else {
+      applyLazyLoadingToExistingImages();
+    }
+
+    const PROFILE_MODAL_ASSET =
+      (window.__ASSETS__ && window.__ASSETS__.profileModal) || '/dist/profile-modal.min.js';
+    let profileModalLoader = null;
+
+    function ensureProfileModal() {
+      if (typeof window.openProfileModal === 'function') {
+        return Promise.resolve();
+      }
+      if (!profileModalLoader) {
+        profileModalLoader = new Promise((resolve, reject) => {
+          const script = originalCreateElement.call(document, 'script');
+          script.src = PROFILE_MODAL_ASSET;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = (error) => {
+            profileModalLoader = null;
+            reject(error);
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      return profileModalLoader.catch((error) => {
+        console.error('Impossible de charger le module profil', error);
+        throw error;
+      });
+    }
+
     // ---------- DATA (mock + géoloc) ----------
     const cityPos = {
       'Montpellier': [43.611, 3.877], 'Paris': [48.8566, 2.3522], 'Lyon': [45.764, 4.8357],
@@ -2435,12 +2488,16 @@
             if (openFavsBtn) openFavsBtn.click();
             break;
           case 'profile': {
-            if (typeof window.openProfileModal === 'function') {
-              window.openProfileModal();
-            } else {
-              const avatarBtn = document.querySelector('#avatar button');
-              if (avatarBtn) avatarBtn.click();
-            }
+            ensureProfileModal()
+              .then(() => {
+                if (typeof window.openProfileModal === 'function') {
+                  window.openProfileModal();
+                }
+              })
+              .catch(() => {
+                const avatarBtn = document.querySelector('#avatar button');
+                if (avatarBtn) avatarBtn.click();
+              });
             break;
           }
           default:
@@ -2675,11 +2732,19 @@
             break;
           case 'profile':
             closeMenu({ restoreFocus: true });
-            if (typeof window.openProfileModal === 'function') {
-              window.openProfileModal();
-            } else {
-              if (typeof showToast === 'function') showToast('Section profil en préparation ✨');
-            }
+            ensureProfileModal()
+              .then(() => {
+                if (typeof window.openProfileModal === 'function') {
+                  window.openProfileModal();
+                } else if (typeof showToast === 'function') {
+                  showToast('Section profil en préparation ✨');
+                }
+              })
+              .catch(() => {
+                if (typeof showToast === 'function') {
+                  showToast('Section profil en préparation ✨');
+                }
+              });
             break;
           default:
             break;
