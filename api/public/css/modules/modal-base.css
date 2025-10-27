@@ -1,0 +1,30 @@
+/* Modal base */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--color-ink-rgb), .55);
+  backdrop-filter: blur(6px);
+  z-index: var(--z-modal-overlay);
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 24px;
+  box-shadow: 0 24px 48px rgba(var(--color-ink-rgb), .28);
+  overflow: hidden;
+}
+
+.modal .pane {
+  padding: 22px;
+}
+

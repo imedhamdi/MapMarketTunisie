@@ -1,0 +1,28 @@
+.details-price {
+  display: inline-block;
+  background: #f5f5f5;
+  color: #27ae60;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 0.5em 1em;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin: 1em 0;
+  text-align: center;
+}
+
+.details-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.details-meta-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.details-meta-item.location svg {
+  color: #3b82f6;
+}

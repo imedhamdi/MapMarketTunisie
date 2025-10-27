@@ -1,0 +1,24 @@
+:root {
+  --color-brand-rgb: 255, 77, 109;
+  --color-brand-tint-rgb: 255, 238, 242;
+  --color-brand-700-rgb: 225, 29, 72;
+  --color-danger-rgb: 229, 62, 62;
+  --color-success-rgb: 34, 197, 94;
+  --color-success-600-rgb: 22, 163, 74;
+  --color-warning-rgb: 245, 158, 11;
+  --color-info-rgb: 99, 102, 241;
+  --color-info-400-rgb: 59, 130, 246;
+  --color-info-600-rgb: 129, 140, 248;
+  --color-surface-rgb: 255, 255, 255;
+  --color-text-primary-rgb: 17, 24, 39;
+  --color-surface-cloud-rgb: 245, 246, 250;
+  --color-surface-mist-rgb: 236, 241, 247;
+  --color-surface-ghost-rgb: 241, 245, 249;
+  --color-surface-snow-rgb: 248, 250, 252;
+  --color-ink-rgb: 15, 23, 42;
+  --color-slate-rgb: 30, 41, 59;
+  --color-slate-300-rgb: 148, 163, 184;
+  --color-border-soft-rgb: 226, 232, 240;
+  --color-sky-500-rgb: 14, 165, 233;
+  --color-deep-rgb: 16, 24, 40;
+}

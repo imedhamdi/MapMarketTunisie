@@ -1,0 +1,19 @@
+:root {
+  --color-text-primary: #111827;
+  --color-text-strong: #0f172a;
+  --color-text-secondary: #374151;
+  --color-text-subtle: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-tertiary: #475569;
+  --color-text-alt: #64748b;
+  --color-text-cool: #718096;
+  --color-text-dim: #425066;
+  --color-text-heading: #2d3748;
+  --color-neutral-800: #1f2937;
+  --color-text-contrast: #ffffff;
+  --color-text-contrast-strong: #111111;
+  --color-text-link: #1d4ed8;
+  --color-text-link-hover: #4338ca;
+  --color-text-linkedin: #0a66c2;
+  --color-text-success: #22543d;
+}

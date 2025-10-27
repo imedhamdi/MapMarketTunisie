@@ -1,0 +1,13 @@
+:root {
+  --color-brand-500: #ff4d6d;
+  --color-brand-400: #ff5875;
+  --color-brand-600: #ff3f62;
+  --color-brand-700: #e11d48;
+  --color-brand-gradient-end: #ff6b8a;
+  --color-brand-bg: #fff0f3;
+  --color-brand-border: #f7b4c1;
+  --color-brand-border-soft: #f3d0d8;
+  --color-brand-outline: #fda4af;
+  --color-brand-tint: #ffeef2;
+  --color-brand-contrast: #ff3b6b;
+}

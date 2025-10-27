@@ -1,0 +1,62 @@
+/* --- Animation Favoris --- */
+.fav-anim-wrapper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.fav-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  opacity: 0;
+  /* L'animation est déclenchée par JS */
+}
+
+.fav.animating .fav-particle {
+  animation: fav-burst 0.6s ease-out forwards;
+}
+
+.fav.animating svg,
+.cta-outline.animating svg {
+  animation: fav-pop 0.6s cubic-bezier(0.25, 0.1, 0.25, 1.5) forwards;
+}
+
+@keyframes fav-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.35);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fav-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.8;
+  }
+
+  100% {
+    /* La translation finale est définie via une variable CSS par JS */
+    transform: translate(var(--tx, -50%), var(--ty, -50%)) scale(0);
+    opacity: 0;
+  }
+}
+
+/* S'assure que le SVG a une transition douce pour le remplissage */
+.fav svg path,
+.details-actions .cta-outline svg path {
+  transition: fill 0.2s ease;
+}

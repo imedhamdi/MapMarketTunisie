@@ -159,14 +159,21 @@ function initProfileModal() {
         
         // Update overview metrics
         const overview = analytics.overview || {};
-        document.getElementById('analyticsViews').textContent = overview.totalViews || 0;
-        document.getElementById('analyticsContacts').textContent = overview.totalContacts || 0;
-        document.getElementById('analyticsEngagement').textContent = `${overview.engagementRate || 0}%`;
-        document.getElementById('analyticsConversion').textContent = `${overview.conversionRate || 0}%`;
+        const analyticsViewsEl = document.getElementById('analyticsViews');
+        const analyticsContactsEl = document.getElementById('analyticsContacts');
+        const analyticsEngagementEl = document.getElementById('analyticsEngagement');
+        const analyticsConversionEl = document.getElementById('analyticsConversion');
+        const analyticsViewsChangeEl = document.getElementById('analyticsViewsChange');
+        const analyticsContactsChangeEl = document.getElementById('analyticsContactsChange');
+        
+        if (analyticsViewsEl) analyticsViewsEl.textContent = overview.totalViews || 0;
+        if (analyticsContactsEl) analyticsContactsEl.textContent = overview.totalContacts || 0;
+        if (analyticsEngagementEl) analyticsEngagementEl.textContent = `${overview.engagementRate || 0}%`;
+        if (analyticsConversionEl) analyticsConversionEl.textContent = `${overview.conversionRate || 0}%`;
         
         // Update changes (mock data for now - could be calculated from previous period)
-        document.getElementById('analyticsViewsChange').textContent = '+12%';
-        document.getElementById('analyticsContactsChange').textContent = '+8%';
+        if (analyticsViewsChangeEl) analyticsViewsChangeEl.textContent = '+12%';
+        if (analyticsContactsChangeEl) analyticsContactsChangeEl.textContent = '+8%';
         
         // Update top performing ads
         const topAds = analytics.topPerformingAds || [];
@@ -193,16 +200,25 @@ function initProfileModal() {
         
         // Update traffic sources (mock percentages based on city/category stats)
         const totalViews = overview.totalViews || 1;
-        document.getElementById('trafficDirect').style.width = '60%';
-        document.getElementById('trafficDirectValue').textContent = '60%';
-        document.getElementById('trafficMap').style.width = '30%';
-        document.getElementById('trafficMapValue').textContent = '30%';
-        document.getElementById('trafficFavorites').style.width = '10%';
-        document.getElementById('trafficFavoritesValue').textContent = '10%';
+        const trafficDirectEl = document.getElementById('trafficDirect');
+        const trafficDirectValueEl = document.getElementById('trafficDirectValue');
+        const trafficMapEl = document.getElementById('trafficMap');
+        const trafficMapValueEl = document.getElementById('trafficMapValue');
+        const trafficFavoritesEl = document.getElementById('trafficFavorites');
+        const trafficFavoritesValueEl = document.getElementById('trafficFavoritesValue');
+        
+        if (trafficDirectEl) trafficDirectEl.style.width = '60%';
+        if (trafficDirectValueEl) trafficDirectValueEl.textContent = '60%';
+        if (trafficMapEl) trafficMapEl.style.width = '30%';
+        if (trafficMapValueEl) trafficMapValueEl.textContent = '30%';
+        if (trafficFavoritesEl) trafficFavoritesEl.style.width = '10%';
+        if (trafficFavoritesValueEl) trafficFavoritesValueEl.textContent = '10%';
         
         // Update best time/day (mock data)
-        document.getElementById('analyticsBestTime').textContent = '14h-18h';
-        document.getElementById('analyticsBestDay').textContent = 'Dimanche';
+        const analyticsBestTimeEl = document.getElementById('analyticsBestTime');
+        const analyticsBestDayEl = document.getElementById('analyticsBestDay');
+        if (analyticsBestTimeEl) analyticsBestTimeEl.textContent = '14h-18h';
+        if (analyticsBestDayEl) analyticsBestDayEl.textContent = 'Dimanche';
       }
     } catch (error) {
       console.error('Error loading analytics:', error);

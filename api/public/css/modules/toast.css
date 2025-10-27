@@ -1,0 +1,14 @@
+/* Toast */
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: none;
+  background: var(--color-text-primary);
+  color: var(--color-text-contrast);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  z-index: var(--z-toast);
+}
+

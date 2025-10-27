@@ -26,8 +26,8 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./css/tokens.css">
-  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="./dist/tokens.min.css">
+  <link rel="stylesheet" href="./dist/app.min.css">
 </head>
 
 <body>
@@ -246,8 +246,8 @@
       </div>
     </section>
 
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 2px 8px" class="muted"><span
-        id="count"><span style="display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>Chargement...</span></span>
+    <div class="muted results-meta"><span
+        id="count"><span class="results-count"><svg class="results-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>Chargement...</span></span>
       <div class="tabs" role="tablist">
         <div class="tab active" role="tab" aria-selected="true" id="tab-list"><svg width="16" height="16"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -334,7 +334,6 @@
                 max="100" 
                 step="1" 
                 value="10"
-                style="--progress: 10%"
                 aria-label="Rayon de recherche en kilomètres"
               >
               <div class="radius-modern__marks">
@@ -360,7 +359,7 @@
       </div>
     </div>
     <div id="sentinel"></div>
-    <div class="loading" id="loading" style="display:none">Chargement…</div>
+    <div class="loading" id="loading" hidden>Chargement…</div>
   </main>
   <nav class="bottom-nav" id="bottomNav" aria-label="Navigation mobile">
     <button class="bn-btn is-active" type="button" data-action="home" aria-pressed="true">
@@ -618,8 +617,8 @@
               <div class="map-coords" id="mapCoords">
                 Latitude: <span id="coordsLat">--</span> | Longitude: <span id="coordsLng">--</span>
               </div>
-              <input type="hidden" id="postLat" name="latitude" required>
-              <input type="hidden" id="postLng" name="longitude" required>
+              <input type="hidden" id="postLat" name="latitude">
+              <input type="hidden" id="postLng" name="longitude">
             </div>
           </section>
 
@@ -938,24 +937,23 @@
       </div>
     </header>
 
-    <div class="mm-modal-body" style="flex: 1; overflow-y: auto; padding: 0;">
+    <div class="mm-modal-body">
       <!-- Profile Header Section -->
-      <div class="profile-header-section" style="padding: 24px 20px; border-bottom: 1px solid var(--color-border-faint);">
-        <div class="profile-user-info" style="display: flex; gap: 16px; align-items: center;">
-          <div class="profile-avatar-wrapper" id="profileAvatarWrapper" style="position: relative; cursor: pointer;">
-            <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar" 
-                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--color-brand-500);">
-            <div class="profile-avatar-edit" style="position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: var(--color-brand-500); border-radius: 50%; display: grid; place-items: center; font-size: 14px; border: 2px solid var(--color-surface);">📷</div>
-            <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*" style="display: none;">
+      <div class="profile-header-section">
+        <div class="profile-user-info">
+          <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
+            <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar">
+            <div class="profile-avatar-edit">📷</div>
+            <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*">
           </div>
-          <div class="profile-user-details" style="flex: 1;">
-            <h3 id="profileUserName" style="font-size: 1.25rem; font-weight: 700; margin: 0 0 4px 0; color: var(--color-text-primary);">Utilisateur</h3>
-            <div class="profile-user-meta" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; color: var(--color-text-secondary);">
-              <div style="display: flex; align-items: center; gap: 6px;">
+          <div class="profile-user-details">
+            <h3 id="profileUserName">Utilisateur</h3>
+            <div class="profile-user-meta">
+              <div>
                 <span>📧</span>
                 <span id="profileEmail">email@example.com</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
+              <div>
                 <span>📅</span>
                 <span id="profileMemberSince">Membre depuis 2024</span>
               </div>
@@ -965,134 +963,134 @@
       </div>
 
       <!-- Tabs -->
-      <div class="profile-tabs" style="display: flex; border-bottom: 1px solid var(--color-border-faint); background: var(--color-surface); position: sticky; top: 0; z-index: 10;">
-        <button class="profile-tab active" data-tab="overview" style="flex: 1; padding: 12px 16px; border: 0; background: none; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">📊 Vue d'ensemble</button>
-        <button class="profile-tab" data-tab="ads" style="flex: 1; padding: 12px 16px; border: 0; background: none; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">📝 Mes annonces</button>
-        <button class="profile-tab" data-tab="password" style="flex: 1; padding: 12px 16px; border: 0; background: none; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">🔒 Mot de passe</button>
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="overview">📊 Vue d'ensemble</button>
+        <button class="profile-tab" data-tab="ads">📝 Mes annonces</button>
+        <button class="profile-tab" data-tab="password">🔒 Mot de passe</button>
       </div>
 
       <!-- Overview Tab -->
-      <div class="profile-tab-content active" id="tab-overview" style="padding: 20px;">
-        <div class="profile-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px;">
-          <div class="profile-stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; border-radius: 12px; color: white;">
-            <div class="profile-stat-value" id="statActiveAds" style="font-size: 2rem; font-weight: 800; margin-bottom: 4px;">0</div>
-            <div class="profile-stat-label" style="font-size: 0.875rem; opacity: 0.9;">Annonces actives</div>
+      <div class="profile-tab-content active" id="tab-overview">
+        <div class="profile-stats-grid">
+          <div class="profile-stat-card">
+            <div class="profile-stat-value" id="statActiveAds">0</div>
+            <div class="profile-stat-label">Annonces actives</div>
           </div>
-          <div class="profile-stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 16px; border-radius: 12px; color: white;">
-            <div class="profile-stat-value" id="statDraftAds" style="font-size: 2rem; font-weight: 800; margin-bottom: 4px;">0</div>
-            <div class="profile-stat-label" style="font-size: 0.875rem; opacity: 0.9;">Brouillons</div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value" id="statDraftAds">0</div>
+            <div class="profile-stat-label">Brouillons</div>
           </div>
-          <div class="profile-stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 16px; border-radius: 12px; color: white;">
-            <div class="profile-stat-value" id="statTotalViews" style="font-size: 2rem; font-weight: 800; margin-bottom: 4px;">0</div>
-            <div class="profile-stat-label" style="font-size: 0.875rem; opacity: 0.9;">Vues totales</div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value" id="statTotalViews">0</div>
+            <div class="profile-stat-label">Vues totales</div>
           </div>
-          <div class="profile-stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 16px; border-radius: 12px; color: white;">
-            <div class="profile-stat-value" id="statTotalFavorites" style="font-size: 2rem; font-weight: 800; margin-bottom: 4px;">0</div>
-            <div class="profile-stat-label" style="font-size: 0.875rem; opacity: 0.9;">Favoris totaux</div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value" id="statTotalFavorites">0</div>
+            <div class="profile-stat-label">Favoris totaux</div>
           </div>
         </div>
 
-        <div class="profile-section" style="margin-bottom: 24px;">
-          <h3 style="font-size: 1.125rem; font-weight: 700; margin: 0 0 12px 0; color: var(--color-text-primary);">📊 Analytics détaillées</h3>
+        <div class="profile-section">
+          <h3>📊 Analytics détaillées</h3>
           
-          <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px;">
-            <div class="analytics-card" style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px;">
-              <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 4px;">👁️ Vues</div>
-              <div id="analyticsViews" style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">0</div>
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <div>👁️ Vues</div>
+              <div id="analyticsViews">0</div>
             </div>
-            <div class="analytics-card" style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px;">
-              <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 4px;">💬 Contacts</div>
-              <div id="analyticsContacts" style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">0</div>
+            <div class="analytics-card">
+              <div>💬 Contacts</div>
+              <div id="analyticsContacts">0</div>
             </div>
-            <div class="analytics-card" style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px;">
-              <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 4px;">⭐ Engagement</div>
-              <div id="analyticsEngagement" style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">0%</div>
+            <div class="analytics-card">
+              <div>⭐ Engagement</div>
+              <div id="analyticsEngagement">0%</div>
             </div>
-            <div class="analytics-card" style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px;">
-              <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 4px;">📈 Conversion</div>
-              <div id="analyticsConversion" style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">0%</div>
+            <div class="analytics-card">
+              <div>📈 Conversion</div>
+              <div id="analyticsConversion">0%</div>
             </div>
           </div>
 
-          <div style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px; margin-bottom: 12px;">
-            <h4 style="font-size: 0.875rem; font-weight: 700; margin: 0 0 12px 0; color: var(--color-text-primary);">🏆 Annonces les plus performantes</h4>
+          <div class="analytics-panel">
+            <h4>🏆 Annonces les plus performantes</h4>
             <div class="analytics-list" id="topPerformingAds"></div>
           </div>
 
-          <div style="background: var(--color-surface-alt); padding: 16px; border-radius: 10px;">
-            <h4 style="font-size: 0.875rem; font-weight: 700; margin: 0 0 12px 0; color: var(--color-text-primary);">🌍 Sources de trafic</h4>
-            <div class="analytics-traffic" style="display: flex; flex-direction: column; gap: 12px;">
-              <div class="traffic-item" style="display: flex; align-items: center; gap: 8px;">
-                <div style="flex: 0 0 120px; font-size: 0.875rem; color: var(--color-text-secondary);">
-                  <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff4d6d; margin-right: 6px;"></span>
+          <div class="analytics-panel">
+            <h4>🌍 Sources de trafic</h4>
+            <div class="analytics-traffic">
+              <div class="traffic-item">
+                <div class="traffic-label">
+                  <span class="traffic-dot traffic-dot--direct"></span>
                   Recherche directe
                 </div>
-                <div style="flex: 1; height: 8px; background: var(--color-border-faint); border-radius: 999px; overflow: hidden;">
-                  <div id="trafficDirect" style="height: 100%; background: #ff4d6d; width: 0%; transition: width 0.3s;"></div>
+                <div class="traffic-bar">
+                  <div id="trafficDirect" class="traffic-fill"></div>
                 </div>
-                <div id="trafficDirectValue" style="flex: 0 0 40px; text-align: right; font-size: 0.875rem; font-weight: 600;">0%</div>
+                <div id="trafficDirectValue" class="traffic-value">0%</div>
               </div>
-              <div class="traffic-item" style="display: flex; align-items: center; gap: 8px;">
-                <div style="flex: 0 0 120px; font-size: 0.875rem; color: var(--color-text-secondary);">
-                  <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4d9fff; margin-right: 6px;"></span>
+              <div class="traffic-item">
+                <div class="traffic-label">
+                  <span class="traffic-dot traffic-dot--map"></span>
                   Carte interactive
                 </div>
-                <div style="flex: 1; height: 8px; background: var(--color-border-faint); border-radius: 999px; overflow: hidden;">
-                  <div id="trafficMap" style="height: 100%; background: #4d9fff; width: 0%; transition: width 0.3s;"></div>
+                <div class="traffic-bar">
+                  <div id="trafficMap" class="traffic-fill"></div>
                 </div>
-                <div id="trafficMapValue" style="flex: 0 0 40px; text-align: right; font-size: 0.875rem; font-weight: 600;">0%</div>
+                <div id="trafficMapValue" class="traffic-value">0%</div>
               </div>
-              <div class="traffic-item" style="display: flex; align-items: center; gap: 8px;">
-                <div style="flex: 0 0 120px; font-size: 0.875rem; color: var(--color-text-secondary);">
-                  <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ffa64d; margin-right: 6px;"></span>
+              <div class="traffic-item">
+                <div class="traffic-label">
+                  <span class="traffic-dot traffic-dot--favorites"></span>
                   Favoris
                 </div>
-                <div style="flex: 1; height: 8px; background: var(--color-border-faint); border-radius: 999px; overflow: hidden;">
-                  <div id="trafficFavorites" style="height: 100%; background: #ffa64d; width: 0%; transition: width 0.3s;"></div>
+                <div class="traffic-bar">
+                  <div id="trafficFavorites" class="traffic-fill"></div>
                 </div>
-                <div id="trafficFavoritesValue" style="flex: 0 0 40px; text-align: right; font-size: 0.875rem; font-weight: 600;">0%</div>
+                <div id="trafficFavoritesValue" class="traffic-value">0%</div>
               </div>
             </div>
           </div>
         </div>
 
         <div class="profile-section">
-          <h3 style="font-size: 1.125rem; font-weight: 700; margin: 0 0 12px 0; color: var(--color-text-primary);">⏰ Activité récente</h3>
+          <h3>⏰ Activité récente</h3>
           <div id="recentActivityContainer"></div>
         </div>
       </div>
 
       <!-- Ads Tab -->
-      <div class="profile-tab-content" id="tab-ads" style="display: none;">
-        <div class="profile-ads-filters" style="display: flex; gap: 8px; padding: 16px 20px; background: var(--color-surface); border-bottom: 1px solid var(--color-border-faint); flex-wrap: wrap;">
-          <button class="profile-filter-btn active" data-filter="all" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-brand-500); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-            Toutes <span class="profile-filter-badge" id="filterAllCount" style="margin-left: 4px; background: rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 999px;">0</span>
+      <div class="profile-tab-content" id="tab-ads">
+        <div class="profile-ads-filters">
+          <button class="profile-filter-btn active" data-filter="all">
+            Toutes <span class="profile-filter-badge" id="filterAllCount">0</span>
           </button>
-          <button class="profile-filter-btn" data-filter="active" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
-            Actives <span class="profile-filter-badge" id="filterActiveCount" style="margin-left: 4px; background: var(--color-surface-alt); padding: 2px 8px; border-radius: 999px;">0</span>
+          <button class="profile-filter-btn" data-filter="active">
+            Actives <span class="profile-filter-badge" id="filterActiveCount">0</span>
           </button>
-          <button class="profile-filter-btn" data-filter="draft" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
-            Brouillons <span class="profile-filter-badge" id="filterDraftCount" style="margin-left: 4px; background: var(--color-surface-alt); padding: 2px 8px; border-radius: 999px;">0</span>
+          <button class="profile-filter-btn" data-filter="draft">
+            Brouillons <span class="profile-filter-badge" id="filterDraftCount">0</span>
           </button>
-          <button class="profile-filter-btn" data-filter="archived" style="padding: 8px 16px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
-            Archivées <span class="profile-filter-badge" id="filterArchivedCount" style="margin-left: 4px; background: var(--color-surface-alt); padding: 2px 8px; border-radius: 999px;">0</span>
+          <button class="profile-filter-btn" data-filter="archived">
+            Archivées <span class="profile-filter-badge" id="filterArchivedCount">0</span>
           </button>
         </div>
 
-        <div class="mm-grid" id="profileAdsGrid" style="padding: 16px 20px; display: grid; grid-template-columns: 1fr; gap: 16px;"></div>
+        <div class="mm-grid" id="profileAdsGrid"></div>
 
-        <div class="mm-empty" id="profileAdsEmpty" style="display: none; padding: 48px 20px; text-align: center;">
-          <div style="font-size: 48px; margin-bottom: 12px;">📦</div>
-          <h3 style="font-size: 1.125rem; font-weight: 700; margin: 0 0 8px 0;">Aucune annonce</h3>
-          <p style="color: var(--color-text-secondary); margin: 0;">Vous n'avez pas encore publié d'annonce</p>
+        <div class="mm-empty" id="profileAdsEmpty">
+          <div class="profile-empty-icon">📦</div>
+          <h3>Aucune annonce</h3>
+          <p>Vous n'avez pas encore publié d'annonce</p>
         </div>
       </div>
 
       <!-- Password Tab -->
-      <div class="profile-tab-content" id="tab-password" style="display: none; padding: 20px;">
-        <form class="profile-password-form" id="profilePasswordForm" style="max-width: 480px; margin: 0 auto;">
-          <div class="profile-form-group" style="margin-bottom: 20px;">
-            <label class="profile-form-label" for="currentPassword" style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--color-text-primary);">Mot de passe actuel</label>
+      <div class="profile-tab-content" id="tab-password">
+        <form class="profile-password-form" id="profilePasswordForm">
+          <div class="profile-form-group">
+            <label class="profile-form-label" for="currentPassword">Mot de passe actuel</label>
             <input 
               type="password" 
               class="profile-form-input" 
@@ -1100,13 +1098,12 @@
               name="currentPassword"
               placeholder="Entrez votre mot de passe actuel"
               required
-              style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; outline: none;"
             >
-            <span class="profile-form-error" id="currentPasswordError" style="color: var(--color-brand-700); font-size: 0.875rem; margin-top: 4px; display: none;"></span>
+            <span class="profile-form-error" id="currentPasswordError"></span>
           </div>
 
-          <div class="profile-form-group" style="margin-bottom: 20px;">
-            <label class="profile-form-label" for="newPassword" style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--color-text-primary);">Nouveau mot de passe</label>
+          <div class="profile-form-group">
+            <label class="profile-form-label" for="newPassword">Nouveau mot de passe</label>
             <input 
               type="password" 
               class="profile-form-input" 
@@ -1115,14 +1112,13 @@
               placeholder="Au moins 8 caractères"
               minlength="8"
               required
-              style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; outline: none;"
             >
-            <span class="profile-form-hint" style="color: var(--color-text-secondary); font-size: 0.875rem; margin-top: 4px; display: block;">Minimum 8 caractères, incluant lettres et chiffres</span>
-            <span class="profile-form-error" id="newPasswordError" style="color: var(--color-brand-700); font-size: 0.875rem; margin-top: 4px; display: none;"></span>
+            <span class="profile-form-hint">Minimum 8 caractères, incluant lettres et chiffres</span>
+            <span class="profile-form-error" id="newPasswordError"></span>
           </div>
 
-          <div class="profile-form-group" style="margin-bottom: 24px;">
-            <label class="profile-form-label" for="confirmPassword" style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--color-text-primary);">Confirmer le mot de passe</label>
+          <div class="profile-form-group">
+            <label class="profile-form-label" for="confirmPassword">Confirmer le mot de passe</label>
             <input 
               type="password" 
               class="profile-form-input" 
@@ -1131,12 +1127,11 @@
               placeholder="Confirmez votre nouveau mot de passe"
               minlength="8"
               required
-              style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; outline: none;"
             >
-            <span class="profile-form-error" id="confirmPasswordError" style="color: var(--color-brand-700); font-size: 0.875rem; margin-top: 4px; display: none;"></span>
+            <span class="profile-form-error" id="confirmPasswordError"></span>
           </div>
 
-          <button type="submit" class="profile-form-submit mm-btn primary" id="passwordSubmitBtn" style="width: 100%; padding: 14px; background: var(--color-brand-500); color: white; border: 0; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s;">
+          <button type="submit" class="profile-form-submit mm-btn primary" id="passwordSubmitBtn">
             Changer le mot de passe
           </button>
         </form>
@@ -1144,11 +1139,6 @@
     </div>
   </div>
   
-  <!-- Profile Modal Script -->
-  <script defer src="./js/profile-modal.js"></script>
-</body>
-</html>
-
   <!-- Profile Modal Script -->
   <script defer src="./js/profile-modal.js"></script>
 </body>

@@ -1,0 +1,12 @@
+:root {
+  --primary: var(--color-brand-500);
+  --primary-600: var(--color-brand-400);
+  --primary-700: var(--color-brand-600);
+  --bg: var(--color-background);
+  --card: var(--color-surface);
+  --muted: var(--color-text-muted);
+  --text: var(--color-text-primary);
+  --border: var(--color-border-default);
+  --chip: var(--color-surface-info);
+  --chip-text: var(--color-text-link);
+}

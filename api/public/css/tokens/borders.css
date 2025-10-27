@@ -1,0 +1,11 @@
+:root {
+  --color-border-default: #e5e7eb;
+  --color-border-subtle: #e5e5e5;
+  --color-border-soft: #e2e8f0;
+  --color-border-info: #bfdbfe;
+  --color-border-success: #9ae6b4;
+  --color-border-strong: #dbe0e6;
+  --color-border-accent: #ffa1b2;
+  --color-border-faint: #eeeeee;
+  --color-success-bg: #f0fff4;
+}
