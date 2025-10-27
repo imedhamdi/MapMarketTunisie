@@ -399,7 +399,27 @@
       if (key == null) return null;
       return allItemsIndex.get(key) || allItems.find((item) => String(item.id) === key) || null;
     };
-    window.authStore = { get() { try { return JSON.parse(localStorage.getItem('mm-auth') || 'null') } catch { return null } }, set(v) { localStorage.setItem('mm-auth', JSON.stringify(v)) } };
+    window.authStore = {
+      get() {
+        try {
+          return JSON.parse(localStorage.getItem('mm-auth') || 'null');
+        } catch {
+          return null;
+        }
+      },
+      set(value) {
+        if (value === null || value === undefined) {
+          localStorage.removeItem('mm-auth');
+        } else {
+          localStorage.setItem('mm-auth', JSON.stringify(value));
+        }
+        try {
+          document.dispatchEvent(new CustomEvent('auth:change', { detail: value }));
+        } catch (error) {
+          console.warn('[AuthStore] dispatch error', error);
+        }
+      }
+    };
 
     // ---------- UTIL ----------
     function categoryClass(cat) {
@@ -3226,6 +3246,11 @@
       const auth = authStore.get();
       renderAvatar(auth);
     }
+    window.updateAuthUI = updateAuthUI;
+
+    document.addEventListener('auth:change', () => {
+      updateAuthUI();
+    });
 
     async function hydrateAuthFromSession() {
       try {

@@ -97,7 +97,14 @@ class AdService {
   buildSearchQuery(filters = {}) {
     const { category, owner, status, search, condition, minPrice, maxPrice, city } = filters;
 
-    const query = { status: status || AD_STATUS.ACTIVE };
+    const query = {};
+
+    const normalizedStatus = (status || '').toString().toLowerCase();
+    if (normalizedStatus && normalizedStatus !== 'all' && normalizedStatus !== 'any') {
+      query.status = normalizedStatus;
+    } else if (!status) {
+      query.status = AD_STATUS.ACTIVE;
+    }
 
     if (category) {
       query.category = category;

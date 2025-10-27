@@ -936,215 +936,178 @@
 
   <!-- PROFILE MODAL -->
   <div id="profileOverlay" class="mm-overlay" hidden></div>
-  <div class="mm-modal" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
-    <header class="mm-header">
-      <div class="mm-header-row">
-        <h2 id="profileTitle">Mon Profil <span id="profileSheetCount" class="mm-count"></span></h2>
-        <div class="mm-actions">
-          <button class="mm-icon" id="profileClose" aria-label="Fermer le profil">✕</button>
-        </div>
+  <div class="mm-modal profile-shell" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
+    <header class="profile-shell__header">
+      <div>
+        <h2 id="profileTitle">Mon profil</h2>
+        <p id="profileSubtitle">Visualisez et optimisez vos performances en un coup d'œil.</p>
       </div>
+      <button class="mm-icon" id="profileClose" aria-label="Fermer le profil">✕</button>
     </header>
 
-    <div class="mm-modal-body">
-      <!-- Profile Header Section -->
-      <div class="profile-header-section">
-        <div class="profile-user-info">
-          <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
-            <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar" loading="lazy" decoding="async">
-            <div class="profile-avatar-edit">📷</div>
-            <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*">
-          </div>
-          <div class="profile-user-details">
-            <h3 id="profileUserName">Utilisateur</h3>
-            <div class="profile-user-meta">
-              <div>
-                <span>📧</span>
-                <span id="profileEmail">email@example.com</span>
-              </div>
-              <div>
-                <span>📅</span>
-                <span id="profileMemberSince">Membre depuis 2024</span>
+    <div class="profile-shell__body">
+      <div class="profile-tabs" role="tablist">
+        <button class="profile-tab active" data-tab="overview" role="tab" aria-controls="tab-overview">Aperçu</button>
+        <button class="profile-tab" data-tab="analytics" role="tab" aria-controls="tab-analytics">Analytics</button>
+        <button class="profile-tab" data-tab="ads" role="tab" aria-controls="tab-ads">Mes annonces</button>
+        <button class="profile-tab" data-tab="settings" role="tab" aria-controls="tab-settings">Réglages</button>
+      </div>
+
+      <section class="profile-tab-content active" id="tab-overview" role="tabpanel">
+        <div class="profile-overview" id="profileOverview">
+          <section class="profile-summary-card" id="profileSummaryCard">
+            <div class="profile-summary-card__avatar">
+              <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
+                <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar" loading="lazy" decoding="async">
+                <button type="button" class="profile-avatar-trigger" id="profileAvatarTrigger">Modifier</button>
+                <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*" hidden>
               </div>
             </div>
-          </div>
+            <div class="profile-summary-card__content">
+              <div class="profile-summary-card__header">
+                <h3 id="profileUserName">Utilisateur</h3>
+                <span class="profile-badge" id="profileMemberSince">Membre depuis —</span>
+              </div>
+              <p class="profile-summary-card__email" id="profileEmail">email@example.com</p>
+              <div class="profile-summary-card__meta" id="profileMeta">
+                <span class="profile-chip" id="profileLocationChip">Localisation inconnue</span>
+                <span class="profile-chip muted" id="profileStatusChip">— annonces actives</span>
+              </div>
+              <div class="profile-summary-card__actions">
+                <button type="button" class="mm-btn" data-open-tab="settings">Modifier mon profil</button>
+                <button type="button" class="mm-btn subtle" id="profileOpenNewAd">Créer une annonce</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-metric-grid" id="profileMetricGrid"></section>
+
+          <section class="profile-insights" id="profileInsights"></section>
+
+          <section class="profile-activity">
+            <div class="profile-section-heading">
+              <h3>Activité récente</h3>
+              <button type="button" class="profile-link" data-open-tab="ads">Gérer mes annonces</button>
+            </div>
+            <div id="profileActivity"></div>
+          </section>
         </div>
-      </div>
+      </section>
 
-      <!-- Tabs -->
-      <div class="profile-tabs">
-        <button class="profile-tab active" data-tab="overview">📊 Vue d'ensemble</button>
-        <button class="profile-tab" data-tab="ads">📝 Mes annonces</button>
-        <button class="profile-tab" data-tab="password">🔒 Mot de passe</button>
-      </div>
-
-      <!-- Overview Tab -->
-      <div class="profile-tab-content active" id="tab-overview">
-        <div class="profile-stats-grid">
-          <div class="profile-stat-card">
-            <div class="profile-stat-value" id="statActiveAds">0</div>
-            <div class="profile-stat-label">Annonces actives</div>
-          </div>
-          <div class="profile-stat-card">
-            <div class="profile-stat-value" id="statDraftAds">0</div>
-            <div class="profile-stat-label">Brouillons</div>
-          </div>
-          <div class="profile-stat-card">
-            <div class="profile-stat-value" id="statTotalViews">0</div>
-            <div class="profile-stat-label">Vues totales</div>
-          </div>
-          <div class="profile-stat-card">
-            <div class="profile-stat-value" id="statTotalFavorites">0</div>
-            <div class="profile-stat-label">Favoris totaux</div>
-          </div>
-        </div>
-
-        <div class="profile-section">
-          <h3>📊 Analytics détaillées</h3>
-          
-          <div class="analytics-grid">
+      <section class="profile-tab-content" id="tab-analytics" role="tabpanel">
+        <div class="profile-analytics" id="profileAnalytics">
+          <div class="analytics-snapshot" id="analyticsOverview"></div>
+          <div class="analytics-columns">
             <div class="analytics-card">
-              <div>👁️ Vues</div>
-              <div id="analyticsViews">0</div>
+              <h3>Performances par catégorie</h3>
+              <div id="analyticsCategory"></div>
             </div>
             <div class="analytics-card">
-              <div>💬 Contacts</div>
-              <div id="analyticsContacts">0</div>
+              <h3>Répartition des statuts</h3>
+              <div id="analyticsStatus"></div>
+            </div>
+          </div>
+          <div class="analytics-columns">
+            <div class="analytics-card">
+              <h3>Distribution des prix</h3>
+              <div id="analyticsPrices"></div>
             </div>
             <div class="analytics-card">
-              <div>⭐ Engagement</div>
-              <div id="analyticsEngagement">0%</div>
-            </div>
-            <div class="analytics-card">
-              <div>📈 Conversion</div>
-              <div id="analyticsConversion">0%</div>
+              <h3>Top annonces</h3>
+              <div id="analyticsTopAds"></div>
             </div>
           </div>
-
-          <div class="analytics-panel">
-            <h4>🏆 Annonces les plus performantes</h4>
-            <div class="analytics-list" id="topPerformingAds"></div>
+          <div class="analytics-card">
+            <h3>Villes les plus actives</h3>
+            <div id="analyticsLocations" class="analytics-pills"></div>
           </div>
+        </div>
+      </section>
 
-          <div class="analytics-panel">
-            <h4>🌍 Sources de trafic</h4>
-            <div class="analytics-traffic">
-              <div class="traffic-item">
-                <div class="traffic-label">
-                  <span class="traffic-dot traffic-dot--direct"></span>
-                  Recherche directe
-                </div>
-                <div class="traffic-bar">
-                  <div id="trafficDirect" class="traffic-fill"></div>
-                </div>
-                <div id="trafficDirectValue" class="traffic-value">0%</div>
+      <section class="profile-tab-content" id="tab-ads" role="tabpanel">
+        <div class="profile-ads-toolbar">
+          <div class="profile-ads-filters" id="profileAdsFilters">
+            <button class="profile-filter-btn active" data-filter="all">Toutes <span class="profile-filter-badge" id="filterAllCount">0</span></button>
+            <button class="profile-filter-btn" data-filter="active">Actives <span class="profile-filter-badge" id="filterActiveCount">0</span></button>
+            <button class="profile-filter-btn" data-filter="draft">Brouillons <span class="profile-filter-badge" id="filterDraftCount">0</span></button>
+            <button class="profile-filter-btn" data-filter="archived">Archivées <span class="profile-filter-badge" id="filterArchivedCount">0</span></button>
+          </div>
+          <button type="button" class="mm-btn primary" id="profileNewAd">Nouvelle annonce</button>
+        </div>
+        <div class="profile-ads-grid" id="profileAdsGrid"></div>
+        <div class="profile-empty" id="profileAdsEmpty" hidden>
+          <div class="profile-empty__icon">📦</div>
+          <p class="profile-empty__title">Aucune annonce</p>
+          <p class="profile-empty__text">Publiez votre première annonce pour apparaître ici.</p>
+          <button type="button" class="mm-btn" id="profileEmptyCreate">Publier une annonce</button>
+        </div>
+      </section>
+
+      <section class="profile-tab-content" id="tab-settings" role="tabpanel">
+        <div class="profile-settings">
+          <section class="profile-settings__card">
+            <h3>Informations personnelles</h3>
+            <form id="profileInfoForm" class="profile-form">
+              <div class="profile-form-row">
+                <label for="profileName">Nom complet</label>
+                <input id="profileName" name="name" type="text" autocomplete="name" required>
               </div>
-              <div class="traffic-item">
-                <div class="traffic-label">
-                  <span class="traffic-dot traffic-dot--map"></span>
-                  Carte interactive
-                </div>
-                <div class="traffic-bar">
-                  <div id="trafficMap" class="traffic-fill"></div>
-                </div>
-                <div id="trafficMapValue" class="traffic-value">0%</div>
+              <div class="profile-form-row">
+                <label for="profileEmailInput">Adresse e-mail</label>
+                <input id="profileEmailInput" name="email" type="email" autocomplete="email" required>
               </div>
-              <div class="traffic-item">
-                <div class="traffic-label">
-                  <span class="traffic-dot traffic-dot--favorites"></span>
-                  Favoris
-                </div>
-                <div class="traffic-bar">
-                  <div id="trafficFavorites" class="traffic-fill"></div>
-                </div>
-                <div id="trafficFavoritesValue" class="traffic-value">0%</div>
+              <div class="profile-form-actions">
+                <button type="submit" class="mm-btn primary" id="profileInfoSubmit">Enregistrer</button>
               </div>
-            </div>
-          </div>
+              <p class="profile-form-feedback" id="profileInfoFeedback"></p>
+            </form>
+          </section>
+
+          <section class="profile-settings__card">
+            <h3>Localisation</h3>
+            <form id="profileLocationForm" class="profile-form">
+              <div class="profile-form-row">
+                <label for="profileCity">Ville</label>
+                <input id="profileCity" name="city" type="text" placeholder="Ex. Tunis" autocomplete="address-level2">
+              </div>
+              <div class="profile-form-row">
+                <label for="profileRadius">Rayon de recherche (km)</label>
+                <input id="profileRadius" name="radiusKm" type="number" min="1" max="200" step="1">
+              </div>
+              <div class="profile-form-actions">
+                <button type="submit" class="mm-btn" id="profileLocationSubmit">Mettre à jour</button>
+              </div>
+              <p class="profile-form-feedback" id="profileLocationFeedback"></p>
+            </form>
+          </section>
+
+          <section class="profile-settings__card">
+            <h3>Sécurité</h3>
+            <form id="profilePasswordForm" class="profile-form">
+              <div class="profile-form-row">
+                <label for="currentPassword">Mot de passe actuel</label>
+                <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required>
+                <span class="profile-form-error" id="currentPasswordError"></span>
+              </div>
+              <div class="profile-form-row">
+                <label for="newPassword">Nouveau mot de passe</label>
+                <input type="password" id="newPassword" name="newPassword" minlength="8" autocomplete="new-password" required>
+                <span class="profile-form-hint">Minimum 8 caractères, incluant lettres et chiffres.</span>
+                <span class="profile-form-error" id="newPasswordError"></span>
+              </div>
+              <div class="profile-form-row">
+                <label for="confirmPassword">Confirmer le mot de passe</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required>
+                <span class="profile-form-error" id="confirmPasswordError"></span>
+              </div>
+              <div class="profile-form-actions">
+                <button type="submit" class="mm-btn primary" id="profilePasswordSubmit">Changer le mot de passe</button>
+              </div>
+              <p class="profile-form-feedback" id="profilePasswordFeedback"></p>
+            </form>
+          </section>
         </div>
-
-        <div class="profile-section">
-          <h3>⏰ Activité récente</h3>
-          <div id="recentActivityContainer"></div>
-        </div>
-      </div>
-
-      <!-- Ads Tab -->
-      <div class="profile-tab-content" id="tab-ads">
-        <div class="profile-ads-filters">
-          <button class="profile-filter-btn active" data-filter="all">
-            Toutes <span class="profile-filter-badge" id="filterAllCount">0</span>
-          </button>
-          <button class="profile-filter-btn" data-filter="active">
-            Actives <span class="profile-filter-badge" id="filterActiveCount">0</span>
-          </button>
-          <button class="profile-filter-btn" data-filter="draft">
-            Brouillons <span class="profile-filter-badge" id="filterDraftCount">0</span>
-          </button>
-          <button class="profile-filter-btn" data-filter="archived">
-            Archivées <span class="profile-filter-badge" id="filterArchivedCount">0</span>
-          </button>
-        </div>
-
-        <div class="mm-grid" id="profileAdsGrid"></div>
-
-        <div class="mm-empty" id="profileAdsEmpty">
-          <div class="profile-empty-icon">📦</div>
-          <h3>Aucune annonce</h3>
-          <p>Vous n'avez pas encore publié d'annonce</p>
-        </div>
-      </div>
-
-      <!-- Password Tab -->
-      <div class="profile-tab-content" id="tab-password">
-        <form class="profile-password-form" id="profilePasswordForm">
-          <div class="profile-form-group">
-            <label class="profile-form-label" for="currentPassword">Mot de passe actuel</label>
-            <input 
-              type="password" 
-              class="profile-form-input" 
-              id="currentPassword" 
-              name="currentPassword"
-              placeholder="Entrez votre mot de passe actuel"
-              required
-            >
-            <span class="profile-form-error" id="currentPasswordError"></span>
-          </div>
-
-          <div class="profile-form-group">
-            <label class="profile-form-label" for="newPassword">Nouveau mot de passe</label>
-            <input 
-              type="password" 
-              class="profile-form-input" 
-              id="newPassword" 
-              name="newPassword"
-              placeholder="Au moins 8 caractères"
-              minlength="8"
-              required
-            >
-            <span class="profile-form-hint">Minimum 8 caractères, incluant lettres et chiffres</span>
-            <span class="profile-form-error" id="newPasswordError"></span>
-          </div>
-
-          <div class="profile-form-group">
-            <label class="profile-form-label" for="confirmPassword">Confirmer le mot de passe</label>
-            <input 
-              type="password" 
-              class="profile-form-input" 
-              id="confirmPassword" 
-              name="confirmPassword"
-              placeholder="Confirmez votre nouveau mot de passe"
-              minlength="8"
-              required
-            >
-            <span class="profile-form-error" id="confirmPasswordError"></span>
-          </div>
-
-          <button type="submit" class="profile-form-submit mm-btn primary" id="passwordSubmitBtn">
-            Changer le mot de passe
-          </button>
-        </form>
-      </div>
+      </section>
     </div>
   </div>
   

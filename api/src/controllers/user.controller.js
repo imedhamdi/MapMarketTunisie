@@ -283,17 +283,88 @@ export async function getUserStats(req, res) {
   try {
     const userId = req.user._id;
 
-    // Récupérer toutes les annonces de l'utilisateur
-    const userAds = await Ad.find({ owner: userId });
+    const userAds = await Ad.find({ owner: userId })
+      .select('title status price views favoritesCount thumbnails previews images locationText createdAt updatedAt')
+      .lean();
 
-    // Calculer les statistiques
-    const stats = {
+    const totals = {
       total: userAds.length,
-      active: userAds.filter((ad) => ad.status === 'active').length,
-      draft: userAds.filter((ad) => ad.status === 'draft').length,
-      archived: userAds.filter((ad) => ad.status === 'archived').length,
-      totalViews: userAds.reduce((sum, ad) => sum + (ad.views || 0), 0),
-      totalFavorites: userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0)
+      active: 0,
+      draft: 0,
+      archived: 0,
+      deleted: 0
+    };
+
+    let totalViews = 0;
+    let totalFavorites = 0;
+    let totalValue = 0;
+    let minPrice = Number.POSITIVE_INFINITY;
+    let maxPrice = Number.NEGATIVE_INFINITY;
+
+    userAds.forEach((ad) => {
+      totals[ad.status] = (totals[ad.status] || 0) + 1;
+      const views = Number(ad.views) || 0;
+      const favs = Number(ad.favoritesCount) || 0;
+      const price = Number(ad.price) || 0;
+
+      totalViews += views;
+      totalFavorites += favs;
+      totalValue += price;
+      if (price > 0) {
+        minPrice = Math.min(minPrice, price);
+        maxPrice = Math.max(maxPrice, price);
+      }
+    });
+
+    if (!Number.isFinite(minPrice)) {
+      minPrice = 0;
+    }
+    if (!Number.isFinite(maxPrice)) {
+      maxPrice = 0;
+    }
+
+    const totalAds = Math.max(totals.total, 1);
+    const stats = {
+      summary: {
+        totalAds: totals.total,
+        activeAds: totals.active || 0,
+        draftAds: totals.draft || 0,
+        archivedAds: totals.archived || 0,
+        totalViews,
+        totalFavorites,
+        inventoryValue: Number(totalValue.toFixed(2)),
+        averagePrice: Number((totalValue / totalAds).toFixed(2))
+      },
+      engagement: {
+        averageViews: Number((totalViews / totalAds).toFixed(1)),
+        averageFavorites: Number((totalFavorites / totalAds).toFixed(1)),
+        activeRate: totals.total ? Number(((totals.active || 0) / totals.total * 100).toFixed(1)) : 0
+      },
+      price: {
+        min: minPrice,
+        max: maxPrice,
+        average: Number((totalValue / totalAds).toFixed(2)),
+        total: Number(totalValue.toFixed(2))
+      },
+      recentActivity: userAds
+        .slice()
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+        .slice(0, 6)
+        .map((ad) => ({
+          id: ad._id,
+          title: ad.title,
+          status: ad.status,
+          views: Number(ad.views) || 0,
+          favorites: Number(ad.favoritesCount) || 0,
+          price: Number(ad.price) || 0,
+          createdAt: ad.createdAt,
+          updatedAt: ad.updatedAt,
+          thumbnail:
+            (ad.previews && ad.previews[0]) ||
+            (ad.thumbnails && ad.thumbnails[0]) ||
+            (ad.images && ad.images[0]) ||
+            null
+        }))
     };
 
     return sendSuccess(res, {
@@ -312,9 +383,9 @@ export async function getUserStats(req, res) {
 export async function getUserAnalytics(req, res) {
   try {
     const userId = req.user._id;
-
-    // Récupérer toutes les annonces de l'utilisateur
-    const userAds = await Ad.find({ owner: userId });
+    const userAds = await Ad.find({ owner: userId })
+      .select('title status price views favoritesCount thumbnails previews images locationText location.category category createdAt updatedAt')
+      .lean();
 
     if (userAds.length === 0) {
       return sendSuccess(res, {
@@ -323,69 +394,100 @@ export async function getUserAnalytics(req, res) {
       });
     }
 
-    // Calculer les métriques
-    const totalViews = userAds.reduce((sum, ad) => sum + (ad.views || 0), 0);
-    const totalFavorites = userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0);
-    const totalContacts = userAds.reduce((sum, ad) => sum + (ad.contacts || 0), 0);
+    const totalViews = userAds.reduce((sum, ad) => sum + (Number(ad.views) || 0), 0);
+    const totalFavorites = userAds.reduce((sum, ad) => sum + (Number(ad.favoritesCount) || 0), 0);
+    const totalValue = userAds.reduce((sum, ad) => sum + (Number(ad.price) || 0), 0);
 
-    // Taux d'engagement (favoris / vues * 100)
-    const engagementRate = totalViews > 0 ? ((totalFavorites / totalViews) * 100).toFixed(1) : 0;
+    const statusMap = new Map();
+    const categoryMap = new Map();
+    const locationMap = new Map();
 
-    // Taux de conversion (contacts / vues * 100)
-    const conversionRate = totalViews > 0 ? ((totalContacts / totalViews) * 100).toFixed(1) : 0;
+    userAds.forEach((ad) => {
+      const status = ad.status || 'unknown';
+      statusMap.set(status, (statusMap.get(status) || 0) + 1);
 
-    // Top performing ads (top 5 par vues)
-    const topAds = [...userAds]
-      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      const category = ad.category || 'Autres';
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, { count: 0, views: 0, favorites: 0, totalPrice: 0 });
+      }
+      const catEntry = categoryMap.get(category);
+      catEntry.count += 1;
+      catEntry.views += Number(ad.views) || 0;
+      catEntry.favorites += Number(ad.favoritesCount) || 0;
+      catEntry.totalPrice += Number(ad.price) || 0;
+
+      const city = ad.locationText || ad.location?.city || 'Non spécifié';
+      if (!locationMap.has(city)) {
+        locationMap.set(city, { count: 0, views: 0 });
+      }
+      const cityEntry = locationMap.get(city);
+      cityEntry.count += 1;
+      cityEntry.views += Number(ad.views) || 0;
+    });
+
+    const priceBuckets = [
+      { label: '0 - 50€', min: 0, max: 50, count: 0 },
+      { label: '50 - 200€', min: 50, max: 200, count: 0 },
+      { label: '200 - 500€', min: 200, max: 500, count: 0 },
+      { label: '500 - 1 000€', min: 500, max: 1000, count: 0 },
+      { label: '1 000€ et plus', min: 1000, max: Infinity, count: 0 }
+    ];
+
+    userAds.forEach((ad) => {
+      const price = Number(ad.price) || 0;
+      const bucket = priceBuckets.find((b) => price >= b.min && price < b.max);
+      if (bucket) {
+        bucket.count += 1;
+      }
+    });
+
+    const topAds = userAds
+      .slice()
+      .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0))
       .slice(0, 5)
       .map((ad) => ({
         id: ad._id,
         title: ad.title,
-        category: ad.category,
-        city: ad.city,
-        views: ad.views || 0,
-        favorites: ad.favoritesCount || 0,
-        contacts: ad.contacts || 0
+        category: ad.category || 'Autres',
+        status: ad.status,
+        views: Number(ad.views) || 0,
+        favorites: Number(ad.favoritesCount) || 0,
+        price: Number(ad.price) || 0,
+        thumbnail:
+          (ad.previews && ad.previews[0]) ||
+          (ad.thumbnails && ad.thumbnails[0]) ||
+          (ad.images && ad.images[0]) ||
+          null
       }));
 
-    // Analytics par catégorie
-    const categoryStats = {};
-    userAds.forEach((ad) => {
-      const cat = ad.category || 'Non catégorisé';
-      if (!categoryStats[cat]) {
-        categoryStats[cat] = { count: 0, views: 0, favorites: 0 };
-      }
-      categoryStats[cat].count++;
-      categoryStats[cat].views += ad.views || 0;
-      categoryStats[cat].favorites += ad.favoritesCount || 0;
-    });
-
-    // Analytics par ville
-    const cityStats = {};
-    userAds.forEach((ad) => {
-      const city = ad.city || 'Non spécifié';
-      if (!cityStats[city]) {
-        cityStats[city] = { count: 0, views: 0 };
-      }
-      cityStats[city].count++;
-      cityStats[city].views += ad.views || 0;
-    });
+    const averageViews = Number((totalViews / userAds.length).toFixed(1));
+    const averageFavorites = Number((totalFavorites / userAds.length).toFixed(1));
 
     const analytics = {
       overview: {
         totalViews,
         totalFavorites,
-        totalContacts,
-        engagementRate: parseFloat(engagementRate),
-        conversionRate: parseFloat(conversionRate)
+        averageViews,
+        averageFavorites,
+        inventoryValue: Number(totalValue.toFixed(2))
       },
+      statusBreakdown: Array.from(statusMap.entries()).map(([status, count]) => ({ status, count })),
+      categoryPerformance: Array.from(categoryMap.entries())
+        .map(([category, data]) => ({
+          category,
+          count: data.count,
+          views: data.views,
+          favorites: data.favorites,
+          averagePrice: data.count ? Number((data.totalPrice / data.count).toFixed(2)) : 0
+        }))
+        .sort((a, b) => b.views - a.views),
+      priceDistribution: priceBuckets,
+      locationDistribution: Array.from(locationMap.entries())
+        .map(([city, data]) => ({ city, count: data.count, views: data.views }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10),
       topPerformingAds: topAds,
-      categoryStats,
-      cityStats,
-      averages: {
-        viewsPerAd: userAds.length > 0 ? (totalViews / userAds.length).toFixed(1) : 0,
-        favoritesPerAd: userAds.length > 0 ? (totalFavorites / userAds.length).toFixed(1) : 0
-      }
+      insights: buildAnalyticsInsights({ totals: statusMap, averageViews, averageFavorites })
     };
 
     return sendSuccess(res, {
@@ -400,6 +502,35 @@ export async function getUserAnalytics(req, res) {
       message: 'Erreur lors de la récupération des analytics.'
     });
   }
+}
+
+function buildAnalyticsInsights({ totals, averageViews, averageFavorites }) {
+  const insights = [];
+  const active = totals.get('active') || 0;
+  const draft = totals.get('draft') || 0;
+  const archived = totals.get('archived') || 0;
+  const total = Array.from(totals.values()).reduce((sum, value) => sum + value, 0) || 1;
+
+  if (active === 0 && draft > 0) {
+    insights.push("Vous avez des brouillons en attente. Publiez-les pour gagner en visibilité.");
+  }
+
+  if (archived > active) {
+    insights.push("Votre catalogue semble calme. Réactivez des annonces pour rester visible.");
+  }
+
+  if (averageViews < 10) {
+    insights.push("Boostez vos annonces avec des photos de qualité et des descriptions détaillées.");
+  }
+
+  if (averageFavorites === 0 && active > 0) {
+    insights.push("Ajoutez des promotions ou réductions pour attirer plus de favoris.");
+  }
+
+  const activeRate = Number(((active / total) * 100).toFixed(1));
+  insights.push(`Taux d'annonces actives : ${activeRate}%`);
+
+  return insights.slice(0, 4);
 }
 
 export const changePassword = async (req, res) => {
