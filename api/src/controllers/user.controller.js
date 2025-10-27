@@ -7,6 +7,7 @@ import logger from '../config/logger.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import { clearAuthCookies } from '../utils/generateTokens.js';
 import { optimizeAvatar } from '../services/image.service.js';
+import userService from '../services/user.service.js';
 
 const sanitize = (value) =>
   typeof value === 'string'
@@ -401,7 +402,7 @@ export async function getUserAnalytics(req, res) {
   }
 }
 
-export async function changePassword(req, res) {
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -421,46 +422,39 @@ export async function changePassword(req, res) {
       });
     }
 
-    // Récupérer l'utilisateur avec le mot de passe
-    const user = await User.findById(req.user._id).select('+password');
-
-    if (!user) {
-      return sendError(res, {
-        statusCode: 404,
-        code: 'USER_NOT_FOUND',
-        message: 'Utilisateur introuvable.'
-      });
-    }
-
-    // Vérifier le mot de passe actuel
-    const bcrypt = await import('bcryptjs');
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-
-    if (!isMatch) {
-      return sendError(res, {
-        statusCode: 401,
-        code: 'INVALID_PASSWORD',
-        message: 'Mot de passe actuel incorrect.'
-      });
-    }
-
-    // Hasher et sauvegarder le nouveau mot de passe
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-    user.password = hashedPassword;
-    await user.save();
+    // Utiliser le service pour changer le mot de passe
+    await userService.changePassword(req.user._id, currentPassword, newPassword);
 
     return sendSuccess(res, {
       message: 'Mot de passe modifié avec succès'
     });
   } catch (error) {
     logger.error('Erreur lors du changement de mot de passe', { error: error.message });
+    
+    // Gérer les erreurs spécifiques du service
+    if (error.statusCode === 401 || error.code === 'INVALID_PASSWORD') {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'INVALID_PASSWORD',
+        message: 'Mot de passe actuel incorrect.'
+      });
+    }
+    
+    if (error.statusCode === 404) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur introuvable.'
+      });
+    }
+    
     return sendError(res, {
       statusCode: 500,
       code: 'SERVER_ERROR',
       message: 'Erreur lors du changement de mot de passe.'
     });
   }
-}
+};
 
 /**
  * Upload/update user avatar
