@@ -5,7 +5,12 @@ import env from '../config/env.js';
 import { sendResetPasswordEmail } from '../config/mailer.js';
 import User from '../models/user.model.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
-import { createResetToken, hashResetToken, hashPassword, comparePassword } from '../utils/crypto.js';
+import {
+  createResetToken,
+  hashResetToken,
+  hashPassword,
+  comparePassword
+} from '../utils/crypto.js';
 import { generateAuthTokens, setAuthCookies, clearAuthCookies } from '../utils/generateTokens.js';
 
 const sanitize = (value) =>

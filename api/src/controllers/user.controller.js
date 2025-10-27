@@ -6,6 +6,7 @@ import Ad from '../models/ad.model.js';
 import logger from '../config/logger.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import { clearAuthCookies } from '../utils/generateTokens.js';
+import { optimizeAvatar } from '../services/image.service.js';
 
 const sanitize = (value) =>
   typeof value === 'string'
@@ -16,7 +17,9 @@ const sanitize = (value) =>
     : value;
 
 function normalizeCoords(coords) {
-  if (!coords) return undefined;
+  if (!coords) {
+    return undefined;
+  }
   if (Array.isArray(coords) && coords.length === 2) {
     const [lng, lat] = coords.map((n) => Number(n));
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -49,13 +52,17 @@ function applyLocation(user, locationPayload = {}) {
       update.coords = undefined;
     }
   }
-  if (radiusKm !== undefined) update.radiusKm = radiusKm;
-  if (consent !== undefined) update.consent = consent;
+  if (radiusKm !== undefined) {
+    update.radiusKm = radiusKm;
+  }
+  if (consent !== undefined) {
+    update.consent = consent;
+  }
 
   const existing =
     typeof user.location?.toObject === 'function'
       ? user.location.toObject()
-      : user.location ?? {};
+      : (user.location ?? {});
 
   user.location = {
     ...existing,
@@ -118,24 +125,24 @@ export async function updateLocation(req, res) {
 
   // Support pour les deux formats: { lat, lng, radiusKm } et l'ancien format { coords, city, ... }
   const { lat, lng, radiusKm } = req.body;
-  
+
   if (lat != null && lng != null) {
     // Nouveau format simplifié
     const locationUpdate = {
       coords: [Number(lng), Number(lat)],
       consent: true
     };
-    
+
     if (radiusKm !== undefined) {
       locationUpdate.radiusKm = Number(radiusKm);
     }
-    
+
     applyLocation(user, locationUpdate);
   } else {
     // Ancien format (support legacy)
     applyLocation(user, req.body);
   }
-  
+
   await user.save();
 
   return sendSuccess(res, {
@@ -153,19 +160,50 @@ export async function updateAvatar(req, res) {
     });
   }
 
-  const user = await User.findByIdAndUpdate(req.user._id, { avatar: req.file.filename }, { new: true });
-  if (!user) {
+  try {
+    // Optimiser l'avatar avec Sharp
+    const avatarDir = 'uploads/avatars';
+    const optimized = await optimizeAvatar(req.file.path, avatarDir, req.user._id);
+
+    // Mettre à jour l'utilisateur avec les URLs
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        avatar: optimized.sizes.standard,
+        avatarUrl: optimized.sizes.standard
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur introuvable.'
+      });
+    }
+
+    logger.info('Avatar optimisé et sauvegardé', {
+      userId: user._id,
+      sizes: optimized.sizes
+    });
+
+    return sendSuccess(res, {
+      message: 'Avatar mis à jour',
+      data: {
+        avatar: user.avatar,
+        avatarUrl: user.avatarUrl,
+        sizes: optimized.sizes
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur mise à jour avatar', { error: error.message });
     return sendError(res, {
-      statusCode: 404,
-      code: 'USER_NOT_FOUND',
-      message: 'Utilisateur introuvable.'
+      statusCode: 500,
+      code: 'AVATAR_OPTIMIZATION_ERROR',
+      message: 'Erreur lors de l\'optimisation de l\'avatar.'
     });
   }
-
-  return sendSuccess(res, {
-    message: 'Avatar mis à jour',
-    data: { avatar: user.avatar }
-  });
 }
 
 export async function updateFavorites(req, res) {
@@ -189,13 +227,19 @@ export async function updateFavorites(req, res) {
     });
   }
 
-  const favorites = new Set((user.favorites ?? []).map((id) => (id && typeof id.toString === 'function' ? id.toString() : String(id))));
+  const favorites = new Set(
+    (user.favorites ?? []).map((id) =>
+      id && typeof id.toString === 'function' ? id.toString() : String(id)
+    )
+  );
   if (action === 'add') {
     favorites.add(normalizedId);
   } else {
     favorites.delete(normalizedId);
   }
-  user.favorites = Array.from(favorites).map((id) => (mongoose.isValidObjectId(id) ? new mongoose.Types.ObjectId(id) : id));
+  user.favorites = Array.from(favorites).map((id) =>
+    mongoose.isValidObjectId(id) ? new mongoose.Types.ObjectId(id) : id
+  );
   await user.save();
 
   if (mongoose.isValidObjectId(normalizedId)) {
@@ -208,13 +252,20 @@ export async function updateFavorites(req, res) {
         await adDoc.save();
       }
     } catch (error) {
-      logger.warn('Impossible de synchroniser le compteur de favoris', { error: error.message, adId: normalizedId });
+      logger.warn('Impossible de synchroniser le compteur de favoris', {
+        error: error.message,
+        adId: normalizedId
+      });
     }
   }
 
   return sendSuccess(res, {
     message: 'Favoris mis à jour',
-    data: { favorites: user.favorites.map((value) => (value && value.toString ? value.toString() : String(value))) }
+    data: {
+      favorites: user.favorites.map((value) =>
+        value && value.toString ? value.toString() : String(value)
+      )
+    }
   });
 }
 
@@ -230,20 +281,20 @@ export async function deleteMe(req, res) {
 export async function getUserStats(req, res) {
   try {
     const userId = req.user._id;
-    
+
     // Récupérer toutes les annonces de l'utilisateur
     const userAds = await Ad.find({ owner: userId });
-    
+
     // Calculer les statistiques
     const stats = {
       total: userAds.length,
-      active: userAds.filter(ad => ad.status === 'active').length,
-      draft: userAds.filter(ad => ad.status === 'draft').length,
-      archived: userAds.filter(ad => ad.status === 'archived').length,
+      active: userAds.filter((ad) => ad.status === 'active').length,
+      draft: userAds.filter((ad) => ad.status === 'draft').length,
+      archived: userAds.filter((ad) => ad.status === 'archived').length,
       totalViews: userAds.reduce((sum, ad) => sum + (ad.views || 0), 0),
       totalFavorites: userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0)
     };
-    
+
     return sendSuccess(res, {
       message: 'Statistiques récupérées',
       data: { stats }
@@ -260,33 +311,33 @@ export async function getUserStats(req, res) {
 export async function getUserAnalytics(req, res) {
   try {
     const userId = req.user._id;
-    
+
     // Récupérer toutes les annonces de l'utilisateur
     const userAds = await Ad.find({ owner: userId });
-    
+
     if (userAds.length === 0) {
       return sendSuccess(res, {
         message: 'Analytics récupérées',
         data: { analytics: null }
       });
     }
-    
+
     // Calculer les métriques
     const totalViews = userAds.reduce((sum, ad) => sum + (ad.views || 0), 0);
     const totalFavorites = userAds.reduce((sum, ad) => sum + (ad.favoritesCount || 0), 0);
     const totalContacts = userAds.reduce((sum, ad) => sum + (ad.contacts || 0), 0);
-    
+
     // Taux d'engagement (favoris / vues * 100)
     const engagementRate = totalViews > 0 ? ((totalFavorites / totalViews) * 100).toFixed(1) : 0;
-    
+
     // Taux de conversion (contacts / vues * 100)
     const conversionRate = totalViews > 0 ? ((totalContacts / totalViews) * 100).toFixed(1) : 0;
-    
+
     // Top performing ads (top 5 par vues)
     const topAds = [...userAds]
       .sort((a, b) => (b.views || 0) - (a.views || 0))
       .slice(0, 5)
-      .map(ad => ({
+      .map((ad) => ({
         id: ad._id,
         title: ad.title,
         category: ad.category,
@@ -295,10 +346,10 @@ export async function getUserAnalytics(req, res) {
         favorites: ad.favoritesCount || 0,
         contacts: ad.contacts || 0
       }));
-    
+
     // Analytics par catégorie
     const categoryStats = {};
-    userAds.forEach(ad => {
+    userAds.forEach((ad) => {
       const cat = ad.category || 'Non catégorisé';
       if (!categoryStats[cat]) {
         categoryStats[cat] = { count: 0, views: 0, favorites: 0 };
@@ -307,10 +358,10 @@ export async function getUserAnalytics(req, res) {
       categoryStats[cat].views += ad.views || 0;
       categoryStats[cat].favorites += ad.favoritesCount || 0;
     });
-    
+
     // Analytics par ville
     const cityStats = {};
-    userAds.forEach(ad => {
+    userAds.forEach((ad) => {
       const city = ad.city || 'Non spécifié';
       if (!cityStats[city]) {
         cityStats[city] = { count: 0, views: 0 };
@@ -318,7 +369,7 @@ export async function getUserAnalytics(req, res) {
       cityStats[city].count++;
       cityStats[city].views += ad.views || 0;
     });
-    
+
     const analytics = {
       overview: {
         totalViews,
@@ -335,7 +386,7 @@ export async function getUserAnalytics(req, res) {
         favoritesPerAd: userAds.length > 0 ? (totalFavorites / userAds.length).toFixed(1) : 0
       }
     };
-    
+
     return sendSuccess(res, {
       message: 'Analytics récupérées',
       data: { analytics }
@@ -353,7 +404,7 @@ export async function getUserAnalytics(req, res) {
 export async function changePassword(req, res) {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       return sendError(res, {
         statusCode: 400,
@@ -361,7 +412,7 @@ export async function changePassword(req, res) {
         message: 'Tous les champs sont requis.'
       });
     }
-    
+
     if (newPassword.length < 8) {
       return sendError(res, {
         statusCode: 400,
@@ -369,10 +420,10 @@ export async function changePassword(req, res) {
         message: 'Le mot de passe doit contenir au moins 8 caractères.'
       });
     }
-    
+
     // Récupérer l'utilisateur avec le mot de passe
     const user = await User.findById(req.user._id).select('+password');
-    
+
     if (!user) {
       return sendError(res, {
         statusCode: 404,
@@ -380,11 +431,11 @@ export async function changePassword(req, res) {
         message: 'Utilisateur introuvable.'
       });
     }
-    
+
     // Vérifier le mot de passe actuel
     const bcrypt = await import('bcryptjs');
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    
+
     if (!isMatch) {
       return sendError(res, {
         statusCode: 401,
@@ -392,12 +443,12 @@ export async function changePassword(req, res) {
         message: 'Mot de passe actuel incorrect.'
       });
     }
-    
+
     // Hasher et sauvegarder le nouveau mot de passe
     const hashedPassword = await bcrypt.hash(newPassword, 12);
     user.password = hashedPassword;
     await user.save();
-    
+
     return sendSuccess(res, {
       message: 'Mot de passe modifié avec succès'
     });
@@ -454,11 +505,11 @@ export async function uploadAvatar(req, res) {
       }
     });
   } catch (error) {
-    logger.error('Erreur lors de l\'upload de l\'avatar', { error: error.message });
+    logger.error("Erreur lors de l'upload de l'avatar", { error: error.message });
     return sendError(res, {
       statusCode: 500,
       code: 'SERVER_ERROR',
-      message: 'Erreur lors de l\'upload de l\'avatar'
+      message: "Erreur lors de l'upload de l'avatar"
     });
   }
 }

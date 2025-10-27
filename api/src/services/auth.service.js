@@ -19,9 +19,9 @@ class AuthService {
   async signup(userData) {
     const user = await userService.createUser(userData);
     const tokens = generateAuthTokens(user);
-    
+
     logger.info('Utilisateur inscrit', { userId: user._id, email: user.email });
-    
+
     return { user, tokens };
   }
 
@@ -30,22 +30,23 @@ class AuthService {
    */
   async login(email, password) {
     const user = await userService.getUserByEmail(email, true);
-    
+
     if (!user) {
       throw createError.unauthorized('Email ou mot de passe incorrect', 'INVALID_CREDENTIALS');
     }
-    
-    const passwordMatch = await userService.constructor.prototype.comparePassword?.(password, user.password) 
-      ?? (await import('../utils/crypto.js')).comparePassword(password, user.password);
-    
+
+    const passwordMatch =
+      (await userService.constructor.prototype.comparePassword?.(password, user.password)) ??
+      (await import('../utils/crypto.js')).comparePassword(password, user.password);
+
     if (!passwordMatch) {
       throw createError.unauthorized('Email ou mot de passe incorrect', 'INVALID_CREDENTIALS');
     }
-    
+
     const tokens = generateAuthTokens(user);
-    
+
     logger.info('Utilisateur connecté', { userId: user._id, email: user.email });
-    
+
     return { user, tokens };
   }
 
@@ -56,18 +57,21 @@ class AuthService {
     if (!refreshToken) {
       throw createError.unauthorized('Reconnexion requise.', 'NO_REFRESH_TOKEN');
     }
-    
+
     try {
       const payload = jwt.verify(refreshToken, env.jwtRefreshSecret);
       const user = await userService.getUserById(payload.sub);
-      
+
       const tokens = generateAuthTokens(user);
-      
+
       logger.debug('Session prolongée', { userId: user._id });
-      
+
       return { user, tokens };
     } catch (error) {
-      throw createError.unauthorized('Session expirée, veuillez vous reconnecter.', 'INVALID_REFRESH');
+      throw createError.unauthorized(
+        'Session expirée, veuillez vous reconnecter.',
+        'INVALID_REFRESH'
+      );
     }
   }
 
@@ -76,11 +80,11 @@ class AuthService {
    */
   async forgotPassword(email) {
     const user = await userService.getUserByEmail(email, false);
-    
+
     if (user) {
       const { token, hash, expiresAt } = createResetToken();
       await userService.setResetToken(user._id, hash, expiresAt);
-      
+
       try {
         await sendResetPasswordEmail(user.email, token);
         logger.info('Email de réinitialisation envoyé', { userId: user._id, email: user.email });
@@ -88,7 +92,7 @@ class AuthService {
         logger.error('Erreur envoi email reset', { error: error.message, email: user.email });
       }
     }
-    
+
     // Toujours retourner le même message pour des raisons de sécurité
     return true;
   }
@@ -99,19 +103,19 @@ class AuthService {
   async resetPassword(token, newPassword) {
     const hashedToken = hashResetToken(token);
     const user = await userService.getUserByResetToken(hashedToken);
-    
+
     if (!user) {
       throw createError.badRequest('Lien invalide ou expiré.', 'RESET_TOKEN_INVALID');
     }
-    
+
     await userService.changePassword(user._id, null, newPassword);
     await userService.clearResetToken(user._id);
-    
+
     // Générer de nouveaux tokens
     const tokens = generateAuthTokens(user);
-    
+
     logger.info('Mot de passe réinitialisé', { userId: user._id });
-    
+
     return { user, tokens };
   }
 
@@ -122,7 +126,7 @@ class AuthService {
     try {
       const payload = jwt.verify(token, env.jwtAccessSecret);
       const user = await userService.getUserById(payload.sub);
-      
+
       return user;
     } catch (error) {
       if (error.name === 'TokenExpiredError') {

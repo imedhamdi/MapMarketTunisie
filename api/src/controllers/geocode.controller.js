@@ -29,20 +29,24 @@ export async function reverseGeocode(req, res) {
     );
 
     if (!response.ok) {
-      return sendError(res, { message: 'Erreur lors du reverse geocoding', statusCode: response.status });
+      return sendError(res, {
+        message: 'Erreur lors du reverse geocoding',
+        statusCode: response.status
+      });
     }
 
     const data = await response.json();
 
     // Extraire le nom de la ville
     const address = data.address || {};
-    const city = address.city || 
-                address.town || 
-                address.village || 
-                address.municipality || 
-                address.county ||
-                address.state ||
-                '';
+    const city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county ||
+      address.state ||
+      '';
 
     return sendSuccess(res, { data: { city, fullAddress: data } });
   } catch (error) {

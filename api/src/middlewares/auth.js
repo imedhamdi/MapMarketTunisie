@@ -6,7 +6,9 @@ import { sendError } from '../utils/responses.js';
 
 function extractAccessToken(req) {
   const cookieToken = req.cookies?.access_token;
-  if (cookieToken) return cookieToken;
+  if (cookieToken) {
+    return cookieToken;
+  }
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.slice(7);
@@ -15,7 +17,9 @@ function extractAccessToken(req) {
 }
 
 async function loadUser(userId) {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
   return User.findById(userId);
 }
 
@@ -48,7 +52,9 @@ export async function authRequired(req, res, next) {
 export async function optionalAuth(req, _res, next) {
   try {
     const token = extractAccessToken(req);
-    if (!token) return next();
+    if (!token) {
+      return next();
+    }
     const decoded = jwt.verify(token, env.jwtAccessSecret);
     const user = await loadUser(decoded.sub);
     if (user) {

@@ -55,7 +55,9 @@ const categoryDefinitions = {
 };
 
 function stripTags(value) {
-  if (typeof value !== 'string') return value;
+  if (typeof value !== 'string') {
+    return value;
+  }
   return sanitizeHtml(value, {
     allowedTags: [],
     allowedAttributes: {}
@@ -74,13 +76,19 @@ function buildLocation({ latitude, longitude }) {
 function buildNormalizedAttributes(category, attributes = {}) {
   const normalized = {};
   const def = categoryDefinitions[category];
-  if (!def) return normalized;
+  if (!def) {
+    return normalized;
+  }
   def.fields.forEach((field) => {
     const value = attributes[field.id];
-    if (value == null || value === '') return;
+    if (value == null || value === '') {
+      return;
+    }
     if (field.type === 'number') {
       const num = Number(value);
-      if (!Number.isNaN(num)) normalized[`${field.id}_num`] = num;
+      if (!Number.isNaN(num)) {
+        normalized[`${field.id}_num`] = num;
+      }
     } else if (field.type === 'boolean') {
       normalized[`${field.id}_bool`] = Boolean(value);
     } else if (field.type === 'string') {
@@ -93,15 +101,21 @@ function buildNormalizedAttributes(category, attributes = {}) {
 function sanitizeAttributes(attributes = {}) {
   const sanitized = {};
   Object.entries(attributes).forEach(([key, value]) => {
-    if (typeof value === 'string') sanitized[key] = stripTags(value);
-    else sanitized[key] = value;
+    if (typeof value === 'string') {
+      sanitized[key] = stripTags(value);
+    } else {
+      sanitized[key] = value;
+    }
   });
   return sanitized;
 }
 
 export async function createAd(req, res, next) {
   try {
-    const payload = await createAdSchema.validateAsync(req.body, { abortEarly: false, stripUnknown: true });
+    const payload = await createAdSchema.validateAsync(req.body, {
+      abortEarly: false,
+      stripUnknown: true
+    });
     const owner = req.user?._id;
     if (!owner) {
       return sendError(res, {
@@ -131,7 +145,9 @@ export async function createAd(req, res, next) {
     await ad.populate('owner', 'name email avatar memberSince createdAt');
     if (ad.owner?._id) {
       const total = await Ad.countDocuments({ owner, status: 'active' });
-      if (ad.owner) ad.owner.activeAds = total;
+      if (ad.owner) {
+        ad.owner.activeAds = total;
+      }
     }
     return sendSuccess(res, {
       statusCode: 201,
@@ -161,9 +177,15 @@ export async function listAds(req, res, next) {
     const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
 
     const query = { status: status || 'active' }; // Par défaut, afficher seulement les annonces actives
-    if (category) query.category = category;
-    if (owner) query.owner = owner;
-    if (condition) query.condition = condition;
+    if (category) {
+      query.category = category;
+    }
+    if (owner) {
+      query.owner = owner;
+    }
+    if (condition) {
+      query.condition = condition;
+    }
 
     if (search && search.trim()) {
       const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -174,8 +196,12 @@ export async function listAds(req, res, next) {
     const priceConditions = {};
     const min = Number(minPrice);
     const max = Number(maxPrice);
-    if (!Number.isNaN(min)) priceConditions.$gte = min;
-    if (!Number.isNaN(max)) priceConditions.$lte = max;
+    if (!Number.isNaN(min)) {
+      priceConditions.$gte = min;
+    }
+    if (!Number.isNaN(max)) {
+      priceConditions.$lte = max;
+    }
     if (Object.keys(priceConditions).length) {
       query.price = priceConditions;
     }
@@ -186,8 +212,11 @@ export async function listAds(req, res, next) {
     }
 
     let sortOrder = { createdAt: -1 };
-    if (req.query.sort === 'priceAsc') sortOrder = { price: 1 };
-    else if (req.query.sort === 'priceDesc') sortOrder = { price: -1 };
+    if (req.query.sort === 'priceAsc') {
+      sortOrder = { price: 1 };
+    } else if (req.query.sort === 'priceDesc') {
+      sortOrder = { price: -1 };
+    }
 
     const [items, total] = await Promise.all([
       Ad.find(query)
@@ -209,7 +238,12 @@ export async function listAds(req, res, next) {
 
     if (ownerIds.length) {
       const counts = await Ad.aggregate([
-        { $match: { owner: { $in: ownerIds.map((id) => new mongoose.Types.ObjectId(id)) }, status: 'active' } },
+        {
+          $match: {
+            owner: { $in: ownerIds.map((id) => new mongoose.Types.ObjectId(id)) },
+            status: 'active'
+          }
+        },
         { $group: { _id: '$owner', total: { $sum: 1 } } }
       ]);
       const map = Object.fromEntries(counts.map((entry) => [entry._id.toString(), entry.total]));
@@ -262,8 +296,11 @@ export async function getAd(req, res, next) {
 export async function updateAd(req, res, next) {
   try {
     const { id } = req.params;
-    const payload = await updateAdSchema.validateAsync(req.body, { abortEarly: false, stripUnknown: true });
-    
+    const payload = await updateAdSchema.validateAsync(req.body, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+
     const ad = await Ad.findById(id);
     if (!ad) {
       return sendError(res, {
@@ -272,22 +309,36 @@ export async function updateAd(req, res, next) {
         message: 'Annonce introuvable.'
       });
     }
-    
+
     if (String(ad.owner) !== String(req.user?._id)) {
       return sendError(res, {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Seul l\'auteur peut modifier cette annonce.'
+        message: "Seul l'auteur peut modifier cette annonce."
       });
     }
 
-    if (payload.title) ad.title = stripTags(payload.title);
-    if (payload.description) ad.description = stripTags(payload.description);
-    if (payload.category) ad.category = payload.category;
-    if (payload.condition) ad.condition = payload.condition;
-    if (payload.price != null) ad.price = payload.price;
-    if (payload.status) ad.status = payload.status;
-    if (payload.locationText) ad.locationText = stripTags(payload.locationText);
+    if (payload.title) {
+      ad.title = stripTags(payload.title);
+    }
+    if (payload.description) {
+      ad.description = stripTags(payload.description);
+    }
+    if (payload.category) {
+      ad.category = payload.category;
+    }
+    if (payload.condition) {
+      ad.condition = payload.condition;
+    }
+    if (payload.price != null) {
+      ad.price = payload.price;
+    }
+    if (payload.status) {
+      ad.status = payload.status;
+    }
+    if (payload.locationText) {
+      ad.locationText = stripTags(payload.locationText);
+    }
     if (payload.latitude != null && payload.longitude != null) {
       ad.location = buildLocation({ latitude: payload.latitude, longitude: payload.longitude });
     }
@@ -302,13 +353,13 @@ export async function updateAd(req, res, next) {
     ad.attributesNormalized = buildNormalizedAttributes(categoryForNormalization, ad.attributes);
 
     await ad.save();
-    
+
     await ad.populate('owner', 'name email avatar memberSince createdAt');
     if (ad.owner?._id) {
       const total = await Ad.countDocuments({ owner: ad.owner._id, status: 'active' });
       ad.owner.activeAds = total;
     }
-    
+
     return sendSuccess(res, {
       message: 'Annonce mise à jour',
       data: { ad }
@@ -333,20 +384,17 @@ export async function deleteAd(req, res, next) {
       return sendError(res, {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Seul l\'auteur peut supprimer cette annonce.'
+        message: "Seul l'auteur peut supprimer cette annonce."
       });
     }
 
     // Archiver l'annonce au lieu de la supprimer
     ad.status = 'archived';
     await ad.save();
-    
+
     // Retirer l'annonce des favoris de tous les utilisateurs
-    await User.updateMany(
-      { favorites: id },
-      { $pull: { favorites: id } }
-    );
-    
+    await User.updateMany({ favorites: id }, { $pull: { favorites: id } });
+
     return sendSuccess(res, { message: 'Annonce supprimée' });
   } catch (error) {
     next(error);

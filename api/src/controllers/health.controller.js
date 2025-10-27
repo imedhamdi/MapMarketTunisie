@@ -27,9 +27,9 @@ export async function readinessCheck(req, res) {
     database: 'unknown',
     memory: 'unknown'
   };
-  
+
   let isReady = true;
-  
+
   // Vérifier la connexion MongoDB
   try {
     if (mongoose.connection.readyState === 1) {
@@ -42,7 +42,7 @@ export async function readinessCheck(req, res) {
     checks.database = 'unhealthy';
     isReady = false;
   }
-  
+
   // Vérifier la mémoire
   const memUsage = process.memoryUsage();
   const memUsageMB = {
@@ -51,7 +51,7 @@ export async function readinessCheck(req, res) {
     heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
     external: Math.round(memUsage.external / 1024 / 1024)
   };
-  
+
   // Alerte si utilisation > 90% du heap
   const heapUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
   if (heapUsagePercent > 90) {
@@ -59,7 +59,7 @@ export async function readinessCheck(req, res) {
   } else {
     checks.memory = 'healthy';
   }
-  
+
   if (isReady) {
     return sendSuccess(res, {
       message: 'Service prêt',
@@ -70,13 +70,12 @@ export async function readinessCheck(req, res) {
         timestamp: new Date().toISOString()
       }
     });
-  } else {
-    return sendError(res, {
-      statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-      code: 'SERVICE_NOT_READY',
-      message: 'Service non prêt'
-    });
   }
+  return sendError(res, {
+    statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    code: 'SERVICE_NOT_READY',
+    message: 'Service non prêt'
+  });
 }
 
 /**
@@ -85,7 +84,7 @@ export async function readinessCheck(req, res) {
 export async function metricsCheck(req, res) {
   const memUsage = process.memoryUsage();
   const cpuUsage = process.cpuUsage();
-  
+
   return sendSuccess(res, {
     data: {
       timestamp: new Date().toISOString(),

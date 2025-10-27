@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
+import { normalizeLocationValue, validateNonEmptyCoordinates } from '../utils/geoHelpers.js';
 
 const CoordinatesSchema = new Schema(
   {
@@ -10,10 +11,7 @@ const CoordinatesSchema = new Schema(
     coordinates: {
       type: [Number],
       validate: {
-        validator(value) {
-          if (!value || value.length === 0) return false;
-          return value.length === 2 && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry));
-        },
+        validator: validateNonEmptyCoordinates,
         message: 'Les coordonnées doivent être un tableau [longitude, latitude] numérique.'
       }
     }
@@ -59,59 +57,31 @@ const UserSchema = new Schema(
 
 UserSchema.index({ 'location.coords': '2dsphere' });
 
-function normalizeLocationValue(value) {
-  if (!value || typeof value !== 'object') return null;
-
-  const plain =
-    typeof value.toObject === 'function'
-      ? value.toObject({ depopulate: true })
-      : { ...value };
-
-  const coords = plain.coords;
-  const coordinatesArray = Array.isArray(coords)
-    ? coords
-    : Array.isArray(coords?.coordinates)
-    ? coords.coordinates
-    : null;
-
-  if (!coordinatesArray || coordinatesArray.length !== 2) {
-    delete plain.coords;
-    return plain;
-  }
-
-  const normalized = coordinatesArray.map((entry) => Number(entry));
-  if (normalized.some((num) => Number.isNaN(num) || !Number.isFinite(num))) {
-    delete plain.coords;
-    return plain;
-  }
-
-  return {
-    ...plain,
-    coords: {
-      type: 'Point',
-      coordinates: normalized
-    }
-  };
-}
-
 UserSchema.pre('save', function normalizeLocationOnSave(next) {
   const current = this.get('location');
-  if (!current) return next();
+  if (!current) {
+    return next();
+  }
   const normalized = normalizeLocationValue(current);
   this.set('location', normalized || undefined);
-  next();
+  return next();
 });
 
-UserSchema.pre(['findOneAndUpdate', 'updateOne', 'update'], function normalizeLocationOnUpdate(next) {
-  const update = this.getUpdate();
-  if (!update) return next();
-  if (update.location) {
-    update.location = normalizeLocationValue(update.location);
+UserSchema.pre(
+  ['findOneAndUpdate', 'updateOne', 'update'],
+  function normalizeLocationOnUpdate(next) {
+    const update = this.getUpdate();
+    if (!update) {
+      return next();
+    }
+    if (update.location) {
+      update.location = normalizeLocationValue(update.location);
+    }
+    if (update.$set?.location) {
+      update.$set.location = normalizeLocationValue(update.$set.location);
+    }
+    return next();
   }
-  if (update.$set?.location) {
-    update.$set.location = normalizeLocationValue(update.$set.location);
-  }
-  next();
-});
+);
 
 export default mongoose.model('User', UserSchema);

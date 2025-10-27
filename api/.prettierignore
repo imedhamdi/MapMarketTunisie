@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+*.log
+uploads
+.env
+package-lock.json
+public/index.html
+public/css/

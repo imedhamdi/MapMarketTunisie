@@ -3,10 +3,16 @@ import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 
 function parseDurationToMs(value) {
-  if (!value) return undefined;
-  if (typeof value === 'number') return value * 1000;
+  if (!value) {
+    return undefined;
+  }
+  if (typeof value === 'number') {
+    return value * 1000;
+  }
   const match = /^(\d+)([smhd])$/.exec(value);
-  if (!match) return undefined;
+  if (!match) {
+    return undefined;
+  }
   const amount = Number(match[1]);
   const unit = match[2];
   const multipliers = {

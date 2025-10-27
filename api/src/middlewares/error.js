@@ -5,7 +5,8 @@ import logger from '../config/logger.js';
 import { sendError } from '../utils/responses.js';
 import { HTTP_STATUS } from '../config/constants.js';
 
-export default function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
+export default function errorHandler(err, req, res, next) {
+  // eslint-disable-line no-unused-vars
   if (res.headersSent) {
     return next(err);
   }
@@ -69,9 +70,10 @@ export default function errorHandler(err, req, res, next) { // eslint-disable-li
   // Erreur par défaut
   const statusCode = err.statusCode ?? HTTP_STATUS.INTERNAL_SERVER_ERROR;
   const code = err.code ?? 'INTERNAL_ERROR';
-  const message = env.isProd && statusCode === HTTP_STATUS.INTERNAL_SERVER_ERROR
-    ? 'Erreur interne du serveur'
-    : err.message ?? 'Erreur interne du serveur';
+  const message =
+    env.isProd && statusCode === HTTP_STATUS.INTERNAL_SERVER_ERROR
+      ? 'Erreur interne du serveur'
+      : (err.message ?? 'Erreur interne du serveur');
 
   return sendError(res, { statusCode, code, message });
 }

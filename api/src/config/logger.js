@@ -9,17 +9,17 @@ const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 // Format personnalisé pour les logs en mode développement
 const devFormat = printf(({ level, message, timestamp, stack, ...metadata }) => {
   let msg = `${timestamp} [${level}]: ${message}`;
-  
+
   // Ajouter les métadonnées si présentes
   if (Object.keys(metadata).length > 0) {
     msg += ` ${JSON.stringify(metadata)}`;
   }
-  
+
   // Ajouter la stack trace pour les erreurs
   if (stack) {
     msg += `\n${stack}`;
   }
-  
+
   return msg;
 });
 
@@ -41,11 +41,7 @@ if (env.isDev) {
 } else {
   transports.push(
     new winston.transports.Console({
-      format: combine(
-        timestamp(),
-        errors({ stack: true }),
-        json()
-      )
+      format: combine(timestamp(), errors({ stack: true }), json())
     })
   );
 }
@@ -53,7 +49,7 @@ if (env.isDev) {
 // File transports (rotation quotidienne)
 if (env.isProd || process.env.ENABLE_FILE_LOGS === 'true') {
   const logsDir = path.resolve('logs');
-  
+
   // Logs d'erreur
   transports.push(
     new DailyRotateFile({
@@ -62,14 +58,10 @@ if (env.isProd || process.env.ENABLE_FILE_LOGS === 'true') {
       level: 'error',
       maxSize: '20m',
       maxFiles: '14d',
-      format: combine(
-        timestamp(),
-        errors({ stack: true }),
-        json()
-      )
+      format: combine(timestamp(), errors({ stack: true }), json())
     })
   );
-  
+
   // Tous les logs
   transports.push(
     new DailyRotateFile({
@@ -77,11 +69,7 @@ if (env.isProd || process.env.ENABLE_FILE_LOGS === 'true') {
       datePattern: 'YYYY-MM-DD',
       maxSize: '20m',
       maxFiles: '14d',
-      format: combine(
-        timestamp(),
-        errors({ stack: true }),
-        json()
-      )
+      format: combine(timestamp(), errors({ stack: true }), json())
     })
   );
 }

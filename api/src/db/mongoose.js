@@ -10,7 +10,7 @@ export default async function connectMongoose() {
     logger.debug('MongoDB déjà connecté');
     return mongoose.connection;
   }
-  
+
   const uri = env.mongoUri;
 
   if (!uri) {
@@ -22,25 +22,25 @@ export default async function connectMongoose() {
     await mongoose.connect(uri, {
       dbName: env.mongoDbName
     });
-    
+
     isConnected = true;
     logger.info('✅ Connecté à MongoDB', { dbName: env.mongoDbName });
-    
+
     // Gérer les événements de connexion
     mongoose.connection.on('error', (error) => {
       logger.error('Erreur MongoDB', { error: error.message });
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       logger.warn('MongoDB déconnecté');
       isConnected = false;
     });
-    
+
     mongoose.connection.on('reconnected', () => {
       logger.info('MongoDB reconnecté');
       isConnected = true;
     });
-    
+
     return mongoose.connection;
   } catch (error) {
     logger.error('❌ Erreur de connexion MongoDB', { error: error.message });

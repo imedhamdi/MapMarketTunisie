@@ -1,6 +1,9 @@
 import Joi from 'joi';
 
-const emailField = Joi.string().trim().lowercase().email({ tlds: { allow: false } });
+const emailField = Joi.string()
+  .trim()
+  .lowercase()
+  .email({ tlds: { allow: false } });
 const passwordField = Joi.string().min(8).max(128);
 
 export const signupSchema = Joi.object({

@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import compression from 'compression';
 
 import env from './config/env.js';
 import logger from './config/logger.js';
@@ -12,11 +13,9 @@ import { generalLimiter } from './middlewares/rateLimit.js';
 import { sanitizeMiddleware } from './middlewares/sanitize.js';
 import { requestLogger } from './middlewares/requestLogger.js';
 import errorHandler from './middlewares/error.js';
-import authRoutes from './routes/auth.routes.js';
-import userRoutes from './routes/user.routes.js';
-import adRoutes from './routes/ad.routes.js';
-import geocodeRoutes from './routes/geocode.routes.js';
 import healthRoutes from './routes/health.routes.js';
+import seoRoutes from './routes/seo.routes.js';
+import apiV1Routes from './routes/index.js';
 import { sendError } from './utils/responses.js';
 import { HTTP_STATUS } from './config/constants.js';
 
@@ -24,6 +23,21 @@ const app = express();
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+
+// Compression GZIP/Brotli (AVANT tout le reste)
+app.use(
+  compression({
+    level: 6, // Niveau de compression (0-9)
+    threshold: 1024, // Compresser seulement si > 1KB
+    filter: (req, res) => {
+      // Ne pas compresser les images
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      return compression.filter(req, res);
+    }
+  })
+);
 
 // Logging des requêtes HTTP
 if (env.isDev) {
@@ -37,19 +51,20 @@ app.use('/', healthRoutes);
 app.use(generalLimiter);
 
 // CORS
-const selfOrigins = [
-  `http://localhost:${env.port}`,
-  `http://127.0.0.1:${env.port}`
-];
+const selfOrigins = [`http://localhost:${env.port}`, `http://127.0.0.1:${env.port}`];
 const allowedOrigins = Array.from(new Set([...env.clientOrigins, ...selfOrigins]));
 
 if (allowedOrigins.length) {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
-        
+        if (!origin) {
+          return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
         logger.warn('Origine non autorisée', { origin });
         return callback(new Error(`Origine non autorisée : ${origin}`));
       },
@@ -104,15 +119,35 @@ app.use(sanitizeMiddleware);
 const avatarsDir = path.resolve('uploads/avatars');
 const publicDir = path.resolve('public');
 
+// Cache headers for static assets
+app.use('/dist', (req, res, next) => {
+  // Cache des fichiers dist (CSS/JS minifiés) pendant 1 an
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  next();
+});
+
+app.use('/icons', (req, res, next) => {
+  // Cache des icônes pendant 1 semaine
+  res.setHeader('Cache-Control', 'public, max-age=604800');
+  next();
+});
+
+app.use('/uploads/avatars', (req, res, next) => {
+  // Cache des avatars pendant 1 jour
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  next();
+});
+
 app.use('/uploads/avatars', express.static(avatarsDir));
 app.use(express.static(publicDir));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/users', userRoutes); // Alias pour compatibilité
-app.use('/api/ads', adRoutes);
-app.use('/api/geocode', geocodeRoutes);
+// SEO Routes (sitemap, robots.txt)
+app.use('/', seoRoutes);
+
+// API Routes - Version 1 (default)
+app.use('/api/v1', apiV1Routes);
+// Alias sans version pour rétrocompatibilité (deprecated)
+app.use('/api', apiV1Routes);
 
 // 404 pour les routes API non trouvées
 app.use('/api', (req, res) => {

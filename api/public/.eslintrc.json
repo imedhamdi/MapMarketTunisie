@@ -1,0 +1,12 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "extends": "../.eslintrc.json",
+  "rules": {
+    "no-console": "off",
+    "no-undef": "off",
+    "require-await": "off"
+  }
+}

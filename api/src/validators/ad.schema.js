@@ -15,12 +15,15 @@ const descriptionSchema = Joi.string().trim().min(30).max(2000).messages({
 const categorySchema = Joi.string()
   .valid('immobilier', 'auto', 'electroniques', 'pieces', 'mode', 'loisirs')
   .required()
-  .messages({ 'any.only': 'Sélectionnez une catégorie.', 'any.required': 'Sélectionnez une catégorie.' });
+  .messages({
+    'any.only': 'Sélectionnez une catégorie.',
+    'any.required': 'Sélectionnez une catégorie.'
+  });
 
-const conditionSchema = Joi.string()
-  .valid('new', 'very_good', 'good', 'fair')
-  .required()
-  .messages({ 'any.only': 'Sélectionnez l’état de l’article.', 'any.required': 'Sélectionnez l’état de l’article.' });
+const conditionSchema = Joi.string().valid('new', 'very_good', 'good', 'fair').required().messages({
+  'any.only': 'Sélectionnez l’état de l’article.',
+  'any.required': 'Sélectionnez l’état de l’article.'
+});
 
 const priceSchema = Joi.number().min(0.1).max(9999999).required().messages({
   'number.base': 'Indiquez un prix valide (0.1 à 9 999 999).',
@@ -45,21 +48,32 @@ const locationSchema = Joi.object({
   })
 });
 
-const imageUrlSchema = Joi.string().trim().custom((value, helpers) => {
-  if (!value) return value;
-  if (value.startsWith('data:image/')) return value;
-  if (/^https?:\/\//i.test(value)) return value;
-  return helpers.error('any.invalid');
-}, 'image url validation');
+const imageUrlSchema = Joi.string()
+  .trim()
+  .custom((value, helpers) => {
+    if (!value) {
+      return value;
+    }
+    if (value.startsWith('data:image/')) {
+      return value;
+    }
+    if (/^https?:\/\//i.test(value)) {
+      return value;
+    }
+    return helpers.error('any.invalid');
+  }, 'image url validation');
 
-const imagesSchema = Joi.array().items(imageUrlSchema.messages({ 'any.invalid': 'Chaque image doit être une URL valide.' })).max(10).default([]);
+const imagesSchema = Joi.array()
+  .items(imageUrlSchema.messages({ 'any.invalid': 'Chaque image doit être une URL valide.' }))
+  .max(10)
+  .default([]);
 
 const attributeSchemas = {
   auto: Joi.object({
     year: Joi.number().integer().min(1980).max(new Date().getFullYear()).required().messages({
       'number.base': 'Année invalide.',
       'number.min': 'Année invalide.',
-      'number.max': `Année invalide.`
+      'number.max': 'Année invalide.'
     }),
     mileage: Joi.number().integer().min(0).max(500000).required().messages({
       'number.base': 'Kilométrage invalide.',
@@ -92,7 +106,9 @@ const attributeSchemas = {
     brand: Joi.string().trim().min(2).max(60).allow('', null)
   }),
   loisirs: Joi.object({
-    activity: Joi.string().valid('vélo', 'trottinette', 'plein air', 'sport', 'autre').allow('', null),
+    activity: Joi.string()
+      .valid('vélo', 'trottinette', 'plein air', 'sport', 'autre')
+      .allow('', null),
     brand: Joi.string().trim().min(2).max(60).allow('', null),
     model: Joi.string().trim().min(1).max(80).allow('', null)
   })
@@ -111,15 +127,31 @@ const baseAdSchema = Joi.object({
   attributes: Joi.object().unknown(true).default({})
 });
 
-export const createAdSchema = baseAdSchema.fork(['title', 'description', 'category', 'condition', 'price', 'locationText', 'latitude', 'longitude'], (schema) =>
-  schema.required()
-).custom((value, helpers) => {
-  const schema = attributeSchemas[value.category];
-  if (!schema) return value;
-  const { error } = schema.validate(value.attributes || {}, { abortEarly: false });
-  if (error) return helpers.error('any.custom', { message: error.details[0].message });
-  return value;
-}, 'category attributes validation');
+export const createAdSchema = baseAdSchema
+  .fork(
+    [
+      'title',
+      'description',
+      'category',
+      'condition',
+      'price',
+      'locationText',
+      'latitude',
+      'longitude'
+    ],
+    (schema) => schema.required()
+  )
+  .custom((value, helpers) => {
+    const schema = attributeSchemas[value.category];
+    if (!schema) {
+      return value;
+    }
+    const { error } = schema.validate(value.attributes || {}, { abortEarly: false });
+    if (error) {
+      return helpers.error('any.custom', { message: error.details[0].message });
+    }
+    return value;
+  }, 'category attributes validation');
 
 export const updateAdSchema = Joi.object({
   title: titleSchema.optional(),
@@ -140,16 +172,23 @@ export const updateAdSchema = Joi.object({
     if (Object.keys(value).length === 1 && value.status) {
       return value;
     }
-    
+
     // Skip validation if no category and no attributes
     if (!value.category || !value.attributes) {
       return value;
     }
-    
+
     const schema = attributeSchemas[value.category];
-    if (!schema) return value;
-    
-    const { error } = schema.validate(value.attributes, { abortEarly: false, presence: 'optional' });
-    if (error) return helpers.error('any.custom', { message: error.details[0].message });
+    if (!schema) {
+      return value;
+    }
+
+    const { error } = schema.validate(value.attributes, {
+      abortEarly: false,
+      presence: 'optional'
+    });
+    if (error) {
+      return helpers.error('any.custom', { message: error.details[0].message });
+    }
     return value;
   }, 'category attributes validation');

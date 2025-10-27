@@ -109,12 +109,7 @@ export const RATE_LIMIT = {
 };
 
 // Types MIME autorisés pour les images
-export const ALLOWED_IMAGE_MIMES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp'
-];
+export const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 // Extensions de fichiers autorisées
 export const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -122,7 +117,7 @@ export const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 // Messages d'erreur standards
 export const ERROR_MESSAGES = {
   UNAUTHORIZED: 'Authentification requise.',
-  FORBIDDEN: 'Vous n\'avez pas les permissions nécessaires.',
+  FORBIDDEN: "Vous n'avez pas les permissions nécessaires.",
   NOT_FOUND: 'Ressource introuvable.',
   VALIDATION_ERROR: 'Données invalides.',
   SERVER_ERROR: 'Erreur interne du serveur.',

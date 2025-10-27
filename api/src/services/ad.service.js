@@ -16,11 +16,11 @@ class AdService {
   buildLocation({ latitude, longitude }) {
     const lat = Number(latitude);
     const lng = Number(longitude);
-    
+
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       throw createError.badRequest('Coordonnées géographiques invalides');
     }
-    
+
     return {
       type: 'Point',
       coordinates: [lng, lat]
@@ -33,13 +33,17 @@ class AdService {
   buildNormalizedAttributes(category, attributes = {}) {
     const normalized = {};
     const definition = CATEGORY_ATTRIBUTES[category];
-    
-    if (!definition) return normalized;
-    
+
+    if (!definition) {
+      return normalized;
+    }
+
     definition.fields.forEach((field) => {
       const value = attributes[field.id];
-      if (value == null || value === '') return;
-      
+      if (value == null || value === '') {
+        return;
+      }
+
       if (field.type === 'number') {
         const num = Number(value);
         if (!Number.isNaN(num)) {
@@ -51,7 +55,7 @@ class AdService {
         normalized[`${field.id}_lc`] = String(value).toLowerCase();
       }
     });
-    
+
     return normalized;
   }
 
@@ -60,7 +64,7 @@ class AdService {
    */
   async createAd(userId, adData) {
     const startTime = Date.now();
-    
+
     const ad = await Ad.create({
       owner: userId,
       ...adData,
@@ -68,21 +72,21 @@ class AdService {
       views: 0,
       favoritesCount: 0
     });
-    
+
     await ad.populate('owner', 'name email avatar memberSince createdAt');
-    
+
     // Enrichir avec le compteur d'annonces actives
     if (ad.owner?._id) {
-      const total = await Ad.countDocuments({ 
-        owner: ad.owner._id, 
-        status: AD_STATUS.ACTIVE 
+      const total = await Ad.countDocuments({
+        owner: ad.owner._id,
+        status: AD_STATUS.ACTIVE
       });
       ad.owner.activeAds = total;
     }
-    
+
     logger.logDB('createAd', 'ads', Date.now() - startTime);
     logger.info('Annonce créée', { adId: ad._id, userId, category: ad.category });
-    
+
     return ad;
   }
 
@@ -90,52 +94,49 @@ class AdService {
    * Construire la query MongoDB pour la recherche d'annonces
    */
   buildSearchQuery(filters = {}) {
-    const {
-      category,
-      owner,
-      status,
-      search,
-      condition,
-      minPrice,
-      maxPrice,
-      city
-    } = filters;
-    
+    const { category, owner, status, search, condition, minPrice, maxPrice, city } = filters;
+
     const query = { status: status || AD_STATUS.ACTIVE };
-    
-    if (category) query.category = category;
-    if (owner) query.owner = owner;
-    if (condition) query.condition = condition;
-    
+
+    if (category) {
+      query.category = category;
+    }
+    if (owner) {
+      query.owner = owner;
+    }
+    if (condition) {
+      query.condition = condition;
+    }
+
     // Recherche textuelle
     if (search && search.trim()) {
       const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escaped, 'i');
-      query.$or = [
-        { title: regex },
-        { description: regex },
-        { locationText: regex }
-      ];
+      query.$or = [{ title: regex }, { description: regex }, { locationText: regex }];
     }
-    
+
     // Filtres de prix
     const priceConditions = {};
     const min = Number(minPrice);
     const max = Number(maxPrice);
-    
-    if (!Number.isNaN(min)) priceConditions.$gte = min;
-    if (!Number.isNaN(max)) priceConditions.$lte = max;
-    
+
+    if (!Number.isNaN(min)) {
+      priceConditions.$gte = min;
+    }
+    if (!Number.isNaN(max)) {
+      priceConditions.$lte = max;
+    }
+
     if (Object.keys(priceConditions).length) {
       query.price = priceConditions;
     }
-    
+
     // Filtre par ville
     if (city && city.trim()) {
       const escapedCity = city.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.locationText = new RegExp(escapedCity, 'i');
     }
-    
+
     return query;
   }
 
@@ -160,15 +161,13 @@ class AdService {
    */
   async enrichWithOwnerStats(ads) {
     const ownerIds = Array.from(
-      new Set(
-        ads
-          .map((ad) => ad.owner?._id?.toString())
-          .filter(Boolean)
-      )
+      new Set(ads.map((ad) => ad.owner?._id?.toString()).filter(Boolean))
     );
-    
-    if (ownerIds.length === 0) return ads;
-    
+
+    if (ownerIds.length === 0) {
+      return ads;
+    }
+
     const counts = await Ad.aggregate([
       {
         $match: {
@@ -183,17 +182,17 @@ class AdService {
         }
       }
     ]);
-    
+
     const countsMap = Object.fromEntries(
       counts.map((entry) => [entry._id.toString(), entry.total])
     );
-    
+
     ads.forEach((ad) => {
       if (ad.owner?._id) {
         ad.owner.activeAds = countsMap[ad.owner._id.toString()] ?? 0;
       }
     });
-    
+
     return ads;
   }
 
@@ -202,16 +201,19 @@ class AdService {
    */
   async listAds(filters = {}, pagination = {}) {
     const startTime = Date.now();
-    
-    const page = Math.max(PAGINATION.DEFAULT_PAGE, Number(pagination.page) || PAGINATION.DEFAULT_PAGE);
+
+    const page = Math.max(
+      PAGINATION.DEFAULT_PAGE,
+      Number(pagination.page) || PAGINATION.DEFAULT_PAGE
+    );
     const limit = Math.min(
       PAGINATION.MAX_LIMIT,
       Math.max(PAGINATION.MIN_LIMIT, Number(pagination.limit) || PAGINATION.DEFAULT_LIMIT)
     );
-    
+
     const query = this.buildSearchQuery(filters);
     const sortOrder = this.getSortOrder(filters.sort);
-    
+
     const [items, total] = await Promise.all([
       Ad.find(query)
         .sort(sortOrder)
@@ -221,12 +223,12 @@ class AdService {
         .lean(),
       Ad.countDocuments(query)
     ]);
-    
+
     // Enrichir avec les stats des propriétaires
     await this.enrichWithOwnerStats(items);
-    
+
     logger.logDB('listAds', 'ads', Date.now() - startTime);
-    
+
     return {
       items,
       pagination: {
@@ -243,19 +245,15 @@ class AdService {
    */
   async getAdById(adId) {
     const startTime = Date.now();
-    
-    const ad = await Ad.findByIdAndUpdate(
-      adId,
-      { $inc: { views: 1 } },
-      { new: true }
-    )
+
+    const ad = await Ad.findByIdAndUpdate(adId, { $inc: { views: 1 } }, { new: true })
       .populate('owner', 'name email avatar memberSince createdAt')
       .lean();
-    
+
     if (!ad) {
       throw createError.notFound('Annonce introuvable.');
     }
-    
+
     // Enrichir avec les stats du propriétaire
     if (ad.owner?._id) {
       const total = await Ad.countDocuments({
@@ -264,9 +262,9 @@ class AdService {
       });
       ad.owner.activeAds = total;
     }
-    
+
     logger.logDB('getAdById', 'ads', Date.now() - startTime);
-    
+
     return ad;
   }
 
@@ -275,27 +273,27 @@ class AdService {
    */
   async updateAd(adId, userId, updates) {
     const startTime = Date.now();
-    
+
     const ad = await Ad.findById(adId);
-    
+
     if (!ad) {
       throw createError.notFound('Annonce introuvable.');
     }
-    
+
     if (String(ad.owner) !== String(userId)) {
-      throw createError.forbidden('Seul l\'auteur peut modifier cette annonce.');
+      throw createError.forbidden("Seul l'auteur peut modifier cette annonce.");
     }
-    
+
     // Appliquer les mises à jour
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
         ad[key] = value;
       }
     });
-    
+
     await ad.save();
     await ad.populate('owner', 'name email avatar memberSince createdAt');
-    
+
     // Enrichir avec les stats
     if (ad.owner?._id) {
       const total = await Ad.countDocuments({
@@ -304,10 +302,10 @@ class AdService {
       });
       ad.owner.activeAds = total;
     }
-    
+
     logger.logDB('updateAd', 'ads', Date.now() - startTime);
     logger.info('Annonce mise à jour', { adId, userId });
-    
+
     return ad;
   }
 
@@ -316,22 +314,22 @@ class AdService {
    */
   async deleteAd(adId, userId) {
     const startTime = Date.now();
-    
+
     const ad = await Ad.findById(adId);
-    
+
     if (!ad) {
       throw createError.notFound('Annonce introuvable.');
     }
-    
+
     if (String(ad.owner) !== String(userId)) {
-      throw createError.forbidden('Seul l\'auteur peut supprimer cette annonce.');
+      throw createError.forbidden("Seul l'auteur peut supprimer cette annonce.");
     }
-    
+
     await ad.deleteOne();
-    
+
     logger.logDB('deleteAd', 'ads', Date.now() - startTime);
     logger.info('Annonce supprimée', { adId, userId });
-    
+
     return ad;
   }
 
@@ -339,15 +337,19 @@ class AdService {
    * Mettre à jour le compteur de favoris d'une annonce
    */
   async updateFavoritesCount(adId, increment) {
-    if (!mongoose.isValidObjectId(adId)) return;
-    
+    if (!mongoose.isValidObjectId(adId)) {
+      return;
+    }
+
     const ad = await Ad.findById(adId);
-    if (!ad) return;
-    
+    if (!ad) {
+      return;
+    }
+
     const nextCount = Math.max(0, (ad.favoritesCount || 0) + increment);
     ad.favoritesCount = nextCount;
     await ad.save();
-    
+
     logger.debug('Compteur favoris mis à jour', { adId, count: nextCount });
   }
 }

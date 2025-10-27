@@ -4,7 +4,10 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const numericIdRegex = /^\d+$/;
 
 const baseName = Joi.string().trim().min(2).max(60);
-const baseEmail = Joi.string().trim().lowercase().email({ tlds: { allow: false } });
+const baseEmail = Joi.string()
+  .trim()
+  .lowercase()
+  .email({ tlds: { allow: false } });
 
 const coordsSchema = Joi.alternatives()
   .try(
@@ -40,10 +43,7 @@ export const updateLocationSchema = Joi.object({
 }).required();
 
 const adIdSchema = Joi.alternatives()
-  .try(
-    Joi.string().trim().pattern(objectIdRegex),
-    Joi.string().trim().pattern(numericIdRegex)
-  )
+  .try(Joi.string().trim().pattern(objectIdRegex), Joi.string().trim().pattern(numericIdRegex))
   .messages({
     'alternatives.match': 'Identifiant d’annonce invalide'
   });

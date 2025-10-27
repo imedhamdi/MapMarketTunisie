@@ -12,8 +12,10 @@ const defaultSanitizeOptions = {
  * Sanitize une valeur string
  */
 export function sanitizeString(value, options = {}) {
-  if (typeof value !== 'string') return value;
-  
+  if (typeof value !== 'string') {
+    return value;
+  }
+
   return sanitizeHtml(value, {
     ...defaultSanitizeOptions,
     ...options
@@ -27,13 +29,13 @@ export function sanitizeObject(obj, options = {}) {
   if (obj === null || typeof obj !== 'object') {
     return typeof obj === 'string' ? sanitizeString(obj, options) : obj;
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map((item) => sanitizeObject(item, options));
   }
-  
+
   const sanitized = {};
-  
+
   Object.entries(obj).forEach(([key, value]) => {
     if (typeof value === 'string') {
       sanitized[key] = sanitizeString(value, options);
@@ -43,7 +45,7 @@ export function sanitizeObject(obj, options = {}) {
       sanitized[key] = value;
     }
   });
-  
+
   return sanitized;
 }
 
@@ -54,15 +56,15 @@ export function sanitizeMiddleware(req, res, next) {
   if (req.body && typeof req.body === 'object') {
     req.body = sanitizeObject(req.body);
   }
-  
+
   if (req.query && typeof req.query === 'object') {
     req.query = sanitizeObject(req.query);
   }
-  
+
   if (req.params && typeof req.params === 'object') {
     req.params = sanitizeObject(req.params);
   }
-  
+
   next();
 }
 

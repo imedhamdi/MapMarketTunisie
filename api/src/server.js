@@ -6,6 +6,7 @@ import app from './app.js';
 import env from './config/env.js';
 import logger from './config/logger.js';
 import connectMongoose from './db/mongoose.js';
+import redis from './config/redis.js';
 
 const server = http.createServer(app);
 const port = env.port;
@@ -15,37 +16,47 @@ async function start() {
     // Créer les répertoires nécessaires
     await mkdir(path.resolve('uploads/avatars'), { recursive: true });
     await mkdir(path.resolve('logs'), { recursive: true });
-    
+
     // Connexion à MongoDB
     await connectMongoose();
-    
+
+    // Connexion à Redis (optionnel)
+    if (env.redisEnabled) {
+      await redis.connect();
+    }
+
     // Démarrer le serveur
     server.listen(port, () => {
       logger.info(`🚀 Serveur démarré sur http://localhost:${port}`, {
         environment: env.nodeEnv,
-        port
+        port,
+        redis: env.redisEnabled ? 'enabled' : 'disabled'
       });
     });
-    
+
     // Gestion propre de l'arrêt
     const shutdown = async () => {
       logger.info('🛑 Arrêt du serveur en cours...');
-      
+
+      // Fermer Redis
+      if (env.redisEnabled) {
+        await redis.disconnect();
+      }
+
       server.close(() => {
         logger.info('✅ Serveur arrêté proprement');
         process.exit(0);
       });
-      
+
       // Force la fermeture après 10 secondes
       setTimeout(() => {
         logger.error('⚠️ Arrêt forcé du serveur');
         process.exit(1);
       }, 10000);
     };
-    
+
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
-    
   } catch (error) {
     logger.error('❌ Impossible de démarrer le serveur', { error: error.message });
     process.exit(1);
