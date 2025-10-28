@@ -132,7 +132,18 @@ export function cacheAds(ttl = 300) {
  * @param {number} ttl - Time to live (défaut: 10 minutes)
  */
 export function cacheAd(ttl = 600) {
-  return cacheMiddleware(ttl, (req) => `cache:ad:${req.params.id}`);
+  const middleware = cacheMiddleware(ttl, (req) => {
+    const skipView = req.query.skipView === 'true';
+    return `cache:ad:${req.params.id}:${skipView ? 'skip' : 'view'}`;
+  });
+
+  return (req, res, next) => {
+    // Ne pas mettre en cache les requêtes qui doivent incrémenter les vues
+    if (req.query.skipView !== 'true') {
+      return next();
+    }
+    return middleware(req, res, next);
+  };
 }
 
 /**

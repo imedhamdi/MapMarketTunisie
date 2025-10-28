@@ -5,7 +5,7 @@
 }
 
 .hero h1 {
-  font-size: clamp(28px, 7vw, 40px);
+  font-size: clamp(30px, 7vw, 40px);
   line-height: 1.1;
   margin: 0 0 10px;
 }
@@ -13,7 +13,7 @@
 .hero p {
   color: var(--color-text-muted);
   margin: 0;
-  font-size: clamp(14px, 3.6vw, 17px);
+  font-size: clamp(15px, 3.6vw, 17px);
 }
 
 /* Filters card */
@@ -58,7 +58,7 @@
 
 .filters-heading {
   margin: 0;
-  font-size: clamp(16px, 4vw, 22px);
+  font-size: clamp(18px, 4vw, 22px);
   font-weight: 700;
   color: var(--text);
 }
@@ -66,14 +66,15 @@
 .filters-subheading {
   margin: 2px 0 0;
   color: var(--color-text-muted);
-  font-size: clamp(12px, 3.4vw, 15px);
+  font-size: clamp(14px, 3.4vw, 15px);
 }
 
 .filters-reset {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 12px 20px;
+  min-height: var(--touch-target-min);
   border-radius: 999px;
   border: 1px solid rgba(var(--color-slate-300-rgb), .35);
   background: rgba(var(--color-surface-rgb), .6);
@@ -82,7 +83,7 @@
   cursor: pointer;
   transition: all .25s ease;
   backdrop-filter: blur(12px);
-  font-size: clamp(13px, 3.4vw, 15px);
+  font-size: clamp(14px, 3.4vw, 15px);
 }
 
 .filters-reset svg {

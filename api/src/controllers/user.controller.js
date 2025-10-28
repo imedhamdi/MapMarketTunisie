@@ -1,3 +1,38 @@
+// Désactiver le compte utilisateur (isActive = false)
+export async function deactivateUser(req, res) {
+  try {
+    const userId = req.params.id;
+    // Seul l'utilisateur lui-même ou un admin peut désactiver
+    if (!req.user || (req.user._id.toString() !== userId && req.user.role !== 'admin')) {
+      return sendError(res, {
+        statusCode: 403,
+        code: 'FORBIDDEN',
+        message: 'Non autorisé à désactiver ce compte.'
+      });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur introuvable.'
+      });
+    }
+    user.isActive = false;
+    await user.save();
+    return sendSuccess(res, {
+      message: 'Compte désactivé avec succès',
+      data: { user: formatUser(user) }
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la désactivation du compte', error);
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors de la désactivation du compte.'
+    });
+  }
+}
 import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
@@ -243,6 +278,8 @@ export async function updateFavorites(req, res) {
   );
   await user.save();
 
+  let updatedFavoritesCount = null;
+
   if (mongoose.isValidObjectId(normalizedId)) {
     try {
       const adDoc = await Ad.findById(normalizedId);
@@ -251,6 +288,7 @@ export async function updateFavorites(req, res) {
         const nextCount = Math.max(0, (adDoc.favoritesCount || 0) + increment);
         adDoc.favoritesCount = nextCount;
         await adDoc.save();
+        updatedFavoritesCount = nextCount;
       }
     } catch (error) {
       logger.warn('Impossible de synchroniser le compteur de favoris', {
@@ -265,7 +303,9 @@ export async function updateFavorites(req, res) {
     data: {
       favorites: user.favorites.map((value) =>
         value && value.toString ? value.toString() : String(value)
-      )
+      ),
+      adId: normalizedId,
+      favoritesCount: updatedFavoritesCount
     }
   });
 }

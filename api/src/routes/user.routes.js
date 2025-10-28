@@ -11,7 +11,8 @@ import {
   getUserStats,
   getUserAnalytics,
   changePassword,
-  uploadAvatar
+  uploadAvatar,
+  deactivateUser
 } from '../controllers/user.controller.js';
 import { authRequired } from '../middlewares/auth.js';
 import validate from '../middlewares/validate.js';
@@ -54,6 +55,9 @@ const upload = multer({
 const router = Router();
 
 router.use(authRequired);
+
+// Désactiver le compte utilisateur (admin ou self)
+router.patch('/users/:id/deactivate', invalidateUserCache(), deactivateUser);
 
 router.patch('/me', validate(updateMeSchema), invalidateUserCache(), updateMe);
 router.post('/me/location', validate(updateLocationSchema), invalidateUserCache(), updateLocation);

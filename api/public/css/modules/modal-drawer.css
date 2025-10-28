@@ -48,6 +48,9 @@
   flex-direction: column;
   z-index: var(--z-drawer);
   overflow: hidden;
+  padding-top: var(--safeTop);
+  padding-bottom: var(--safeBottom);
+  padding-right: var(--safeRight);
 }
 
 .mm-modal.mm-open {
@@ -1000,18 +1003,18 @@ main.container {
 @media (max-width: 640px) {
   :root {
     --header-h: 56px;
-    --bn-h: 72px;
-    --map-bottom-gap: 56px;
-    --map-inline-gap: 20px;
+    --bn-h: max(72px, calc(68px + var(--safeBottom)));
+    --map-bottom-gap: max(56px, calc(52px + var(--safeBottom)));
+    --map-inline-gap: max(20px, var(--safeLeft), var(--safeRight));
   }
 
   .header {
     position: fixed;
-    top: var(--safeTop);
+    top: 0;
     left: 0;
     right: 0;
     z-index: 1400;
-    height: var(--header-h);
+    height: calc(var(--header-h) + var(--safeTop));
     border-bottom: 1px solid rgba(var(--color-slate-300-rgb), .18);
     backdrop-filter: saturate(160%) blur(12px);
     box-shadow: 0 6px 20px rgba(var(--color-ink-rgb), .12);
@@ -1019,8 +1022,8 @@ main.container {
   }
 
   .header .nav {
-    height: 100%;
-    padding: 0 16px;
+    height: var(--header-h);
+    padding: 0 max(16px, var(--safeLeft)) 0 max(16px, var(--safeRight));
     gap: 10px;
   }
 
@@ -1034,7 +1037,7 @@ main.container {
   }
 
   .nav-actions {
-    gap: 8px;
+    gap: 10px;
   }
 
   .nav-link {
@@ -1126,11 +1129,10 @@ main.container {
   }
 
   .toast {
-    left: 16px;
-    right: 16px;
-    bottom: calc(var(--bn-h) + 36px);
+    left: max(16px, var(--safeLeft));
+    right: max(16px, var(--safeRight));
+    bottom: calc(var(--bn-h) + 36px + max(0px, var(--safeBottom)));
   }
-
 }
 
 @media (max-width: 640px) {
@@ -2283,6 +2285,7 @@ main.container {
   .details-dialog {
     border-radius: 20px;
     width: 92vw;
+    max-height: calc(100vh - max(24px, var(--safeTop)) - max(24px, var(--safeBottom)));
   }
 
   .carousel-nav {
@@ -2290,8 +2293,8 @@ main.container {
   }
 
   .carousel-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
 
   .details-meta.details-meta-stats {
@@ -2301,6 +2304,7 @@ main.container {
 
   .details-actions {
     flex-direction: column;
+    gap: 14px;
   }
 
   .details-hero-card {

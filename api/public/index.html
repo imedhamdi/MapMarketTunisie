@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description"
     content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
@@ -31,12 +31,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <link rel="stylesheet" href="./dist/tokens.min.css">
   <link rel="stylesheet" href="./dist/app.min.css">
-  <script>
-    window.__CDN_BASE__ = window.__CDN_BASE__ || '';
-    window.__ASSETS__ = Object.assign({}, window.__ASSETS__, {
-      profileModal: (window.__CDN_BASE__ || '') + '/dist/profile-modal.min.js'
-    });
-  </script>
+  <script src="./runtime-config.js"></script>
 </head>
 
 <body>
@@ -282,6 +277,24 @@
     <div class="view-wrapper show-list" id="viewWrapper" aria-live="polite">
       <section class="results view" aria-hidden="false" aria-label="Résultats en liste">
         <div class="grid list-view" id="listView"></div>
+        
+        <!-- Pagination controls -->
+        <div class="pagination-container" id="pager" hidden>
+          <button class="pager-button pager-button--prev" id="btnPrevPage" type="button" aria-label="Afficher la page précédente">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 6 9 12 15 18"></polyline>
+            </svg>
+            <span>Précédent</span>
+          </button>
+          <div class="pager-indicator" id="pagerIndicator" aria-live="polite">1 / 1</div>
+          <button class="pager-button pager-button--next" id="btnNextPage" type="button" aria-label="Afficher la page suivante">
+            <span>Suivant</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+          </button>
+        </div>
+        
         <div class="empty-state" id="emptyState" hidden>
           <div class="empty-state-icon" aria-hidden="true">🔍</div>
           <h3 class="empty-state-title">Aucune annonce trouvée</h3>
@@ -935,17 +948,26 @@
   <script defer src="./dist/app.min.js"></script>
 
   <!-- PROFILE MODAL -->
-  <div id="profileOverlay" class="mm-overlay" hidden></div>
-  <div class="mm-modal profile-shell" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
-    <header class="profile-shell__header">
-      <div>
-        <h2 id="profileTitle">Mon profil</h2>
-        <p id="profileSubtitle">Visualisez et optimisez vos performances en un coup d'œil.</p>
+  <div id="profileOverlay" class="mm-overlay"></div>
+
+  <!-- Profile Modal (Drawer Style like Favorites) -->
+  <div class="mm-modal" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
+    <header class="mm-header">
+      <div class="mm-header-row">
+        <div class="profile-avatar-mini-wrapper">
+          <img class="profile-avatar-mini" id="profileAvatarMini" src="/uploads/avatars/default.jpg" alt="Avatar" loading="lazy">
+        </div>
+        <div class="profile-header-info">
+          <h2 id="profileTitle">Mon profil</h2>
+          <p class="profile-header-subtitle" id="profileEmailHeader">email@example.com</p>
+        </div>
+        <div class="mm-actions">
+          <button class="mm-icon" id="profileClose" aria-label="Fermer le profil">✕</button>
+        </div>
       </div>
-      <button class="mm-icon" id="profileClose" aria-label="Fermer le profil">✕</button>
     </header>
 
-    <div class="profile-shell__body">
+    <div class="mm-body">
       <div class="profile-tabs" role="tablist">
         <button class="profile-tab active" data-tab="overview" role="tab" aria-controls="tab-overview">Aperçu</button>
         <button class="profile-tab" data-tab="analytics" role="tab" aria-controls="tab-analytics">Analytics</button>
@@ -980,7 +1002,11 @@
             </div>
           </section>
 
-          <section class="profile-metric-grid" id="profileMetricGrid"></section>
+
+          <div class="profile-delete-account">
+            <button type="button" class="mm-btn danger" id="deleteAccountBtn">Supprimer le compte</button>
+            <div id="deleteAccountFeedback" style="display:none;color:red;margin-top:10px;"></div>
+          </div>
 
           <section class="profile-insights" id="profileInsights"></section>
 

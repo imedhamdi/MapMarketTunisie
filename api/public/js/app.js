@@ -1,4 +1,4 @@
-    (() => {
+(() => {
     const appLogger = (() => {
       if (window.__APP_LOGGER__) {
         return window.__APP_LOGGER__;
@@ -289,8 +289,41 @@
       syncAdStats(ad);
     }
 
+    function buildAdWithIncrementedViews(ad, increment = 1) {
+      if (!ad) return null;
+      const currentViews = Number(ad.views) || 0;
+      const nextViews = currentViews + Number(increment || 0);
+      const baseLikes = Number.isFinite(Number(ad.likes)) ? Number(ad.likes) : Number(ad.favorites ?? 0);
+      const updated = {
+        ...ad,
+        views: nextViews,
+        likes: Number.isFinite(baseLikes) ? baseLikes : 0
+      };
+      if (typeof ad.favorites !== 'undefined') {
+        updated.favorites = updated.likes;
+      }
+      if (Array.isArray(ad.gallery)) {
+        updated.gallery = [...ad.gallery];
+      }
+      return updated;
+    }
+
+    function optimisticIncrementAdViews(source) {
+      const baseAd = source && typeof source === 'object' ? source : getItemById(source);
+      if (!baseAd || !baseAd.id) return null;
+      const updated = buildAdWithIncrementedViews(baseAd, 1);
+      if (!updated) return null;
+      upsertAd(updated);
+      return updated;
+    }
+
     function syncAdStats(ad) {
       if (!ad) return;
+      const cacheKey = String(ad.id);
+      if (favDataCache.has(cacheKey)) {
+        const cached = favDataCache.get(cacheKey) || {};
+        favDataCache.set(cacheKey, { ...cached, ...ad });
+      }
       updateAdCardDisplay(ad);
       updateMarkerStats(ad);
       if (favStore.has(ad.id) && isFavModalOpen()) renderFavSheet();
@@ -421,6 +454,78 @@
       }
     };
 
+    // ---------- VIEW TRACKING ----------
+    const viewTracker = (() => {
+      const STORAGE_KEY = 'mm-viewed-ads';
+      const VIEW_EXPIRY = 24 * 60 * 60 * 1000; // 24 heures
+      
+      function getViewedAds() {
+        try {
+          const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          return data;
+        } catch {
+          return {};
+        }
+      }
+      
+      function setViewedAds(data) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (error) {
+          appLogger.warn('Failed to save viewed ads', error);
+        }
+      }
+      
+      function cleanExpiredViews() {
+        const viewedAds = getViewedAds();
+        const now = Date.now();
+        let hasChanges = false;
+        
+        for (const [id, timestamp] of Object.entries(viewedAds)) {
+          if (now - timestamp > VIEW_EXPIRY) {
+            delete viewedAds[id];
+            hasChanges = true;
+          }
+        }
+        
+        if (hasChanges) {
+          setViewedAds(viewedAds);
+        }
+      }
+      
+      return {
+        hasViewed(adId) {
+          if (!adId) return false;
+          const viewedAds = getViewedAds();
+          const timestamp = viewedAds[String(adId)];
+          if (!timestamp) return false;
+          
+          const now = Date.now();
+          if (now - timestamp > VIEW_EXPIRY) {
+            delete viewedAds[String(adId)];
+            setViewedAds(viewedAds);
+            return false;
+          }
+          
+          return true;
+        },
+        
+        markAsViewed(adId) {
+          if (!adId) return;
+          const viewedAds = getViewedAds();
+          viewedAds[String(adId)] = Date.now();
+          setViewedAds(viewedAds);
+        },
+        
+        cleanup() {
+          cleanExpiredViews();
+        }
+      };
+    })();
+
+    // Nettoyage périodique des vues expirées (au chargement)
+    viewTracker.cleanup();
+
     // ---------- UTIL ----------
     function categoryClass(cat) {
       const slug = mapCategoryLabelToSlug(cat);
@@ -521,20 +626,15 @@
     const viewState = { userAdjustedView: false };
 
     function getFiltered() {
-      let list = allItems.slice();
-      const q = normalize(search.value);
-      if (q) list = list.filter(a => normalize(a.title + " " + a.desc).includes(q));
-      if (cat.value) list = list.filter(a => (a.catSlug || mapCategoryLabelToSlug(a.cat)) === cat.value);
-      if (etat.value) list = list.filter(a => a.state === etat.value);
-      if (city.value) list = list.filter(a => normalize(a.city).includes(normalize(city.value)));
-      const min = Number(pmin.value || 0), max = Number(pmax.value || Infinity);
-      list = list.filter(a => a.price >= min && a.price <= max);
-      if (sort.value === 'priceAsc') list.sort((a, b) => a.price - b.price);
-      else if (sort.value === 'priceDesc') list.sort((a, b) => b.price - a.price);
-      else list.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Server-side pagination: filters are applied by API
+      // Just return current page items
+      let list = paging.items.slice();
+      
+      // Only apply radius filter if enabled (client-side geo filter)
       if (typeof window !== 'undefined' && typeof window.mmFilterByRadius === 'function') {
         list = window.mmFilterByRadius(list);
       }
+      
       return list;
     }
 
@@ -586,6 +686,10 @@
     // ---------- LIST RENDER + INFINITE ----------
     const listView = document.getElementById('listView');
     const count = document.getElementById('count');
+    const pagerContainer = document.getElementById('pager');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const pagerIndicator = document.getElementById('pagerIndicator');
     const favCount = document.getElementById('fav-count');
     const openFavsBtn = document.getElementById('openFavs');
     const navMessages = document.getElementById('navMessages');
@@ -609,14 +713,24 @@
     function syncAllFavoriteButtons() {
       if (!listView) return;
       const activeSet = new Set(favStore.values().map(String));
+      
+      // Synchroniser les boutons dans la liste
       listView.querySelectorAll('.fav').forEach((btn) => {
         const id = btn.dataset.id;
         const isFav = activeSet.has(String(id));
         btn.setAttribute('aria-pressed', String(isFav));
         updateFavIcon(btn.querySelector('svg'), isFav);
       });
-      if (detailsCurrentAd) {
-        setDetailsSaveState(favStore.has(detailsCurrentAd.id));
+      
+      // Synchroniser le bouton dans le modal de détail
+      const detailsSaveBtn = document.getElementById('detailsSave');
+      if (detailsSaveBtn && detailsSaveBtn.dataset.id) {
+        const isFav = activeSet.has(String(detailsSaveBtn.dataset.id));
+        setDetailsSaveState(isFav);
+      } else if (detailsCurrentAd) {
+        const adIdNormalized = normalizeAdId(detailsCurrentAd.id);
+        const isFav = activeSet.has(String(adIdNormalized));
+        setDetailsSaveState(isFav);
       }
     }
 
@@ -702,6 +816,42 @@
       }, 300);
     }
 
+    // Update URL with current page without reloading
+    function updateURL({ page }) {
+      const url = new URL(window.location);
+      const params = new URLSearchParams(url.search);
+      
+      if (page && page > 1) {
+        params.set('page', String(page));
+      } else {
+        params.delete('page');
+      }
+      
+      // Preserve existing filters
+      if (currentFilters.search) params.set('search', currentFilters.search);
+      else params.delete('search');
+      
+      if (currentFilters.category) params.set('category', mapCategoryLabelToSlug(currentFilters.category));
+      else params.delete('category');
+      
+      if (currentFilters.condition) params.set('condition', mapConditionToSlug(currentFilters.condition));
+      else params.delete('condition');
+      
+      if (currentFilters.minPrice) params.set('minPrice', currentFilters.minPrice);
+      else params.delete('minPrice');
+      
+      if (currentFilters.maxPrice) params.set('maxPrice', currentFilters.maxPrice);
+      else params.delete('maxPrice');
+      
+      if (currentFilters.city) params.set('city', currentFilters.city);
+      else params.delete('city');
+      
+      if (currentFilters.sort) params.set('sort', currentFilters.sort);
+      else params.delete('sort');
+      
+      const newUrl = `${url.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+      window.history.pushState({ page }, '', newUrl);
+    }
 
     async function loadAds({ filters = null, toastOnError = true } = {}) {
       if (isLoadingAds) {
@@ -727,8 +877,8 @@
           currentFilters = { ...currentFilters, ...filters };
         }
         const params = new URLSearchParams();
-        params.set('page', '1');
-        params.set('limit', '200');
+        // Pagination: charge 30 items (page 1)
+        params.set('limit', String(PAGE_SIZE));
         if (currentFilters.search) params.set('search', currentFilters.search);
         if (currentFilters.category) params.set('category', mapCategoryLabelToSlug(currentFilters.category));
         if (currentFilters.condition) params.set('condition', mapConditionToSlug(currentFilters.condition));
@@ -736,33 +886,69 @@
         if (currentFilters.maxPrice) params.set('maxPrice', currentFilters.maxPrice);
         if (currentFilters.city) params.set('city', currentFilters.city);
         if (currentFilters.sort) params.set('sort', currentFilters.sort);
+        
         const response = await api.get(`/api/ads?${params.toString()}`);
         const items = Array.isArray(response?.data?.items) ? response.data.items : [];
-        allItems = items.map(mapAdFromApi).filter(Boolean);
+        const pagination = response?.data?.pagination || {};
+        
+        appLogger.info('Initial page loaded', { 
+          itemsCount: items.length,
+          nextCursor: pagination.nextCursor,
+          hasNext: pagination.hasNextPage,
+          total: pagination.total
+        });
+        
+        // Update paging state with API response
+        const mappedItems = items.map(mapAdFromApi).filter(Boolean);
+        paging.items = mappedItems;
+        paging.nextCursor = pagination.nextCursor || null;
+        paging.hasNext = pagination.hasNextPage || false;
+        paging.page = 1;
+        paging.total = typeof pagination.total === 'number' ? pagination.total : null;
+        paging.totalPages =
+          typeof pagination.total === 'number'
+            ? Math.max(1, Math.ceil(pagination.total / PAGE_SIZE))
+            : null;
+        paging.cache = new Map();
+        cachePage(1, {
+          items: paging.items,
+          nextCursor: paging.nextCursor,
+          hasNext: paging.hasNext
+        });
+        
+        appLogger.info('Paging state updated', { 
+          page: paging.page,
+          itemsCount: paging.items.length,
+          nextCursor: paging.nextCursor,
+          hasNext: paging.hasNext 
+        });
+        
+        // Keep allItems for backward compatibility (favoris, etc.)
+        allItems = paging.items.slice();
         rebuildAllItemsIndex();
         
         // Mettre à jour le cache des favoris avec les nouvelles données
-        allItems.forEach(item => {
+        paging.items.forEach(item => {
           if (favStore.has(item.id)) {
             favDataCache.set(String(item.id), item);
           }
         });
         
-        pagination.index = 0;
-        filteredCache = [];
-        
+        filteredCache = paging.items;
+
         // Retirer les skeletons avec animation avant d'afficher les vraies annonces
         removeSkeletons(() => {
-          renderList(true);
-          renderMap({ force: true, invalidate: true, autoFit: !viewState.userAdjustedView });
-          syncAllFavoriteButtons();
-          if (isFavModalOpen()) renderFavSheet();
+          applyPage(1, paging.cache.get(1), {
+            autoFit: !viewState.userAdjustedView,
+            scroll: false
+          });
         });
       } catch (error) {
       appLogger.error('loadAds error', error);
         // Retirer les skeletons même en cas d'erreur
         removeSkeletons();
-        if (toastOnError) showToast(error?.message || 'Impossible de charger les annonces.');
+        updatePaginationControls();
+        if (toastOnError) window.showToast?.(error?.message || 'Impossible de charger les annonces.');
       } finally {
         if (loading) loading.hidden = true;
         isLoadingAds = false;
@@ -805,6 +991,8 @@
       try {
         const response = await api.post('/api/users/me/favorites', { adId: key, action: shouldAdd ? 'add' : 'remove' });
         const favorites = response?.data?.favorites ?? [];
+        const updatedFavoritesCount = response?.data?.favoritesCount;
+        
         favStore.load(favorites);
         updateFavBadge();
         syncAllFavoriteButtons();
@@ -814,7 +1002,26 @@
           currentUser.favorites = favorites;
           authStore.set(currentUser);
         }
-        adjustAdFavorites(key, shouldAdd ? 1 : -1);
+        
+        // Mettre à jour le compteur avec la vraie valeur du serveur
+        if (updatedFavoritesCount !== null && updatedFavoritesCount !== undefined) {
+          const ad = getItemById(key);
+          if (ad) {
+            ad.likes = updatedFavoritesCount;
+            ad.favorites = updatedFavoritesCount;
+            ad.favoritesCount = updatedFavoritesCount;
+            upsertAd(ad);
+            
+            // Rafraîchir le modal de détail si ouvert pour cette annonce
+            if (detailsModal && detailsModal.style.display === 'flex') {
+              const currentId = normalizeAdId(detailsDialog?.dataset?.itemId);
+              if (currentId === key) {
+                updateDetailsStats(ad);
+              }
+            }
+          }
+        }
+        
         if (feedback) showToast(shouldAdd ? 'Ajouté aux favoris' : 'Retiré des favoris');
         return true;
       } catch (error) {
@@ -864,7 +1071,18 @@
       showToast('Messagerie à venir 💬');
     });
 
-    const pagination = { index: 0 }; const PAGE_SIZE = 12; let filteredCache = [];
+    // Pagination state - replaces old infinite scroll mechanism
+    const paging = {
+      items: [],
+      nextCursor: null,
+      hasNext: false,
+      page: 1,
+      total: null,
+      totalPages: null,
+      cache: new Map()
+    };
+    const PAGE_SIZE = 30; // Fixed page size for API requests
+    let filteredCache = [];
 
     function getFavBaseItems() {
       return favStore.values()
@@ -1089,6 +1307,7 @@
         document.addEventListener('keydown', onKeyDown);
       });
     }
+    window.showConfirmDialog = showConfirmDialog;
 
     clearAllFavsBtn?.addEventListener('click', async () => {
       const auth = authStore.get();
@@ -1173,15 +1392,17 @@
       }
     });
 
-    function renderChunk() {
-      const start = pagination.index * PAGE_SIZE, end = start + PAGE_SIZE;
-      const slice = filteredCache.slice(start, end);
-      for (const a of slice) {
+    // Render ads from paging.items (server-side paginated data)
+    function renderAdsPage(items) {
+      const fragment = document.createDocumentFragment();
+      
+      for (const a of items) {
         const thumbSrc = buildOptimizedImage(a.img, 480, 70);
         const thumbSrcSet = buildSrcSet(a.img, [320, 480, 640], 70);
         const idKey = normalizeAdId(a.id);
         const isFav = favStore.has(idKey);
-        const art = document.createElement('article'); art.className = 'ad';
+        const art = document.createElement('article'); 
+        art.className = 'ad';
         art.innerHTML = `
           <div class="ad-content" data-id="${String(a.id)}">
           <div class="thumb">
@@ -1207,12 +1428,16 @@
             </div>
             <div class="time">${daysAgo(a.date)}</div>
           </div>
-          </div>`; // ad-content wrapper
-        listView.appendChild(art);
+          </div>`;
+        fragment.appendChild(art);
       }
-      // bind favs for the newly added ones
+      
+      listView.appendChild(fragment);
+      
+      // Bind favorite buttons for newly added items
       listView.querySelectorAll('.fav').forEach(btn => {
-        if (btn._bound) return; btn._bound = true;
+        if (btn._bound) return; 
+        btn._bound = true;
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const id = btn.dataset.id;
@@ -1228,45 +1453,280 @@
           }
         });
       });
-      pagination.index++;
+    }
+
+    function cachePage(pageNumber, pageData) {
+      if (!pageData) return;
+      const cached = {
+        items: pageData.items,
+        nextCursor: pageData.nextCursor || null,
+        hasNext: Boolean(pageData.hasNext)
+      };
+      if (typeof pageData.prevCursor === 'string') {
+        cached.prevCursor = pageData.prevCursor;
+      }
+      paging.cache.set(pageNumber, cached);
+    }
+
+    function getCachedPage(pageNumber) {
+      return paging.cache.get(pageNumber) || null;
+    }
+
+    function applyPage(pageNumber, pageData, { autoFit = false, scroll = true } = {}) {
+      if (!pageData) return;
+      paging.page = pageNumber;
+      paging.items = pageData.items;
+      paging.nextCursor = pageData.nextCursor || null;
+      paging.hasNext = Boolean(pageData.hasNext);
+      if (!paging.hasNext && paging.cache.has(pageNumber + 1)) {
+        paging.hasNext = true;
+      }
+      allItems = paging.items.slice();
+      rebuildAllItemsIndex();
+      filteredCache = paging.items;
+      renderList(true);
+      renderMap({
+        force: true,
+        invalidate: true,
+        autoFit: autoFit && !viewState.userAdjustedView
+      });
+      syncAllFavoriteButtons();
+      if (isFavModalOpen()) renderFavSheet();
+      if (scroll && listView) {
+        listView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      updateURL({ page: paging.page });
+    }
+
+    async function fetchPageData(cursor, direction = 'next') {
+      const params = new URLSearchParams();
+      params.set('limit', String(PAGE_SIZE));
+      if (cursor) {
+        if (direction === 'prev') {
+          params.set('before', cursor);
+        } else {
+          params.set('after', cursor);
+        }
+      }
+
+      if (currentFilters.search) params.set('search', currentFilters.search);
+      if (currentFilters.category) params.set('category', mapCategoryLabelToSlug(currentFilters.category));
+      if (currentFilters.condition) params.set('condition', mapConditionToSlug(currentFilters.condition));
+      if (currentFilters.minPrice) params.set('minPrice', currentFilters.minPrice);
+      if (currentFilters.maxPrice) params.set('maxPrice', currentFilters.maxPrice);
+      if (currentFilters.city) params.set('city', currentFilters.city);
+      if (currentFilters.sort) params.set('sort', currentFilters.sort);
+
+      const response = await api.get(`/api/ads?${params.toString()}`);
+      const items = Array.isArray(response?.data?.items) ? response.data.items : [];
+      const pagination = response?.data?.pagination || {};
+
+      const mappedItems = items.map(mapAdFromApi).filter(Boolean);
+      const pageData = {
+        items: mappedItems,
+        nextCursor: pagination.nextCursor || null,
+        prevCursor: pagination.prevCursor || null,
+        hasNext: Boolean(pagination.hasNextPage)
+      };
+
+      if (typeof pagination.total === 'number') {
+        paging.total = pagination.total;
+        paging.totalPages = Math.max(1, Math.ceil(pagination.total / PAGE_SIZE));
+      }
+
+      return pageData;
+    }
+
+    function updatePaginationControls() {
+      if (!pagerContainer) return;
+
+      const hasContent = paging.items.length > 0;
+      pagerContainer.hidden = !hasContent;
+
+      if (pagerIndicator) {
+        if (hasContent) {
+          if (paging.totalPages && paging.totalPages > 0) {
+            pagerIndicator.textContent = `${paging.page} / ${paging.totalPages}`;
+          } else if (paging.hasNext || paging.cache.has(paging.page + 1)) {
+            pagerIndicator.textContent = `${paging.page} / …`;
+          } else {
+            pagerIndicator.textContent = `${paging.page}`;
+          }
+        } else {
+          pagerIndicator.textContent = '';
+        }
+      }
+
+      if (btnPrevPage) {
+        const hasPrev = paging.page > 1 && hasContent;
+        btnPrevPage.disabled = !hasPrev;
+        btnPrevPage.setAttribute('aria-disabled', String(!hasPrev));
+        const prevLabel =
+          hasPrev && paging.totalPages
+            ? `Revenir à la page ${paging.page - 1} sur ${paging.totalPages}`
+            : 'Afficher la page précédente';
+        btnPrevPage.setAttribute('aria-label', prevLabel);
+      }
+
+      if (btnNextPage) {
+        const hasCachedNext = paging.cache.has(paging.page + 1);
+        const withinTotal = paging.totalPages ? paging.page < paging.totalPages : true;
+        const canGoNext = hasContent && withinTotal && (paging.hasNext || hasCachedNext);
+        btnNextPage.disabled = !canGoNext;
+        btnNextPage.setAttribute('aria-disabled', String(!canGoNext));
+        const nextLabel =
+          canGoNext && paging.totalPages
+            ? `Afficher la page ${Math.min(paging.page + 1, paging.totalPages)} sur ${paging.totalPages}`
+            : 'Afficher la page suivante';
+        btnNextPage.setAttribute('aria-label', nextLabel);
+      }
     }
 
     function renderList(reset) {
-      filteredCache = getFiltered();
+      // Use paging.items instead of client-side filtering
+      filteredCache = paging.items;
       updateFavBadge();
       
       const emptyState = document.getElementById('emptyState');
+      const itemCount = paging.items.length;
       
-      if (filteredCache.length === 0) {
+      if (itemCount === 0) {
         count.textContent = 'Aucune annonce';
         if (emptyState) {
           emptyState.hidden = false;
         }
-        if (reset) {
-          listView.innerHTML = '';
-        }
+        listView.innerHTML = '';
+        updatePaginationControls();
       } else {
-        count.textContent = filteredCache.length + (filteredCache.length > 1 ? ' annonces trouvées' : ' annonce trouvée');
+        // Update count display with page info
+        const rangeStart = (paging.page - 1) * PAGE_SIZE + 1;
+        const rangeEnd = rangeStart + itemCount - 1;
+        const totalKnown = typeof paging.total === 'number';
+        const clampedRangeEnd = totalKnown ? Math.min(rangeEnd, paging.total) : rangeEnd;
+        const totalPagesDisplay =
+          paging.totalPages && paging.totalPages > 0 ? `${paging.page} / ${paging.totalPages}` : `Page ${paging.page}`;
+        const rangeLabel = totalKnown
+          ? `Annonces ${Math.min(rangeStart, paging.total)}-${Math.max(Math.min(clampedRangeEnd, paging.total), 0)} sur ${paging.total}`
+          : `${itemCount} ${itemCount > 1 ? 'annonces' : 'annonce'}`;
+        count.textContent = `${totalPagesDisplay} · ${rangeLabel}`;
+        
         if (emptyState) {
           emptyState.hidden = true;
         }
+        
         if (reset) { 
           listView.innerHTML = ''; 
-          pagination.index = 0; 
         }
-        renderChunk();
+        
+        // Apply page transition
+        listView.classList.remove('page-transition');
+        void listView.offsetWidth; // Force reflow
+        listView.classList.add('page-transition');
+        
+        renderAdsPage(paging.items);
+        updatePaginationControls();
+        
+        // Focus on first ad for keyboard navigation
+        if (reset) {
+          const firstAd = listView.querySelector('.ad-content');
+          if (firstAd) {
+            firstAd.setAttribute('tabindex', '-1');
+            firstAd.focus({ preventScroll: false });
+            setTimeout(() => firstAd.removeAttribute('tabindex'), 100);
+          }
+        }
       }
     }
 
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting && pagination.index * PAGE_SIZE < filteredCache.length) {
-          loading.style.display = 'grid';
-          setTimeout(() => { renderChunk(); loading.style.display = 'none'; }, 250);
+    function getCursorForCurrentPage() {
+      const cached = getCachedPage(paging.page);
+      return cached?.nextCursor || paging.nextCursor;
+    }
+
+    async function handleNextPage() {
+      if (!btnNextPage) return;
+
+      const targetPage = paging.page + 1;
+
+      if (paging.cache.has(targetPage)) {
+        const cached = paging.cache.get(targetPage);
+        applyPage(targetPage, cached, { autoFit: false });
+        updatePaginationControls();
+        return;
+      }
+
+      const cursor = getCursorForCurrentPage();
+
+      if (!cursor || (!paging.hasNext && !paging.cache.has(targetPage))) {
+        window.showToast?.('Il n’y a plus d’annonces à afficher.');
+        updatePaginationControls();
+        return;
+      }
+
+      appLogger.info('Loading next page', {
+        currentPage: paging.page,
+        cursor,
+        hasNext: paging.hasNext
+      });
+
+      const originalContent = btnNextPage.innerHTML;
+      btnNextPage.disabled = true;
+      if (btnPrevPage) btnPrevPage.disabled = true;
+      btnNextPage.innerHTML = `
+        <svg class="btn-next-page-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+        </svg>
+        <span>Chargement...</span>
+      `;
+
+      try {
+        const pageData = await fetchPageData(cursor, 'next');
+        const nextPageNumber = targetPage;
+        if (!pageData.items.length) {
+          paging.hasNext = false;
+          paging.nextCursor = null;
+          window.showToast?.('Il n’y a plus d’annonces à afficher.');
+          return;
         }
-      })
+        cachePage(nextPageNumber, pageData);
+        pageData.items.forEach((item) => {
+          if (favStore.has(item.id)) {
+            favDataCache.set(String(item.id), item);
+          }
+        });
+        applyPage(nextPageNumber, pageData, { autoFit: false });
+      } catch (error) {
+        appLogger.error('loadNextPage error', error);
+        window.showToast?.(error?.message || 'Impossible de charger la page suivante.');
+      } finally {
+        btnNextPage.innerHTML = originalContent;
+        updatePaginationControls();
+      }
+    }
+
+    btnNextPage?.addEventListener('click', handleNextPage);
+
+    btnPrevPage?.addEventListener('click', () => {
+      const targetPage = paging.page - 1;
+      if (targetPage < 1) return;
+      const cached = getCachedPage(targetPage);
+      if (!cached) {
+        window.showToast?.('Page précédente indisponible.');
+        return;
+      }
+      applyPage(targetPage, cached, { autoFit: false });
     });
-    io.observe(sentinel);
+
+    // Disable old infinite scroll observer
+    // const io = new IntersectionObserver(entries => {
+    //   entries.forEach(e => {
+    //     if (e.isIntersecting && pagination.index * PAGE_SIZE < filteredCache.length) {
+    //       loading.style.display = 'grid';
+    //       setTimeout(() => { renderChunk(); loading.style.display = 'none'; }, 250);
+    //     }
+    //   })
+    // });
+    // io.observe(sentinel);
 
     // ---------- MAP (Leaflet + clusters) ----------
     const fmtDT = new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 });
@@ -3867,7 +4327,8 @@
     // Load ad data for editing
     async function loadAdDataForEdit(adId) {
       try {
-        const response = await api.get(`/api/ads/${adId}`);
+        // Ne pas incrémenter les vues lors du chargement pour édition
+        const response = await api.get(`/api/ads/${adId}?skipView=true`);
         const adData = response?.data?.ad || response?.data || response;
         if (adData) {
           populateFormWithAdData(adData);
@@ -4889,7 +5350,17 @@
         
         if (saveBtn) {
           saveBtn.dataset.id = String(ad.id ?? '');
-          setDetailsSaveState(favStore.has(ad.id));
+          // Normaliser l'ID pour la comparaison
+          const adIdNormalized = normalizeAdId(ad.id);
+          const isFav = favStore.has(adIdNormalized);
+          
+          // Debug: vérifier pourquoi ça ne marche pas
+          console.log('[DEBUG] updateDetailsActions - ad.id:', ad.id);
+          console.log('[DEBUG] updateDetailsActions - adIdNormalized:', adIdNormalized);
+          console.log('[DEBUG] updateDetailsActions - favStore.values():', favStore.values());
+          console.log('[DEBUG] updateDetailsActions - isFav:', isFav);
+          
+          setDetailsSaveState(isFav);
           saveBtn.addEventListener('click', handleDetailsSaveClick);
         }
         if (contactBtn) {
@@ -5153,15 +5624,26 @@
     function syncFavoriteButtons(id, isFav) {
       const key = normalizeAdId(id);
       if (!key) return;
+      
+      // Mettre à jour les boutons dans la liste
       listView.querySelectorAll(`.fav[data-id="${key}"]`).forEach(btn => {
         btn.setAttribute('aria-pressed', String(isFav));
         btn.setAttribute('title', isFav ? 'Retirer des favoris' : 'Ajouter aux favoris');
         const svg = btn.querySelector('svg');
         updateFavIcon(svg, isFav);
       });
+      
+      // Mettre à jour le bouton dans le modal de détail
+      const detailsSaveBtn = document.getElementById('detailsSave');
+      if (detailsSaveBtn && detailsSaveBtn.dataset.id === key) {
+        setDetailsSaveState(isFav);
+      }
+      
+      // Fallback: vérifier aussi via detailsCurrentAd
       if (detailsCurrentAd && normalizeAdId(detailsCurrentAd.id) === key) {
         setDetailsSaveState(isFav);
       }
+      
       updateFavBadge();
     }
 
@@ -5190,6 +5672,12 @@
         lightboxImage.alt = '';
       }
       applyDetailsContent(adData, { replaceGallery: true });
+      
+      // Force la synchronisation du bouton favoris après la création du DOM
+      setTimeout(() => {
+        syncAllFavoriteButtons();
+      }, 0);
+      
       if (!alreadyOpen) {
         detailsModal.style.display = 'flex';
         detailsModal.classList.add('active');
@@ -5538,7 +6026,8 @@
       let hasOpened = false;
       let openedWithSkeleton = false;
       if (base) {
-        openDetailsModal(base);
+        const optimistic = optimisticIncrementAdViews(base) || base;
+        openDetailsModal(optimistic);
         hasOpened = true;
       } else {
         showDetailsLoadingState(normalizedId);
@@ -5620,6 +6109,7 @@
     // ---------- TOAST ----------
     const toast = document.getElementById('toast');
     function showToast(msg) { toast.textContent = msg; toast.style.display = 'block'; setTimeout(() => toast.style.display = 'none', 1800); }
+    window.showToast = showToast;
 
     // ---------- FOOTER & LEGAL ----------
     (function footerAndLegal() {

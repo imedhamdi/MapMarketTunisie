@@ -228,7 +228,12 @@ export async function listAds(req, res, next) {
 export async function getAd(req, res, next) {
   try {
     const { id } = req.params;
-    const ad = await Ad.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true })
+    const { skipView } = req.query;
+    
+    // Incrémenter les vues seulement si skipView n'est pas défini
+    const updateQuery = skipView === 'true' ? {} : { $inc: { views: 1 } };
+    
+    const ad = await Ad.findByIdAndUpdate(id, updateQuery, { new: true })
       .populate('owner', 'name email avatar memberSince createdAt')
       .lean();
     if (!ad) {

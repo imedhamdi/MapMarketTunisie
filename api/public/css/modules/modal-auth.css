@@ -21,7 +21,8 @@
   border-radius: 24px;
   overflow: hidden;
   width: min(900px, 94vw);
-  min-height: 600px;
+  height: 600px;
+  max-height: 90vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
   transform: scale(.92) translateY(40px);
@@ -148,6 +149,9 @@
   padding: 40px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .auth-tabs {
@@ -200,9 +204,8 @@
 
 .auth-forms {
   position: relative;
-  overflow: hidden;
-  min-height: 400px;
-  flex: 1;
+  overflow: visible;
+  flex: 1 1 auto;
 }
 
 .auth-feedback {
@@ -484,7 +487,8 @@
 @media (max-width: 768px) {
   .auth-dialog {
     grid-template-columns: 1fr;
-    min-height: auto;
+    height: auto;
+    max-height: 90vh;
   }
 
   .auth-hero {
@@ -494,6 +498,7 @@
 
   .auth-pane {
     padding: 32px 28px;
+    max-height: none;
   }
 
   .auth-forms {
@@ -530,17 +535,20 @@
   .auth-backdrop {
     align-items: stretch;
     justify-content: stretch;
-    padding: 12px;
+    padding: max(16px, var(--safeTop)) max(16px, var(--safeRight)) max(16px, var(--safeBottom)) max(16px, var(--safeLeft));
   }
 
   .auth-dialog {
-    width: calc(100vw - 24px);
-    max-width: 420px;
-    margin: auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
     border-radius: 20px;
-    min-height: auto;
+    height: auto;
+    max-height: 100%;
     grid-template-columns: 1fr;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .auth-backdrop.active .auth-dialog {
@@ -549,7 +557,8 @@
   }
 
   .auth-hero {
-    padding: 28px 24px 22px;
+    padding: max(32px, calc(28px + var(--safeTop))) 24px 24px;
+    flex-shrink: 0;
   }
 
   .auth-hero-content {
@@ -557,21 +566,29 @@
   }
 
   .auth-hero-content h2 {
-    font-size: clamp(20px, 6vw, 24px);
+    font-size: clamp(22px, 6vw, 26px);
   }
 
   .auth-hero-content p {
-    font-size: clamp(13px, 4vw, 15px);
+    font-size: clamp(14px, 4vw, 16px);
   }
 
   .auth-hero-illus {
     margin-top: 20px;
+    font-size: 56px;
   }
 
   .auth-pane {
-    padding: 24px 20px 28px;
+    padding: 28px 24px max(32px, calc(28px + var(--safeBottom)));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    flex: 1;
+    min-height: 0;
+  }
+  
+  .auth-close {
+    top: max(20px, calc(16px + var(--safeTop)));
+    right: max(20px, calc(16px + var(--safeRight)));
   }
 }
 

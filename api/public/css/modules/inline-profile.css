@@ -111,34 +111,23 @@
   gap: 12px;
 }
 
-.profile-metric-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
 
-.profile-metric {
-  background: var(--color-surface);
-  border-radius: 16px;
-  padding: 18px;
-  border: 1px solid var(--color-border-soft);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+.profile-delete-account {
+  margin: 32px 0 0 0;
+  text-align: center;
 }
-
-.profile-metric span {
-  display: block;
+.mm-btn.danger {
+  background: #e53935;
+  color: #fff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
 }
-
-.profile-metric .profile-metric__value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--color-text-strong);
-}
-
-.profile-metric .profile-metric__label {
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  margin-top: 4px;
+.mm-btn.danger:hover {
+  background: #b71c1c;
 }
 
 .profile-insights {

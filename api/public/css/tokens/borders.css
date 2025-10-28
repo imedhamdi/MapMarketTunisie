@@ -8,4 +8,9 @@
   --color-border-accent: #ffa1b2;
   --color-border-faint: #eeeeee;
   --color-success-bg: #f0fff4;
+  --color-success-text: #166534;
+  --color-success-border: #9ae6b4;
+  --color-error-bg: #fef2f2;
+  --color-error-text: #991b1b;
+  --color-error-border: #fca5a5;
 }

@@ -1,4 +1,4 @@
-// ========== PROFILE MODAL (Dashboard) ==========
+// ========== PROFILE MODAL (Drawer Style) ==========
 
 function initProfileModal() {
   const logger = window.__APP_LOGGER__ || console;
@@ -44,10 +44,12 @@ function initProfileModal() {
   const summaryCreateBtn = modal.querySelector('#profileOpenNewAd');
 
   const avatarImg = modal.querySelector('#profileAvatar');
+  const avatarMini = modal.querySelector('#profileAvatarMini');
   const avatarTrigger = modal.querySelector('#profileAvatarTrigger');
   const avatarInput = modal.querySelector('#profileAvatarInput');
   const memberSinceLabel = modal.querySelector('#profileMemberSince');
   const emailLabel = modal.querySelector('#profileEmail');
+  const emailHeader = modal.querySelector('#profileEmailHeader');
   const nameLabel = modal.querySelector('#profileUserName');
   const locationChip = modal.querySelector('#profileLocationChip');
   const statusChip = modal.querySelector('#profileStatusChip');
@@ -89,43 +91,144 @@ function initProfileModal() {
     month: 'long',
     day: 'numeric'
   });
+  const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
+
+  function resolveAvatarSrc(rawValue) {
+    if (typeof window.getAvatarUrl === 'function') {
+      return window.getAvatarUrl(rawValue);
+    }
+    if (!rawValue) {
+      return DEFAULT_AVATAR;
+    }
+    if (/^https?:\/\//i.test(rawValue) || rawValue.startsWith('/')) {
+      return rawValue;
+    }
+    return `/uploads/avatars/${rawValue}`;
+  }
+
+  function setAvatarSource(image, rawValue) {
+    if (!image) return;
+    const resolved = resolveAvatarSrc(rawValue);
+    if (image.dataset.fallbackApplied) {
+      delete image.dataset.fallbackApplied;
+    }
+    image.src = resolved;
+  }
+
+  function applyAvatarFallback(image) {
+    if (!image) return;
+    image.addEventListener('error', () => {
+      if (image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = DEFAULT_AVATAR;
+    });
+  }
+
+  applyAvatarFallback(avatarImg);
+  applyAvatarFallback(avatarMini);
 
   const getApi = () =>
     window.api || {
+      async request(url, options = {}) {
+        const response = await fetch(url, {
+          credentials: 'include',
+          ...options
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const payload = isJson ? await response.json() : await response.text();
+        if (!response.ok) {
+          const message =
+            (typeof payload === 'object' && payload?.message) ||
+            response.statusText ||
+            'Erreur réseau';
+          const error = new Error(message);
+          error.status = response.status;
+          error.payload = payload;
+          throw error;
+        }
+        return payload;
+      },
       async get(url) {
-        return fetch(url, { credentials: 'include' }).then((r) => r.json());
+        return this.request(url);
       },
       async post(url, data, options = {}) {
-        const body = options.body ?? JSON.stringify(data);
-        const headers = options.headers || { 'Content-Type': 'application/json' };
-        return fetch(url, {
+        const resolvedBody = options.body ?? data;
+        const isFormData = resolvedBody instanceof FormData;
+        const headers =
+          options.headers ||
+          (isFormData ? undefined : { 'Content-Type': 'application/json' });
+        const body =
+          resolvedBody === undefined
+            ? undefined
+            : isFormData
+            ? resolvedBody
+            : JSON.stringify(resolvedBody);
+        return this.request(url, {
           method: 'POST',
-          credentials: 'include',
           headers,
           body
-        }).then((r) => r.json());
+        });
       },
-      async patch(url, data) {
-        return fetch(url, {
+      async patch(url, data, options = {}) {
+        const resolvedBody = options.body ?? data;
+        const isFormData = resolvedBody instanceof FormData;
+        const headers =
+          options.headers ||
+          (isFormData ? undefined : { 'Content-Type': 'application/json' });
+        const body =
+          resolvedBody === undefined
+            ? undefined
+            : isFormData
+            ? resolvedBody
+            : JSON.stringify(resolvedBody);
+        return this.request(url, {
           method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        }).then((r) => r.json());
+          headers,
+          body
+        });
       },
-      async delete(url) {
-        return fetch(url, { method: 'DELETE', credentials: 'include' }).then((r) => r.json());
+      async delete(url, options = {}) {
+        const resolvedBody = options.body ?? options.data;
+        const isFormData = resolvedBody instanceof FormData;
+        const headers =
+          options.headers ||
+          (isFormData ? undefined : resolvedBody !== undefined ? { 'Content-Type': 'application/json' } : undefined);
+        const body =
+          resolvedBody === undefined
+            ? undefined
+            : isFormData
+            ? resolvedBody
+            : JSON.stringify(resolvedBody);
+        return this.request(url, {
+          method: 'DELETE',
+          headers,
+          body
+        });
       }
     };
 
-  function lockBodyScroll() {
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = `${window.innerWidth - document.documentElement.clientWidth}px`;
+  // Drawer-style open/close (like Favorites modal)
+  function openModal() {
+    overlay.classList.add('active');
+    modal.classList.add('mm-open');
+    modal.setAttribute('aria-hidden', 'false');
+    
+    // Obscure map if exists
+    const map = document.getElementById('map');
+    if (map) map.classList.add('is-obscured');
+
+    fetchProfileData();
   }
 
-  function unlockBodyScroll() {
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
+  function closeModal() {
+    overlay.classList.remove('active');
+    modal.classList.remove('mm-open');
+    modal.setAttribute('aria-hidden', 'true');
+
+    // Remove map obscure
+    const map = document.getElementById('map');
+    if (map) map.classList.remove('is-obscured');
   }
 
   function formatNumber(value) {
@@ -190,14 +293,14 @@ function initProfileModal() {
     });
   }
 
+
   function setLoading() {
-    metricGrid.innerHTML = '<div class="profile-metric profile-skeleton">Chargement…</div>';
-    insightsContainer.innerHTML = '';
-    activityContainer.innerHTML = '<p class="profile-empty__text">Chargement…</p>';
-    analyticsOverview.innerHTML = '<div class="analytics-pill">Chargement…</div>';
-    analyticsCategory.innerHTML = '';
-    analyticsStatus.innerHTML = '';
-    analyticsPrices.innerHTML = '';
+    if (insightsContainer) insightsContainer.innerHTML = '';
+    if (activityContainer) activityContainer.innerHTML = '<p class="profile-empty__text">Chargement…</p>';
+    if (analyticsOverview) analyticsOverview.innerHTML = '<div class="analytics-pill">Chargement…</div>';
+    if (analyticsCategory) analyticsCategory.innerHTML = '';
+    if (analyticsStatus) analyticsStatus.innerHTML = '';
+    if (analyticsPrices) analyticsPrices.innerHTML = '';
     analyticsTopAds.innerHTML = '';
     analyticsLocations.innerHTML = '';
   }
@@ -257,10 +360,8 @@ function initProfileModal() {
       statusChip.textContent = `${formatNumber(activeAds)} annonces actives`;
     }
 
-    const avatarUrl = user.avatarUrl || user.avatar || avatarImg?.src;
-    if (avatarImg && avatarUrl) {
-      avatarImg.src = avatarUrl;
-    }
+    const avatarValue = user.avatarUrl || user.avatar;
+    setAvatarSource(avatarImg, avatarValue);
   }
 
   function renderMetrics() {
@@ -294,6 +395,70 @@ function initProfileModal() {
       })
       .join('');
   }
+
+
+  // Gestion du bouton de suppression de compte (présent uniquement dans l'onglet aperçu)
+  const deleteAccountBtn = modal.querySelector('#deleteAccountBtn');
+  const deleteAccountFeedback = modal.querySelector('#deleteAccountFeedback');
+
+  deleteAccountBtn?.addEventListener('click', async () => {
+    const user = window.authStore?.get();
+    if (!user?._id) {
+      window.showToast?.('Vous devez être connecté pour cette action', 'danger');
+      return;
+    }
+
+    let confirmed = true;
+    if (typeof window.showConfirmDialog === 'function') {
+      confirmed = await window.showConfirmDialog({
+        title: '🗑️ Supprimer votre compte ?',
+        message:
+          'Êtes-vous sûr de vouloir supprimer votre compte ?\nCette action est irréversible.',
+        confirmLabel: 'Supprimer',
+        cancelLabel: 'Annuler'
+      });
+    } else {
+      confirmed = window.confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.');
+    }
+    if (!confirmed) return;
+
+    deleteAccountBtn.disabled = true;
+    if (deleteAccountFeedback) {
+      deleteAccountFeedback.style.display = 'block';
+      deleteAccountFeedback.textContent = 'Suppression en cours…';
+    }
+
+    try {
+      const api = getApi();
+      await api.delete('/api/users/me');
+      if (deleteAccountFeedback) {
+        deleteAccountFeedback.textContent = 'Votre compte est désactivé. Déconnexion en cours…';
+      }
+      window.authStore?.set(null);
+      if (typeof window.updateAuthUI === 'function') {
+        window.updateAuthUI();
+      }
+      window.showToast?.('Compte supprimé ✅');
+      closeProfileModal();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1600);
+    } catch (error) {
+      const payloadMessage =
+        typeof error?.payload === 'string' ? error.payload : error?.payload?.message;
+      const message =
+        payloadMessage ||
+        error?.message ||
+        "Erreur lors de la suppression du compte.";
+      if (deleteAccountFeedback) {
+        deleteAccountFeedback.textContent = message;
+      } else {
+        window.showToast?.(message, 'danger');
+      }
+    } finally {
+      deleteAccountBtn.disabled = false;
+    }
+  });
 
   function renderInsights() {
     const insights = state.analytics?.insights || [];
@@ -555,19 +720,19 @@ function initProfileModal() {
         };
         window.authStore?.set(updated);
         window.updateAuthUI?.();
-        if (avatarImg) {
-          avatarImg.src = response.data.sizes.standard;
-        }
-        if (typeof showToast === 'function') {
-          showToast('Avatar mis à jour ✅');
+        setAvatarSource(avatarImg, response.data.sizes.standard);
+        setAvatarSource(avatarMini, response.data.sizes.standard);
+        window.updateAllAvatars?.(response.data.sizes.standard);
+        if (typeof window.showToast === 'function') {
+          window.showToast('Avatar mis à jour ✅');
         }
       } else {
         throw new Error(response?.message || "Impossible d'actualiser l'avatar");
       }
     } catch (error) {
       logger.error('Error uploading avatar', error);
-      if (typeof showToast === 'function') {
-        showToast("Impossible de mettre à jour l'avatar", 'danger');
+      if (typeof window.showToast === 'function') {
+        window.showToast("Impossible de mettre à jour l'avatar", 'danger');
       }
     } finally {
       setButtonLoading(avatarTrigger, false);
@@ -592,8 +757,8 @@ function initProfileModal() {
         window.updateAuthUI?.();
         renderSummary(updatedUser);
         infoFeedback.textContent = 'Profil mis à jour ✅';
-        if (typeof showToast === 'function') {
-          showToast('Profil mis à jour ✅');
+        if (typeof window.showToast === 'function') {
+          window.showToast('Profil mis à jour ✅');
         }
       } else {
         throw new Error(response?.message || 'Modification impossible');
@@ -628,8 +793,8 @@ function initProfileModal() {
         window.authStore?.set(updatedUser);
         renderSummary(updatedUser);
         locationFeedback.textContent = 'Localisation mise à jour ✅';
-        if (typeof showToast === 'function') {
-          showToast('Localisation mise à jour ✅');
+        if (typeof window.showToast === 'function') {
+          window.showToast('Localisation mise à jour ✅');
         }
       } else {
         throw new Error(response?.message || 'Mise à jour impossible');
@@ -690,8 +855,8 @@ function initProfileModal() {
       if (response?.status === 'success') {
         passwordFeedback.textContent = 'Mot de passe modifié ✅';
         passwordForm.reset();
-        if (typeof showToast === 'function') {
-          showToast('Mot de passe modifié ✅');
+        if (typeof window.showToast === 'function') {
+          window.showToast('Mot de passe modifié ✅');
         }
         return;
       } else {
@@ -728,8 +893,8 @@ function initProfileModal() {
         closeProfileModal();
         if (typeof window.openPostModal === 'function') {
           window.openPostModal({ adId: ad?._id, adData: ad });
-        } else if (typeof showToast === 'function') {
-          showToast('Impossible d’ouvrir le formulaire de modification', 'danger');
+        } else if (typeof window.showToast === 'function') {
+          window.showToast('Impossible d’ouvrir le formulaire de modification', 'danger');
         }
         break;
       case 'view':
@@ -754,30 +919,22 @@ function initProfileModal() {
 
     populateUser(user);
     loadDashboard();
-    overlay.hidden = false;
-    requestAnimationFrame(() => {
-      overlay.classList.add('active');
-      modal.classList.add('mm-open');
-      modal.setAttribute('aria-hidden', 'false');
-    });
-    lockBodyScroll();
+    openModal();
   }
 
   function closeProfileModal() {
-    if (!modal.classList.contains('mm-open')) return;
-    modal.classList.remove('mm-open');
-    modal.setAttribute('aria-hidden', 'true');
-    overlay.classList.remove('active');
-    setTimeout(() => {
-      if (!modal.classList.contains('mm-open')) {
-        overlay.hidden = true;
-      }
-    }, 200);
-    unlockBodyScroll();
+    closeModal();
   }
 
   function populateUser(user) {
     renderSummary(user);
+
+    // Update header mini avatar and email
+    const avatarValue = user?.avatarUrl || user?.avatar;
+    setAvatarSource(avatarMini, avatarValue);
+    if (emailHeader) {
+      emailHeader.textContent = user?.email || '';
+    }
   }
 
   overlay?.addEventListener('click', (event) => {
