@@ -86,7 +86,7 @@
 }
 
 .loisirs {
-  background: linear-gradient(135deg, var(--color-success-500), var(--color-brand-500))
+  background: linear-gradient(135deg, #a855f7, #9333ea)
 }
 
 .maison {
