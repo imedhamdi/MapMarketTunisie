@@ -83,12 +83,12 @@
     };
 
     const CATEGORY_CONFIG = [
-      { slug: 'immobilier', label: 'Immobilier', icon: '🏢' },
-      { slug: 'auto', label: 'Auto', icon: '🚗' },
-      { slug: 'mode', label: 'Mode', icon: '👗' },
-      { slug: 'electroniques', label: 'High-Tech', icon: '💻' },
-      { slug: 'pieces', label: 'Pièces', icon: '🔧' },
-      { slug: 'loisirs', label: 'Loisirs', icon: '🚲' }
+      { slug: 'immobilier', label: 'Immobilier', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>' },
+      { slug: 'auto', label: 'Auto', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg>' },
+      { slug: 'mode', label: 'Mode', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>' },
+      { slug: 'electroniques', label: 'High-Tech', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg>' },
+      { slug: 'pieces', label: 'Pièces', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6"></path><path d="m15.14 8.86 4.24-4.24m-6.36 6.36 4.24-4.24M23 12h-6m-6 0H5"></path><path d="m15.14 15.14 4.24 4.24m-6.36-6.36 4.24 4.24M12 23v-6"></path></svg>' },
+      { slug: 'loisirs', label: 'Loisirs', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>' }
     ];
     const CATEGORY_LABELS = CATEGORY_CONFIG.reduce((acc, item) => {
       acc[item.slug] = item.label;
