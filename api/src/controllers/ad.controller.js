@@ -194,6 +194,7 @@ export async function listAds(req, res, next) {
       sort,
       cursor,
       after,
+      before,
       limit
     } = req.query;
 
@@ -212,7 +213,8 @@ export async function listAds(req, res, next) {
     const pagination = {
       limit,
       cursor,
-      after
+      after,
+      before
     };
 
     const result = await adService.listAds(filters, pagination);

@@ -279,7 +279,7 @@ class AdService {
       PAGINATION.MAX_LIMIT,
       Math.max(PAGINATION.MIN_LIMIT, Number(pagination.limit) || PAGINATION.DEFAULT_LIMIT)
     );
-    const cursor = this.decodeCursor(pagination.cursor || pagination.after);
+    const cursor = this.decodeCursor(pagination.cursor || pagination.after || pagination.before);
 
     const query = this.buildSearchQuery(filters);
     const sortOrder = this.getSortOrder(filters.sort);

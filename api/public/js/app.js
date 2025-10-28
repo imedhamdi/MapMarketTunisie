@@ -1458,7 +1458,7 @@
     function cachePage(pageNumber, pageData) {
       if (!pageData) return;
       const cached = {
-        items: pageData.items,
+        items: pageData.items.map((item) => ({ ...item })),
         nextCursor: pageData.nextCursor || null,
         hasNext: Boolean(pageData.hasNext)
       };
@@ -1475,7 +1475,7 @@
     function applyPage(pageNumber, pageData, { autoFit = false, scroll = true } = {}) {
       if (!pageData) return;
       paging.page = pageNumber;
-      paging.items = pageData.items;
+      paging.items = pageData.items.map((item) => ({ ...item }));
       paging.nextCursor = pageData.nextCursor || null;
       paging.hasNext = Boolean(pageData.hasNext);
       if (!paging.hasNext && paging.cache.has(pageNumber + 1)) {
@@ -1502,6 +1502,7 @@
       const params = new URLSearchParams();
       params.set('limit', String(PAGE_SIZE));
       if (cursor) {
+        params.set('cursor', cursor);
         if (direction === 'prev') {
           params.set('before', cursor);
         } else {
