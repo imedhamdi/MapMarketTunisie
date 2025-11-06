@@ -4734,7 +4734,7 @@
     const detailsDescEl = document.getElementById('detailsDesc');
     const detailsReadMore = document.getElementById('detailsReadMore');
     const detailsSeller = document.getElementById('detailsSeller');
-    const detailsSave = document.getElementById('detailsSave');
+    let detailsSave = document.getElementById('detailsSave');
     const detailsContact = document.getElementById('detailsContact');
     const contactPopover = document.getElementById('contactPopover');
     const contactAnchor = document.getElementById('sellerCardWrap');
@@ -5303,6 +5303,7 @@
         const deleteBtn = document.getElementById('detailsDelete');
         const visitBtn = document.getElementById('detailsVisit');
         
+        detailsSave = document.getElementById('detailsSave');
         if (editBtn) {
           editBtn.addEventListener('click', () => handleEditAd(ad));
         }
@@ -5346,6 +5347,7 @@
         
         // Réattacher les événements pour les visiteurs
         const saveBtn = document.getElementById('detailsSave');
+        detailsSave = saveBtn;
         const contactBtn = document.getElementById('detailsContact');
         const visitBtn = document.getElementById('detailsVisit');
         
@@ -5609,17 +5611,23 @@
     }
 
     function setDetailsSaveState(isFav) {
+      if (!detailsSave || !detailsSave.isConnected) {
+        detailsSave = document.getElementById('detailsSave');
+      }
+      if (!detailsSave) return;
       detailsSave.classList.toggle('active', isFav);
       detailsSave.setAttribute('aria-pressed', String(isFav));
       detailsSave.setAttribute('title', isFav ? 'Retirer des favoris' : 'Ajouter aux favoris');
       const svg = detailsSave.querySelector('svg');
       const span = detailsSave.querySelector('span');
-      const path = svg.querySelector('path');
+      const path = svg?.querySelector('path');
       if (path) {
         path.setAttribute('fill', isFav ? 'currentColor' : 'none');
         path.setAttribute('stroke', 'currentColor');
       }
-      span.textContent = isFav ? 'Retirer des favoris' : 'Ajouter aux favoris';
+      if (span) {
+        span.textContent = isFav ? 'Retirer des favoris' : 'Ajouter aux favoris';
+      }
     }
 
     function syncFavoriteButtons(id, isFav) {
