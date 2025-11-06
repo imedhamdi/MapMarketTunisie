@@ -5,12 +5,17 @@
   const API_BASE = window.__API_BASE__ || `${window.location.origin}/api/v1`;
   const CONVERSATION_LIMIT = 60;
   const MESSAGE_LIMIT = 80;
+  const MAX_ATTACHMENTS = 5;
+  const ATTACHMENT_PLACEHOLDER =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2399A4B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10'/%3E%3Crect x='3' y='13' width='18' height='8' rx='2'/%3E%3Ccircle cx='12' cy='17' r='1.5'/%3E%3C/svg%3E";
 
   let socket = null;
   let isConnected = false;
   let activeConversationId = null;
   let readFlushTimer = null;
   let typingTimer = null;
+  let pendingSelectConversationId = null;
+  let composerAttachments = [];
 
   const pendingRead = new Set();
   const pendingMessages = new Map();
@@ -40,6 +45,8 @@
     hydrateUser();
     renderConversations();
     renderEmptyMessages();
+    renderComposerAttachments();
+    updateSendButtonState();
     updateStatusIndicator();
   }
 
@@ -71,6 +78,9 @@
     dom.chatTextarea = document.getElementById('chatTextarea');
     dom.chatSend = document.getElementById('chatSend');
     dom.chatInputNote = document.getElementById('chatInputNote');
+    dom.chatAttachmentPreview = document.getElementById('chatAttachmentPreview');
+    dom.chatAttachButton = document.getElementById('chatAttachBtn');
+    dom.chatFileInput = document.getElementById('chatFileInput');
   }
 
   function bindUiEvents() {
@@ -103,6 +113,10 @@
       });
       dom.chatSend.addEventListener('click', handleSendMessage);
     }
+
+    dom.chatAttachButton?.addEventListener('click', handleAttachClick);
+    dom.chatFileInput?.addEventListener('change', handleAttachmentSelection);
+    dom.chatAttachmentPreview?.addEventListener('click', handleAttachmentRemove);
 
     dom.conversationsList?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-conversation-id]');
@@ -160,10 +174,12 @@
     state.unreadTotal = 0;
     pendingRead.clear();
     pendingMessages.clear();
+    pendingSelectConversationId = null;
     if (readFlushTimer) {
       clearTimeout(readFlushTimer);
       readFlushTimer = null;
     }
+    clearComposerAttachments();
     updateUnreadBadge();
     renderConversations();
     renderEmptyMessages();
@@ -205,8 +221,11 @@
         selectConversationIfAvailable(conversationId);
       }
     }
-    dom.overlay?.classList.add('active');
-    dom.overlay?.setAttribute('aria-hidden', 'false');
+    if (dom.overlay) {
+      dom.overlay.hidden = false;
+      requestAnimationFrame(() => dom.overlay.classList.add('active'));
+      dom.overlay.setAttribute('aria-hidden', 'false');
+    }
     dom.modal.classList.add('mm-open');
     dom.modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -216,8 +235,20 @@
     if (!dom.modal) return;
     dom.modal.classList.remove('mm-open');
     dom.modal.setAttribute('aria-hidden', 'true');
-    dom.overlay?.classList.remove('active');
-    dom.overlay?.setAttribute('aria-hidden', 'true');
+    if (dom.overlay) {
+      dom.overlay.classList.remove('active');
+      dom.overlay.setAttribute('aria-hidden', 'true');
+      setTimeout(() => {
+        if (dom.overlay && !dom.modal.classList.contains('mm-open')) {
+          dom.overlay.hidden = true;
+        }
+      }, 220);
+    }
+    if (dom.chatTextarea) {
+      dom.chatTextarea.value = '';
+      dom.chatInputNote?.setAttribute('hidden', 'true');
+    }
+    clearComposerAttachments();
     document.body.style.overflow = '';
   }
 
@@ -677,6 +708,7 @@
     state.activeParticipantAvatar = conversation.otherParticipant?.avatar || null;
     highlightSelectedConversation(conversationId);
     showChatPanel(conversation);
+    clearComposerAttachments();
     joinConversation(conversationId, { markAsRead: true });
     markConversationAsRead(conversationId);
     loadMessages(conversationId);
@@ -1001,6 +1033,7 @@
     hideChatPanel();
     activeConversationId = null;
     state.activeParticipantAvatar = null;
+    clearComposerAttachments();
   }
 
   async function handleHideConversation() {
@@ -1034,21 +1067,230 @@
   function handleTextareaInput() {
     if (!dom.chatTextarea || !dom.chatSend) return;
     const text = dom.chatTextarea.value || '';
-    dom.chatSend.disabled = text.trim().length === 0;
     if (text.length >= dom.chatTextarea.maxLength) {
       dom.chatInputNote?.removeAttribute('hidden');
     } else {
       dom.chatInputNote?.setAttribute('hidden', 'true');
     }
+    updateSendButtonState();
     notifyTyping();
+  }
+
+  function handleAttachClick(event) {
+    event.preventDefault();
+    if (!dom.chatFileInput || dom.chatAttachButton?.disabled) return;
+    dom.chatFileInput.click();
+  }
+
+  function handleAttachmentSelection(event) {
+    if (!event || !dom.chatFileInput) return;
+    const files = Array.from(event.target.files || []);
+    dom.chatFileInput.value = '';
+    if (!files.length) return;
+
+    const availableSlots = Math.max(0, MAX_ATTACHMENTS - composerAttachments.length);
+    if (availableSlots <= 0) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(`Limite de ${MAX_ATTACHMENTS} pièces jointes atteinte.`);
+      }
+      return;
+    }
+
+    const queue = files.slice(0, availableSlots);
+    queue.reduce((promise, file) => {
+      return promise.then(() => uploadAttachmentFile(file));
+    }, Promise.resolve());
+  }
+
+  function handleAttachmentRemove(event) {
+    const button = event.target.closest('[data-attachment-remove]');
+    if (!button) return;
+    const id = button.getAttribute('data-attachment-remove');
+    if (!id) return;
+    removeAttachmentById(id);
+  }
+
+  async function uploadAttachmentFile(file) {
+    if (!file) return;
+    const id = `att-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    const objectUrl =
+      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+        ? URL.createObjectURL(file)
+        : null;
+    const entry = {
+      id,
+      name: file.name,
+      size: file.size,
+      mime: file.type || 'application/octet-stream',
+      status: 'uploading',
+      data: null,
+      previewUrl: objectUrl,
+      objectUrl,
+      error: null
+    };
+    composerAttachments.push(entry);
+    renderComposerAttachments();
+    updateSendButtonState();
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await apiFetch('/chat/attachments', { method: 'POST', body: formData });
+      const attachment = response?.attachment || response;
+      entry.status = 'ready';
+      entry.data = {
+        ...attachment,
+        originalName: attachment?.originalName || entry.name
+      };
+      entry.previewUrl =
+        attachment?.thumbnailUrl || attachment?.url || entry.previewUrl || ATTACHMENT_PLACEHOLDER;
+      if (entry.objectUrl) {
+        URL.revokeObjectURL(entry.objectUrl);
+        entry.objectUrl = null;
+      }
+    } catch (error) {
+      console.error('[chat] Téléversement pièce jointe impossible', error);
+      entry.status = 'error';
+      entry.error = error.message || 'Échec du téléversement';
+      if (typeof window.showToast === 'function') {
+        window.showToast('Le téléversement a échoué. Réessayez.');
+      }
+    } finally {
+      renderComposerAttachments();
+      updateSendButtonState();
+    }
+  }
+
+  function removeAttachmentById(id) {
+    const index = composerAttachments.findIndex((att) => att.id === id);
+    if (index === -1) return;
+    const [entry] = composerAttachments.splice(index, 1);
+    if (entry?.objectUrl) {
+      URL.revokeObjectURL(entry.objectUrl);
+    }
+    renderComposerAttachments();
+    updateSendButtonState();
+  }
+
+  function renderComposerAttachments() {
+    if (!dom.chatAttachmentPreview) return;
+    dom.chatAttachmentPreview.innerHTML = '';
+    if (!composerAttachments.length) {
+      dom.chatAttachmentPreview.hidden = true;
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    composerAttachments.forEach((entry) => {
+      const chip = document.createElement('div');
+      chip.className = 'chat-attachment-chip';
+      chip.dataset.attachmentId = entry.id;
+      if (entry.status === 'uploading') chip.classList.add('chat-attachment-chip--uploading');
+      if (entry.status === 'error') chip.classList.add('chat-attachment-chip--error');
+
+      const thumb = document.createElement('img');
+      thumb.className = 'chat-attachment-chip__thumb';
+      thumb.alt = '';
+      const previewSrc =
+        entry.previewUrl || entry.data?.thumbnailUrl || entry.data?.url || ATTACHMENT_PLACEHOLDER;
+      thumb.src = previewSrc;
+      chip.appendChild(thumb);
+
+      const name = document.createElement('span');
+      name.className = 'chat-attachment-chip__name';
+      name.textContent = entry.name || 'Pièce jointe';
+      chip.appendChild(name);
+
+      const meta = document.createElement('span');
+      meta.className = 'chat-attachment-chip__meta';
+      if (entry.status === 'uploading') {
+        meta.textContent = 'Téléversement…';
+      } else if (entry.status === 'error') {
+        meta.textContent = entry.error || 'Échec du téléversement';
+      } else {
+        meta.textContent = formatFileSize(entry.size);
+      }
+      chip.appendChild(meta);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'chat-attachment-chip__remove';
+      remove.setAttribute('data-attachment-remove', entry.id);
+      remove.setAttribute('aria-label', 'Retirer la pièce jointe');
+      remove.textContent = '✕';
+      if (entry.status === 'uploading') {
+        remove.title = 'Annuler le téléversement';
+      }
+      chip.appendChild(remove);
+
+      fragment.appendChild(chip);
+    });
+
+    dom.chatAttachmentPreview.appendChild(fragment);
+    dom.chatAttachmentPreview.hidden = false;
+  }
+
+  function getReadyAttachments() {
+    return composerAttachments
+      .filter((entry) => entry.status === 'ready' && entry.data)
+      .map((entry) => ({ ...entry.data }));
+  }
+
+  function hasUploadingAttachments() {
+    return composerAttachments.some((entry) => entry.status === 'uploading');
+  }
+
+  function updateSendButtonState() {
+    if (!dom.chatSend) return;
+    const textValue = (dom.chatTextarea?.value || '').trim();
+    const hasText = textValue.length > 0;
+    const hasReady = composerAttachments.some((entry) => entry.status === 'ready');
+    const uploading = hasUploadingAttachments();
+    dom.chatSend.disabled = uploading || (!hasText && !hasReady);
+    if (dom.chatAttachButton) {
+      dom.chatAttachButton.disabled = composerAttachments.length >= MAX_ATTACHMENTS || uploading;
+    }
+  }
+
+  function clearComposerAttachments() {
+    composerAttachments.forEach((entry) => {
+      if (entry?.objectUrl) {
+        URL.revokeObjectURL(entry.objectUrl);
+      }
+    });
+    composerAttachments = [];
+    renderComposerAttachments();
+    updateSendButtonState();
+  }
+
+  function formatFileSize(bytes) {
+    if (!Number.isFinite(bytes)) return '';
+    if (bytes < 1024) return `${bytes} o`;
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} Ko`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} Mo`;
   }
 
   async function handleSendMessage() {
     if (!dom.chatTextarea || !activeConversationId) return;
-    const text = dom.chatTextarea.value.trim();
-    if (!text) return;
+    const originalValue = dom.chatTextarea.value;
+    const text = originalValue.trim();
+    const attachmentsPayload = getReadyAttachments();
+
+    if (!text && !attachmentsPayload.length) {
+      return;
+    }
+    if (hasUploadingAttachments()) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('Patientez, téléversement en cours…');
+      }
+      return;
+    }
+
     dom.chatTextarea.value = '';
-    dom.chatSend.disabled = true;
+    updateSendButtonState();
 
     const clientTempId = `tmp-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
     const pending = {
@@ -1057,7 +1299,7 @@
       conversationId: activeConversationId,
       sender: state.userId,
       text,
-      attachments: [],
+      attachments: attachmentsPayload.map((attachment) => ({ ...attachment })),
       status: 'sending',
       createdAt: new Date()
     };
@@ -1070,7 +1312,7 @@
     try {
       const data = await apiFetch(`/chat/conversations/${activeConversationId}/messages`, {
         method: 'POST',
-        body: { text, attachments: [], clientTempId }
+        body: { text, attachments: attachmentsPayload, clientTempId }
       });
       const savedMessage = data?.message ? enhanceMessage(data.message) : null;
       if (savedMessage) {
@@ -1078,6 +1320,7 @@
         updateConversationPreview(activeConversationId, savedMessage);
         moveConversationToTop(activeConversationId);
         applySearch();
+        clearComposerAttachments();
       }
     } catch (error) {
       console.error('[chat] Envoi impossible', error);
@@ -1087,11 +1330,13 @@
         const status = element.querySelector('.message-bubble__status');
         if (status) status.textContent = 'Échec';
       }
+      dom.chatTextarea.value = originalValue;
       if (typeof window.showToast === 'function') {
         window.showToast('Message non envoyé.');
       }
     } finally {
       pendingMessages.delete(clientTempId);
+      updateSendButtonState();
     }
   }
 

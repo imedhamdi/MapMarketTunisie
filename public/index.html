@@ -8,7 +8,7 @@
     content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
+    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data: blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
   <link rel="canonical" href="https://tondomaine.com/">
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -901,16 +901,18 @@
     </div>
   </div>
 
-  <!-- MESSAGES MODAL & OVERLAY (structure minimale) -->
-  <div class="messages-overlay" id="messagesOverlay" aria-hidden="true"></div>
-  <div class="mm-modal--messages" id="messagesModal" role="dialog" aria-modal="true" aria-labelledby="messagesTitle" aria-hidden="true">
-    <header class="messages-header">
-      <h2 class="mm-title" id="messagesTitle">Messages <span class="messages-header__badge" id="messagesUnreadBadge"></span></h2>
+  <!-- MESSAGES MODAL & OVERLAY -->
+  <div id="messagesOverlay" class="mm-overlay" hidden></div>
+  <div class="mm-modal mm-modal--messages" id="messagesModal" role="dialog" aria-modal="true" aria-labelledby="messagesTitle" aria-hidden="true">
+    <header class="mm-header messages-header">
+      <div class="messages-header__row">
+        <h2 class="mm-title" id="messagesTitle">Messages <span class="messages-header__badge" id="messagesUnreadBadge"></span></h2>
+        <button type="button" class="mm-icon messages-header__close" id="messagesClose" aria-label="Fermer">✕</button>
+      </div>
       <div class="messages-status" id="messagesStatus" data-connected="false" aria-live="polite">
         <span class="messages-status__dot" aria-hidden="true"></span>
         <span class="messages-status__text">Déconnecté</span>
       </div>
-      <button type="button" class="messages-drawer__close" id="messagesClose" aria-label="Fermer">✕</button>
     </header>
     <div class="messages-drawer__content">
       <div class="messages-drawer__body">
@@ -949,11 +951,18 @@
               <button type="button" class="mm-scroll-bottom" id="scrollToBottom" aria-hidden="true">Bas ↓</button>
             </div>
             <div class="chat-panel__input" id="chatInputArea">
-              <div class="chat-panel__input-field">
-                <textarea id="chatTextarea" rows="2" maxlength="2000" placeholder="Écrire un message…" aria-label="Écrire un message"></textarea>
-                <p class="chat-panel__input-note" id="chatInputNote" hidden>Limite atteinte</p>
+              <div class="chat-panel__attachments" id="chatAttachmentPreview" hidden></div>
+              <div class="chat-panel__input-row">
+                <button type="button" class="chat-panel__attach" id="chatAttachBtn" aria-label="Ajouter une pièce jointe">
+                  <span aria-hidden="true">📎</span>
+                </button>
+                <div class="chat-panel__input-field">
+                  <textarea id="chatTextarea" rows="2" maxlength="2000" placeholder="Écrire un message…" aria-label="Écrire un message"></textarea>
+                  <p class="chat-panel__input-note" id="chatInputNote" hidden>Limite atteinte</p>
+                </div>
+                <button type="button" class="chat-panel__send" id="chatSend" disabled>Envoyer</button>
               </div>
-              <button type="button" class="chat-panel__send" id="chatSend" disabled>Envoyer</button>
+              <input type="file" id="chatFileInput" class="chat-panel__file-input" accept="image/jpeg,image/png,image/webp" multiple hidden>
             </div>
           </section>
         </div>

@@ -57,6 +57,9 @@ const imageUrlSchema = Joi.string()
     if (value.startsWith('data:image/')) {
       return value;
     }
+    if (/^\/?uploads\/ads\//.test(value)) {
+      return value;
+    }
     if (/^https?:\/\//i.test(value)) {
       return value;
     }

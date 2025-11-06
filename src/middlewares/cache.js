@@ -164,7 +164,7 @@ export function invalidateAdsCache() {
  * Invalide le cache d'une annonce spécifique
  */
 export function invalidateAdCache() {
-  return invalidateCache((req) => `cache:ad:${req.params.id}`);
+  return invalidateCache((req) => `cache:ad:${req.params.id}:*`);
 }
 
 /**

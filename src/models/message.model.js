@@ -22,9 +22,9 @@ const MessageSchema = new Schema(
     },
     text: {
       type: String,
-      required: true,
       trim: true,
-      maxlength: 2000
+      maxlength: 2000,
+      default: ''
     },
     clientTempId: {
       type: String,

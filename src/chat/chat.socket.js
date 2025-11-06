@@ -67,22 +67,29 @@ const conversationJoinSchema = Joi.object({
     .required(),
   markAsRead: Joi.boolean().optional()
 });
+const messageAttachmentSchema = Joi.object({
+  key: Joi.string().required(),
+  url: Joi.string().uri().allow(null),
+  thumbnailUrl: Joi.string().uri().allow(null),
+  mime: Joi.string().required(),
+  size: Joi.number().min(0).required(),
+  width: Joi.number().allow(null),
+  height: Joi.number().allow(null)
+});
 const messageSendSchema = Joi.object({
   conversationId: Joi.string()
     .regex(/^[0-9a-fA-F]{24}$/)
     .required(),
-  text: Joi.string().trim().min(1).max(2000).required(),
-  attachments: Joi.array()
-    .items(
-      Joi.object({
-        key: Joi.string().required(),
-        mime: Joi.string().required(),
-        size: Joi.number().min(0).required()
-      })
-    )
-    .max(5)
-    .optional(),
+  text: Joi.string().allow('').trim().max(2000).optional(),
+  attachments: Joi.array().items(messageAttachmentSchema).max(5).optional(),
   clientTempId: Joi.string().allow(null).optional()
+}).custom((value, helpers) => {
+  const hasText = typeof value.text === 'string' && value.text.trim().length > 0;
+  const hasAttachments = Array.isArray(value.attachments) && value.attachments.length > 0;
+  if (!hasText && !hasAttachments) {
+    return helpers.error('any.invalid');
+  }
+  return value;
 });
 const messageReceivedSchema = Joi.object({
   conversationId: Joi.string()

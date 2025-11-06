@@ -84,13 +84,18 @@ app.use(
         imgSrc: [
           "'self'",
           'data:',
+          'blob:',
           'https://images.unsplash.com',
           'https://*.tile.openstreetmap.org',
           'https://tile.openstreetmap.org',
           'https://via.placeholder.com',
           'https://unpkg.com'
         ],
-        connectSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          'https://nominatim.openstreetmap.org',
+          ...(env.isDev ? ['ws://localhost:4000', 'wss://localhost:4000'] : [])
+        ],
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],

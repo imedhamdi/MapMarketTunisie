@@ -5344,12 +5344,24 @@
       postDescription.value = ad.description;
     }
 
-    // Location
-    if (ad.city) {
-      postAddress.value = ad.city;
+    // Location - accept both raw API shape (locationText/location) and mapped shape (city/latlng/coords)
+    const addressValue = ad.locationText || ad.city || '';
+    if (addressValue) {
+      postAddress.value = addressValue;
     }
-    if (ad.coords?.coordinates) {
-      const [lng, lat] = ad.coords.coordinates;
+    let lat = null;
+    let lng = null;
+    if (ad.location?.coordinates && Array.isArray(ad.location.coordinates)) {
+      // Raw API shape
+      [lng, lat] = ad.location.coordinates;
+    } else if (ad.coords?.coordinates && Array.isArray(ad.coords.coordinates)) {
+      // Older/mapped variant
+      [lng, lat] = ad.coords.coordinates;
+    } else if (Array.isArray(ad.latlng) && ad.latlng.length === 2) {
+      // Mapped mini shape from mapAdFromApi()
+      [lat, lng] = ad.latlng;
+    }
+    if (lat != null && lng != null) {
       postLat.value = lat;
       postLng.value = lng;
       initPostMap();
@@ -5375,18 +5387,29 @@
     }
 
     // Images - convert URLs to photo objects
-    if (ad.images && Array.isArray(ad.images)) {
-      postPhotos = ad.images.map((url, index) => ({
+    let sourceImages = [];
+    if (Array.isArray(ad.images) && ad.images.length) {
+      sourceImages = ad.images;
+    } else if (Array.isArray(ad.gallery) && ad.gallery.length) {
+      sourceImages = ad.gallery;
+    }
+    if (sourceImages.length) {
+      postPhotos = sourceImages.map((url, index) => ({
         file: null,
-        url: url,
+        url,
         preview: url,
-        isExisting: true, // Mark as existing image
+        isExisting: true,
         index
       }));
       renderPhotoList();
     }
 
     updateDescriptionCount();
+
+    // Stocker l'original pour comparaison lors du PATCH
+    if (editMode) {
+      originalAdData = ad;
+    }
   }
 
   // Open modal in edit mode
@@ -5420,6 +5443,48 @@
       // Upload new images
       const uploaded = await uploadImages(newPhotosToUpload);
       const payload = collectPostPayload();
+
+      // --- Ajustements spécifiques à l'édition pour éviter 422 (validation stricte) ---
+      if (editMode) {
+        // Nettoyer les attributs: retirer valeurs nulles/vides
+        if (payload.attributes && typeof payload.attributes === 'object') {
+          Object.keys(payload.attributes).forEach((key) => {
+            const val = payload.attributes[key];
+            if (val == null || val === '') {
+              delete payload.attributes[key];
+            }
+          });
+          if (!Object.keys(payload.attributes).length) {
+            delete payload.attributes; // supprime entièrement pour contourner la validation des attributs
+          }
+        }
+        // Si catégorie inchangée et aucun attribut envoyé => supprimer category pour ignorer le custom validator
+        if (
+          originalAdData &&
+          originalAdData.category &&
+          payload.category === originalAdData.category &&
+          !payload.attributes
+        ) {
+          delete payload.category;
+        }
+        // Localisation: si inchangée, ne pas renvoyer (pour réduire les champs soumis)
+        if (
+          originalAdData &&
+          originalAdData.locationText === payload.locationText &&
+          originalAdData.location?.coordinates &&
+          Array.isArray(originalAdData.location.coordinates) &&
+          originalAdData.location.coordinates.length === 2
+        ) {
+          const [origLng, origLat] = originalAdData.location.coordinates;
+          const latMatch = Number(origLat).toFixed(6) === Number(payload.latitude).toFixed(6);
+          const lngMatch = Number(origLng).toFixed(6) === Number(payload.longitude).toFixed(6);
+          if (latMatch && lngMatch) {
+            delete payload.locationText;
+            delete payload.latitude;
+            delete payload.longitude;
+          }
+        }
+      }
 
       // Combine existing and new image URLs
       payload.images = [...existingImages, ...uploaded.map((item) => item.url)];
@@ -6450,7 +6515,12 @@
       appLogger.warn('handleEditAd appelé sans annonce');
       return;
     }
-    openPostModal({ adId: ad.id || ad._id, adData: ad });
+    // Fermer la modal de détails pour éviter le chevauchement/z-index
+    closeDetailsModal();
+    // Toujours recharger depuis l'API pour obtenir toutes les données (images, coordonnées, attributes)
+    setTimeout(() => {
+      openPostModal({ adId: ad.id || ad._id });
+    }, 100);
   }
 
   async function handleDeleteAd(ad) {
