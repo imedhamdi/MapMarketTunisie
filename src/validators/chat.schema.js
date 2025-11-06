@@ -4,8 +4,8 @@ const objectId = Joi.string().regex(/^[0-9a-fA-F]{24}$/);
 
 const attachmentSchema = Joi.object({
   key: Joi.string().required(),
-  url: Joi.string().uri().optional().allow(null, ''),
-  thumbnailUrl: Joi.string().uri().optional().allow(null, ''),
+  url: Joi.string().uri({ allowRelative: true }).optional().allow(null, ''),
+  thumbnailUrl: Joi.string().uri({ allowRelative: true }).optional().allow(null, ''),
   mime: Joi.string().required(),
   size: Joi.number().min(0).required(),
   width: Joi.number().optional().allow(null),

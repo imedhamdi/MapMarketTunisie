@@ -3285,9 +3285,11 @@
         if (typeof window.mmOnLocate === 'function') {
           window.mmOnLocate([latitude, longitude]);
         }
-        
+
         // Afficher le nom de la ville si disponible
-        const toastMessage = cityName ? `Position détectée: ${cityName} ✅` : 'Position détectée ✅';
+        const toastMessage = cityName
+          ? `Position détectée: ${cityName} ✅`
+          : 'Position détectée ✅';
         showGeoToast(toastMessage);
         requestAnimationFrame(() => mapInstance.invalidateSize?.());
       } catch (error) {

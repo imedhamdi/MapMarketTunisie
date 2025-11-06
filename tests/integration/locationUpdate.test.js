@@ -1,3 +1,4 @@
+/* eslint-env jest */
 import { describe, it, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import mongoose from 'mongoose';
@@ -47,13 +48,13 @@ describe('Location Update API', () => {
     expect(response.body.data.location.radiusKm).toBe(radiusKm);
     expect(response.body.data.location.consent).toBe(true);
     expect(response.body.data.location.lastUpdated).toBeDefined();
-    
+
     // La ville devrait être "Tunis" ou similaire
     console.log('Ville détectée:', response.body.data.location.city);
     expect(response.body.data.location.city).toBeTruthy();
   });
 
-  it('ne devrait pas mettre à jour si les coordonnées n\'ont pas changé (< 10m)', async () => {
+  it("ne devrait pas mettre à jour si les coordonnées n'ont pas changé (< 10m)", async () => {
     // Première mise à jour
     const lat1 = 36.8065;
     const lng1 = 10.1815;
@@ -89,7 +90,7 @@ describe('Location Update API', () => {
       .expect(200);
 
     // Deuxième position: Carthage (environ 15km)
-    const lat2 = 36.8530;
+    const lat2 = 36.853;
     const lng2 = 10.3233;
 
     const response = await request(app)
