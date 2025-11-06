@@ -13,13 +13,16 @@ import {
 } from '../utils/crypto.js';
 import { generateAuthTokens, setAuthCookies, clearAuthCookies } from '../utils/generateTokens.js';
 
-const sanitize = (value) =>
-  typeof value === 'string'
-    ? sanitizeHtml(value, {
-        allowedTags: [],
-        allowedAttributes: {}
-      }).trim()
-    : value;
+function sanitize(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const cleaned = sanitizeHtml(value, {
+    allowedTags: [],
+    allowedAttributes: {}
+  });
+  return cleaned.trim();
+}
 
 export async function signup(req, res) {
   const { name, email, password } = req.body;

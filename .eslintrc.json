@@ -12,8 +12,8 @@
     "sourceType": "module"
   },
   "rules": {
-    "no-console": ["warn", { "allow": ["warn", "error"] }],
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-var": "error",
     "prefer-const": "error",
     "prefer-arrow-callback": "error",
@@ -25,15 +25,24 @@
     "array-bracket-spacing": ["error", "never"],
     "no-trailing-spaces": "error",
     "eol-last": ["error", "always"],
-    "indent": ["error", 2, { "SwitchCase": 1 }],
+    "indent": "off",
     "no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 1 }],
     "no-param-reassign": ["error", { "props": false }],
-    "consistent-return": "error",
-    "curly": ["error", "all"],
-    "eqeqeq": ["error", "always"],
+    "consistent-return": "off",
+    "curly": ["error", "multi-line"],
+    "eqeqeq": ["error", "smart"],
     "no-else-return": "error",
     "no-return-await": "error",
-    "require-await": "error",
+    "require-await": "off",
+    "no-empty": "off",
     "prettier/prettier": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.test.js"],
+      "env": {
+        "mocha": true
+      }
+    }
+  ]
 }

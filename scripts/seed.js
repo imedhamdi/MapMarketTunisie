@@ -2,7 +2,7 @@
  * Script de seed pour peupler la base de données de développement
  * Usage: node scripts/seed.js
  */
-
+/* eslint-disable no-console */
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
@@ -202,3 +202,4 @@ async function seed() {
 }
 
 seed();
+/* eslint-disable no-console */

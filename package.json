@@ -52,7 +52,9 @@
     "sanitize-html": "^2.13.0",
     "sharp": "^0.34.4",
     "winston": "^3.18.3",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "socket.io-client": "^4.7.5",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "chai": "^6.2.0",

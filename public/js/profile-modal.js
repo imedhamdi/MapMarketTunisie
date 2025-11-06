@@ -24,7 +24,6 @@ function initProfileModal() {
     settings: modal.querySelector('#tab-settings')
   };
 
-  const summaryCard = modal.querySelector('#profileSummaryCard');
   const metricGrid = modal.querySelector('#profileMetricGrid');
   const insightsContainer = modal.querySelector('#profileInsights');
   const activityContainer = modal.querySelector('#profileActivity');
@@ -107,7 +106,9 @@ function initProfileModal() {
   }
 
   function setAvatarSource(image, rawValue) {
-    if (!image) return;
+    if (!image) {
+      return;
+    }
     const resolved = resolveAvatarSrc(rawValue);
     if (image.dataset.fallbackApplied) {
       delete image.dataset.fallbackApplied;
@@ -116,9 +117,13 @@ function initProfileModal() {
   }
 
   function applyAvatarFallback(image) {
-    if (!image) return;
+    if (!image) {
+      return;
+    }
     image.addEventListener('error', () => {
-      if (image.dataset.fallbackApplied === 'true') return;
+      if (image.dataset.fallbackApplied === 'true') {
+        return;
+      }
       image.dataset.fallbackApplied = 'true';
       image.src = DEFAULT_AVATAR;
     });
@@ -156,14 +161,13 @@ function initProfileModal() {
         const resolvedBody = options.body ?? data;
         const isFormData = resolvedBody instanceof FormData;
         const headers =
-          options.headers ||
-          (isFormData ? undefined : { 'Content-Type': 'application/json' });
+          options.headers || (isFormData ? undefined : { 'Content-Type': 'application/json' });
         const body =
           resolvedBody === undefined
             ? undefined
             : isFormData
-            ? resolvedBody
-            : JSON.stringify(resolvedBody);
+              ? resolvedBody
+              : JSON.stringify(resolvedBody);
         return this.request(url, {
           method: 'POST',
           headers,
@@ -174,14 +178,13 @@ function initProfileModal() {
         const resolvedBody = options.body ?? data;
         const isFormData = resolvedBody instanceof FormData;
         const headers =
-          options.headers ||
-          (isFormData ? undefined : { 'Content-Type': 'application/json' });
+          options.headers || (isFormData ? undefined : { 'Content-Type': 'application/json' });
         const body =
           resolvedBody === undefined
             ? undefined
             : isFormData
-            ? resolvedBody
-            : JSON.stringify(resolvedBody);
+              ? resolvedBody
+              : JSON.stringify(resolvedBody);
         return this.request(url, {
           method: 'PATCH',
           headers,
@@ -193,13 +196,17 @@ function initProfileModal() {
         const isFormData = resolvedBody instanceof FormData;
         const headers =
           options.headers ||
-          (isFormData ? undefined : resolvedBody !== undefined ? { 'Content-Type': 'application/json' } : undefined);
+          (isFormData
+            ? undefined
+            : resolvedBody !== undefined
+              ? { 'Content-Type': 'application/json' }
+              : undefined);
         const body =
           resolvedBody === undefined
             ? undefined
             : isFormData
-            ? resolvedBody
-            : JSON.stringify(resolvedBody);
+              ? resolvedBody
+              : JSON.stringify(resolvedBody);
         return this.request(url, {
           method: 'DELETE',
           headers,
@@ -213,10 +220,12 @@ function initProfileModal() {
     overlay.classList.add('active');
     modal.classList.add('mm-open');
     modal.setAttribute('aria-hidden', 'false');
-    
+
     // Obscure map if exists
     const map = document.getElementById('map');
-    if (map) map.classList.add('is-obscured');
+    if (map) {
+      map.classList.add('is-obscured');
+    }
 
     fetchProfileData();
   }
@@ -228,7 +237,9 @@ function initProfileModal() {
 
     // Remove map obscure
     const map = document.getElementById('map');
-    if (map) map.classList.remove('is-obscured');
+    if (map) {
+      map.classList.remove('is-obscured');
+    }
   }
 
   function formatNumber(value) {
@@ -239,13 +250,10 @@ function initProfileModal() {
     return currencyFormatter.format(Number(value || 0));
   }
 
-  function formatPercent(value) {
-    const percent = Number(value || 0);
-    return `${percent.toFixed(1).replace('.', ',')}%`;
-  }
-
   function formatDate(value) {
-    if (!value) return '—';
+    if (!value) {
+      return '—';
+    }
     try {
       return dateFormatter.format(new Date(value));
     } catch (error) {
@@ -254,18 +262,30 @@ function initProfileModal() {
   }
 
   function timeAgo(value) {
-    if (!value) return '';
+    if (!value) {
+      return '';
+    }
     const date = new Date(value);
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (seconds < 60) return "à l'instant";
+    if (seconds < 60) {
+      return "à l'instant";
+    }
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `il y a ${minutes} min`;
+    if (minutes < 60) {
+      return `il y a ${minutes} min`;
+    }
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `il y a ${hours} h`;
+    if (hours < 24) {
+      return `il y a ${hours} h`;
+    }
     const days = Math.floor(hours / 24);
-    if (days < 7) return `il y a ${days} j`;
+    if (days < 7) {
+      return `il y a ${days} j`;
+    }
     const weeks = Math.floor(days / 7);
-    if (weeks < 4) return `il y a ${weeks} sem.`;
+    if (weeks < 4) {
+      return `il y a ${weeks} sem.`;
+    }
     return dateFormatter.format(date);
   }
 
@@ -282,7 +302,9 @@ function initProfileModal() {
   }
 
   function switchTab(tabName) {
-    if (!tabName || !panels[tabName]) return;
+    if (!tabName || !panels[tabName]) {
+      return;
+    }
     state.activeTab = tabName;
     tabs.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -293,14 +315,25 @@ function initProfileModal() {
     });
   }
 
-
   function setLoading() {
-    if (insightsContainer) insightsContainer.innerHTML = '';
-    if (activityContainer) activityContainer.innerHTML = '<p class="profile-empty__text">Chargement…</p>';
-    if (analyticsOverview) analyticsOverview.innerHTML = '<div class="analytics-pill">Chargement…</div>';
-    if (analyticsCategory) analyticsCategory.innerHTML = '';
-    if (analyticsStatus) analyticsStatus.innerHTML = '';
-    if (analyticsPrices) analyticsPrices.innerHTML = '';
+    if (insightsContainer) {
+      insightsContainer.innerHTML = '';
+    }
+    if (activityContainer) {
+      activityContainer.innerHTML = '<p class="profile-empty__text">Chargement…</p>';
+    }
+    if (analyticsOverview) {
+      analyticsOverview.innerHTML = '<div class="analytics-pill">Chargement…</div>';
+    }
+    if (analyticsCategory) {
+      analyticsCategory.innerHTML = '';
+    }
+    if (analyticsStatus) {
+      analyticsStatus.innerHTML = '';
+    }
+    if (analyticsPrices) {
+      analyticsPrices.innerHTML = '';
+    }
     analyticsTopAds.innerHTML = '';
     analyticsLocations.innerHTML = '';
   }
@@ -333,12 +366,15 @@ function initProfileModal() {
       renderAds();
     } catch (error) {
       logger.error('Error loading profile dashboard', error);
-      insightsContainer.innerHTML = '<p class="profile-empty__text">Impossible de charger les données.</p>';
+      insightsContainer.innerHTML =
+        '<p class="profile-empty__text">Impossible de charger les données.</p>';
     }
   }
 
   function renderSummary(user) {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     nameLabel.textContent = user.name || 'Utilisateur';
     emailLabel.textContent = user.email || '—';
     if (memberSinceLabel) {
@@ -347,13 +383,23 @@ function initProfileModal() {
         : 'Membre depuis —';
     }
 
-    if (nameInput) nameInput.value = user.name || '';
-    if (emailInput) emailInput.value = user.email || '';
-    if (cityInput) cityInput.value = user.location?.city || '';
-    if (radiusInput) radiusInput.value = user.location?.radiusKm || 10;
+    if (nameInput) {
+      nameInput.value = user.name || '';
+    }
+    if (emailInput) {
+      emailInput.value = user.email || '';
+    }
+    if (cityInput) {
+      cityInput.value = user.location?.city || '';
+    }
+    if (radiusInput) {
+      radiusInput.value = user.location?.radiusKm || 10;
+    }
 
     const locationText = user.location?.city || 'Localisation non renseignée';
-    if (locationChip) locationChip.textContent = locationText;
+    if (locationChip) {
+      locationChip.textContent = locationText;
+    }
 
     const activeAds = state.stats?.summary?.activeAds ?? 0;
     if (statusChip) {
@@ -385,7 +431,8 @@ function initProfileModal() {
 
     metricGrid.innerHTML = metrics
       .map((metric) => {
-        const display = typeof metric.value === 'string' ? metric.value : formatNumber(metric.value);
+        const display =
+          typeof metric.value === 'string' ? metric.value : formatNumber(metric.value);
         return `
           <div class="profile-metric${metric.accent ? ' accent' : ''}">
             <span class="profile-metric__label">${metric.label}</span>
@@ -395,7 +442,6 @@ function initProfileModal() {
       })
       .join('');
   }
-
 
   // Gestion du bouton de suppression de compte (présent uniquement dans l'onglet aperçu)
   const deleteAccountBtn = modal.querySelector('#deleteAccountBtn');
@@ -418,9 +464,13 @@ function initProfileModal() {
         cancelLabel: 'Annuler'
       });
     } else {
-      confirmed = window.confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.');
+      confirmed = window.confirm(
+        'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.'
+      );
     }
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     deleteAccountBtn.disabled = true;
     if (deleteAccountFeedback) {
@@ -447,9 +497,7 @@ function initProfileModal() {
       const payloadMessage =
         typeof error?.payload === 'string' ? error.payload : error?.payload?.message;
       const message =
-        payloadMessage ||
-        error?.message ||
-        "Erreur lors de la suppression du compte.";
+        payloadMessage || error?.message || 'Erreur lors de la suppression du compte.';
       if (deleteAccountFeedback) {
         deleteAccountFeedback.textContent = message;
       } else {
@@ -518,119 +566,122 @@ function initProfileModal() {
     const totalViews = Number(analytics.overview?.totalViews) || 0;
     const totalAds = Number(state.stats?.summary?.totalAds) || 0;
 
-    analyticsOverview.innerHTML = `
-      <div class="analytics-pill">
-        <h4>Vues totales</h4>
-        <strong>${formatNumber(analytics.overview?.totalViews ?? 0)}</strong>
-      </div>
-      <div class="analytics-pill">
-        <h4>Favoris totaux</h4>
-        <strong>${formatNumber(analytics.overview?.totalFavorites ?? 0)}</strong>
-      </div>
-      <div class="analytics-pill">
-        <h4>Vues moy./annonce</h4>
-        <strong>${formatNumber(analytics.overview?.averageViews ?? 0)}</strong>
-      </div>
-      <div class="analytics-pill">
-        <h4>Favoris moy./annonce</h4>
-        <strong>${formatNumber(analytics.overview?.averageFavorites ?? 0)}</strong>
-      </div>
-      <div class="analytics-pill">
-        <h4>Valeur catalogue</h4>
-        <strong>${formatCurrency(analytics.overview?.inventoryValue ?? 0)}</strong>
-      </div>
-    `;
+    analyticsOverview.innerHTML = [
+      '<div class="analytics-pill">',
+      '  <h4>Vues totales</h4>',
+      `  <strong>${formatNumber(analytics.overview?.totalViews ?? 0)}</strong>`,
+      '</div>',
+      '<div class="analytics-pill">',
+      '  <h4>Favoris totaux</h4>',
+      `  <strong>${formatNumber(analytics.overview?.totalFavorites ?? 0)}</strong>`,
+      '</div>',
+      '<div class="analytics-pill">',
+      '  <h4>Vues moy./annonce</h4>',
+      `  <strong>${formatNumber(analytics.overview?.averageViews ?? 0)}</strong>`,
+      '</div>',
+      '<div class="analytics-pill">',
+      '  <h4>Favoris moy./annonce</h4>',
+      `  <strong>${formatNumber(analytics.overview?.averageFavorites ?? 0)}</strong>`,
+      '</div>',
+      '<div class="analytics-pill">',
+      '  <h4>Valeur catalogue</h4>',
+      `  <strong>${formatCurrency(analytics.overview?.inventoryValue ?? 0)}</strong>`,
+      '</div>'
+    ].join('\n');
 
-    analyticsCategory.innerHTML = Array.isArray(analytics.categoryPerformance) &&
-      analytics.categoryPerformance.length
-        ? analytics.categoryPerformance
-            .map(
-        (entry) => `
-        <div class="analytics-bar">
-          <div class="analytics-bar__label">${entry.category}</div>
-          <div class="analytics-bar__meter">
-            <div class="analytics-bar__fill" style="transform: scaleX(${computeRatio(
-              entry.views,
-              totalViews
-            )});"></div>
-          </div>
-          <div class="analytics-badge">${formatNumber(entry.views)} vues</div>
-        </div>
-      `
-      )
-            .join('')
-        : '<p class="profile-empty__text">Aucune donnée par catégorie.</p>';
+    if (Array.isArray(analytics.categoryPerformance) && analytics.categoryPerformance.length) {
+      const markup = analytics.categoryPerformance
+        .map((entry) => {
+          const fill = computeRatio(entry.views, totalViews);
+          return [
+            '<div class="analytics-bar">',
+            `  <div class="analytics-bar__label">${entry.category}</div>`,
+            '  <div class="analytics-bar__meter">',
+            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
+            '  </div>',
+            `  <div class="analytics-badge">${formatNumber(entry.views)} vues</div>`,
+            '</div>'
+          ].join('\n');
+        })
+        .join('\n');
+      analyticsCategory.innerHTML = markup;
+    } else {
+      analyticsCategory.innerHTML =
+        '<p class="profile-empty__text">Aucune donnée par catégorie.</p>';
+    }
 
-    analyticsStatus.innerHTML = Array.isArray(analytics.statusBreakdown) &&
-      analytics.statusBreakdown.length
-        ? analytics.statusBreakdown
-            .map(
-        (item) => `
-        <div class="analytics-bar">
-          <div class="analytics-bar__label" style="text-transform: capitalize;">${item.status}</div>
-          <div class="analytics-bar__meter">
-            <div class="analytics-bar__fill" style="transform: scaleX(${computeRatio(
-              item.count,
-              totalAds
-            )});"></div>
-          </div>
-          <div class="analytics-badge">${formatNumber(item.count)}</div>
-        </div>
-      `
-      )
-            .join('')
-        : '<p class="profile-empty__text">Aucune donnée de statut.</p>';
+    if (Array.isArray(analytics.statusBreakdown) && analytics.statusBreakdown.length) {
+      const markup = analytics.statusBreakdown
+        .map((item) => {
+          const fill = computeRatio(item.count, totalAds);
+          return [
+            '<div class="analytics-bar">',
+            `  <div class="analytics-bar__label" style="text-transform: capitalize;">${item.status}</div>`,
+            '  <div class="analytics-bar__meter">',
+            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
+            '  </div>',
+            `  <div class="analytics-badge">${formatNumber(item.count)}</div>`,
+            '</div>'
+          ].join('\n');
+        })
+        .join('\n');
+      analyticsStatus.innerHTML = markup;
+    } else {
+      analyticsStatus.innerHTML = '<p class="profile-empty__text">Aucune donnée de statut.</p>';
+    }
 
-    analyticsPrices.innerHTML = Array.isArray(analytics.priceDistribution) &&
-      analytics.priceDistribution.length
-        ? analytics.priceDistribution
-            .map(
-        (item) => `
-        <div class="analytics-bar">
-          <div class="analytics-bar__label">${item.label}</div>
-          <div class="analytics-bar__meter">
-            <div class="analytics-bar__fill" style="transform: scaleX(${computeRatio(
-              item.count,
-              totalAds
-            )});"></div>
-          </div>
-          <div class="analytics-badge">${formatNumber(item.count)}</div>
-        </div>
-      `
-      )
-            .join('')
-        : '<p class="profile-empty__text">Aucune donnée de prix.</p>';
+    if (Array.isArray(analytics.priceDistribution) && analytics.priceDistribution.length) {
+      const markup = analytics.priceDistribution
+        .map((item) => {
+          const fill = computeRatio(item.count, totalAds);
+          return [
+            '<div class="analytics-bar">',
+            `  <div class="analytics-bar__label">${item.label}</div>`,
+            '  <div class="analytics-bar__meter">',
+            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
+            '  </div>',
+            `  <div class="analytics-badge">${formatNumber(item.count)}</div>`,
+            '</div>'
+          ].join('\n');
+        })
+        .join('\n');
+      analyticsPrices.innerHTML = markup;
+    } else {
+      analyticsPrices.innerHTML = '<p class="profile-empty__text">Aucune donnée de prix.</p>';
+    }
 
-    analyticsTopAds.innerHTML = Array.isArray(analytics.topPerformingAds) &&
-      analytics.topPerformingAds.length
-        ? analytics.topPerformingAds
-            .map(
-        (ad) => `
-        <div class="analytics-list-item">
-          <div class="analytics-list-info">
-            <div class="analytics-list-title">${ad.title || 'Sans titre'}</div>
-            <div class="analytics-list-meta">${ad.category || 'Autres'} • ${formatCurrency(ad.price)}</div>
-          </div>
-          <div class="analytics-list-stats">
-            <span>👁️ ${formatNumber(ad.views)}</span>
-            <span>❤️ ${formatNumber(ad.favorites)}</span>
-          </div>
-        </div>
-      `
-      )
-            .join('')
-        : '<p class="profile-empty__text">Aucune annonce performante pour le moment.</p>';
+    if (Array.isArray(analytics.topPerformingAds) && analytics.topPerformingAds.length) {
+      const markup = analytics.topPerformingAds
+        .map((ad) => {
+          return [
+            '<div class="analytics-list-item">',
+            '  <div class="analytics-list-info">',
+            `    <div class="analytics-list-title">${ad.title || 'Sans titre'}</div>`,
+            `    <div class="analytics-list-meta">${ad.category || 'Autres'} • ${formatCurrency(ad.price)}</div>`,
+            '  </div>',
+            '  <div class="analytics-list-stats">',
+            `    <span>👁️ ${formatNumber(ad.views)}</span>`,
+            `    <span>❤️ ${formatNumber(ad.favorites)}</span>`,
+            '  </div>',
+            '</div>'
+          ].join('\n');
+        })
+        .join('\n');
+      analyticsTopAds.innerHTML = markup;
+    } else {
+      analyticsTopAds.innerHTML =
+        '<p class="profile-empty__text">Aucune annonce performante pour le moment.</p>';
+    }
 
-    analyticsLocations.innerHTML = Array.isArray(analytics.locationDistribution) &&
-      analytics.locationDistribution.length
-        ? analytics.locationDistribution
-          .map(
-            (entry) => `
-              <span>${entry.city} • ${formatNumber(entry.count)}</span>
-            `
-          )
-          .join('')
-        : '<p class="profile-empty__text">Aucune donnée géographique.</p>';
+    if (Array.isArray(analytics.locationDistribution) && analytics.locationDistribution.length) {
+      const markup = analytics.locationDistribution
+        .map((entry) => `<span>${entry.city} • ${formatNumber(entry.count)}</span>`)
+        .join('');
+      analyticsLocations.innerHTML = markup;
+    } else {
+      analyticsLocations.innerHTML =
+        '<p class="profile-empty__text">Aucune donnée géographique.</p>';
+    }
   }
 
   function renderAds() {
@@ -662,11 +713,15 @@ function initProfileModal() {
     adsEmpty.hidden = true;
     adsGrid.innerHTML = filtered
       .map((ad) => {
-        const thumb = (ad.previews && ad.previews[0]) || (ad.thumbnails && ad.thumbnails[0]) || (ad.images && ad.images[0]);
+        const thumb =
+          (ad.previews && ad.previews[0]) ||
+          (ad.thumbnails && ad.thumbnails[0]) ||
+          (ad.images && ad.images[0]);
         const price = Number(ad.price) || 0;
         const views = Number(ad.views) || 0;
         const favorites = Number(ad.favoritesCount) || 0;
-        const statusLabel = ad.status === 'active' ? 'Active' : ad.status === 'draft' ? 'Brouillon' : 'Archivée';
+        const statusLabel =
+          ad.status === 'active' ? 'Active' : ad.status === 'draft' ? 'Brouillon' : 'Archivée';
         return `
           <article class="profile-ad-card" data-ad-id="${ad._id}">
             <div class="profile-ad-card__media">
@@ -693,13 +748,17 @@ function initProfileModal() {
   }
 
   function setButtonLoading(button, loading) {
-    if (!button) return;
+    if (!button) {
+      return;
+    }
     button.disabled = loading;
     button.classList.toggle('is-loading', loading);
   }
 
   async function handleAvatarChange(file) {
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     setButtonLoading(avatarTrigger, true);
     const formData = new FormData();
     formData.append('avatar', file);
@@ -859,19 +918,18 @@ function initProfileModal() {
           window.showToast('Mot de passe modifié ✅');
         }
         return;
-      } else {
-        const message = response?.message || 'Modification impossible';
-        if (response?.code === 'INVALID_PASSWORD') {
-          currentPasswordError.textContent = message;
-          currentPasswordError.classList.add('visible');
-        } else {
-          passwordFeedback.textContent = message;
-        }
-        return;
       }
+      const message = response?.message || 'Modification impossible';
+      if (response?.code === 'INVALID_PASSWORD') {
+        currentPasswordError.textContent = message;
+        currentPasswordError.classList.add('visible');
+      } else {
+        passwordFeedback.textContent = message;
+      }
+      return;
     } catch (error) {
       logger.error('Error changing password', error);
-      passwordFeedback.textContent = "Erreur lors de la modification du mot de passe.";
+      passwordFeedback.textContent = 'Erreur lors de la modification du mot de passe.';
     } finally {
       setButtonLoading(passwordSubmit, false);
       setTimeout(() => {
@@ -882,9 +940,13 @@ function initProfileModal() {
 
   function handleAdsAction(event) {
     const button = event.target.closest('button[data-action]');
-    if (!button) return;
+    if (!button) {
+      return;
+    }
     const card = button.closest('.profile-ad-card');
-    if (!card) return;
+    if (!card) {
+      return;
+    }
     const adId = card.dataset.adId;
     const ad = state.ads.find((item) => String(item._id) === String(adId));
 
@@ -962,7 +1024,9 @@ function initProfileModal() {
 
   adsFilters?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-filter]');
-    if (!button) return;
+    if (!button) {
+      return;
+    }
     adsFilters.querySelectorAll('button').forEach((btn) => btn.classList.remove('active'));
     button.classList.add('active');
     updateFilter(button.dataset.filter);

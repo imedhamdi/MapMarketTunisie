@@ -187,6 +187,11 @@
   grid-column: span 2;
 }
 
+/* Clear button positioning for global search (reuse shared style) */
+.filter-search .filter-control { position: relative; }
+.filter-search .filter-control input[type="search"] { padding-right: 40px; }
+.filter-search .mm-search-clear { right: 10px; top: 50%; transform: translateY(-50%); }
+
 @media (max-width: 1024px) {
   .filter-search {
     grid-column: span 1;

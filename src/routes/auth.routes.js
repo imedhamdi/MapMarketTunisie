@@ -9,7 +9,7 @@ import {
   resetPassword,
   getMe
 } from '../controllers/auth.controller.js';
-import { authRequired, optionalAuth } from '../middlewares/auth.js';
+import { optionalAuth } from '../middlewares/auth.js';
 import validate from '../middlewares/validate.js';
 import { authLimiter, forgotPasswordLimiter } from '../middlewares/rateLimit.js';
 import {

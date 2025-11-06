@@ -26,10 +26,9 @@ export function cacheMiddleware(ttl = 300, keyGenerator = null) {
 
     try {
       // Générer la clé de cache
-      const cacheKey =
-        keyGenerator
-          ? keyGenerator(req)
-          : `cache:${req.originalUrl || req.url}:${JSON.stringify(req.query)}`;
+      const cacheKey = keyGenerator
+        ? keyGenerator(req)
+        : `cache:${req.originalUrl || req.url}:${JSON.stringify(req.query)}`;
 
       // Vérifier si la réponse est en cache
       const cachedResponse = await redis.get(cacheKey);

@@ -357,7 +357,9 @@ class AdService {
 
     if (shouldCachePopular && popularCacheKey) {
       redis.set(popularCacheKey, result, 600).catch((error) => {
-        logger.warn('Impossible de mettre en cache les annonces populaires', { error: error.message });
+        logger.warn('Impossible de mettre en cache les annonces populaires', {
+          error: error.message
+        });
       });
     }
 

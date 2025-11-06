@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
 import Ad from '../models/ad.model.js';
@@ -231,10 +230,10 @@ export async function getAd(req, res, next) {
   try {
     const { id } = req.params;
     const { skipView } = req.query;
-    
+
     // Incrémenter les vues seulement si skipView n'est pas défini
     const updateQuery = skipView === 'true' ? {} : { $inc: { views: 1 } };
-    
+
     const ad = await Ad.findByIdAndUpdate(id, updateQuery, { new: true })
       .populate('owner', 'name email avatar memberSince createdAt')
       .lean();
@@ -317,12 +316,24 @@ export async function updateAd(req, res, next) {
       } = await processAdImages(rawImages, {
         prefix: `ad-${ad._id}`
       });
-      if (optimizedImages.length) ad.images = optimizedImages;
-      if (previews.length) ad.previews = previews;
-      if (thumbnails.length) ad.thumbnails = thumbnails;
-      if (webpImages.length) ad.webpImages = webpImages;
-      if (webpPreviews.length) ad.webpPreviews = webpPreviews;
-      if (webpThumbnails.length) ad.webpThumbnails = webpThumbnails;
+      if (optimizedImages.length) {
+        ad.images = optimizedImages;
+      }
+      if (previews.length) {
+        ad.previews = previews;
+      }
+      if (thumbnails.length) {
+        ad.thumbnails = thumbnails;
+      }
+      if (webpImages.length) {
+        ad.webpImages = webpImages;
+      }
+      if (webpPreviews.length) {
+        ad.webpPreviews = webpPreviews;
+      }
+      if (webpThumbnails.length) {
+        ad.webpThumbnails = webpThumbnails;
+      }
     }
     if (payload.attributes) {
       ad.attributes = sanitizeAttributes(payload.attributes);

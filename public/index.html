@@ -8,7 +8,7 @@
     content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
+    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
   <link rel="canonical" href="https://tondomaine.com/">
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -31,7 +31,12 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <link rel="stylesheet" href="./dist/tokens.min.css">
   <link rel="stylesheet" href="./dist/app.min.css">
+  <!-- Module Messages (drawer de messagerie) -->
+  <link rel="stylesheet" href="/css/modules/messages.css">
   <script src="./runtime-config.js"></script>
+  <!-- Socket.IO client (nécessaire pour window.io) -->
+  <script src="https://unpkg.com/socket.io-client@4.7.2/dist/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
+  <script defer src="/js/messages.js"></script>
 </head>
 
 <body>
@@ -868,6 +873,12 @@
         <div class="mm-search">
           <span class="mm-search-ico">🔎</span>
           <input id="favSearch" type="search" placeholder="Rechercher un favori…" autocomplete="off">
+          <button id="favSearchClear" type="button" class="mm-search-clear" aria-label="Effacer la recherche" hidden>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </svg>
+          </button>
         </div>
         <div class="mm-filters">
           <select id="favSortBy" aria-label="Trier">
@@ -887,6 +898,66 @@
       <div class="mm-empty-illu">💗</div>
       <h3>Aucun favori pour l’instant</h3>
       <p>Ajoutez des annonces à vos favoris pour les retrouver ici.</p>
+    </div>
+  </div>
+
+  <!-- MESSAGES MODAL & OVERLAY (structure minimale) -->
+  <div class="messages-overlay" id="messagesOverlay" aria-hidden="true"></div>
+  <div class="mm-modal--messages" id="messagesModal" role="dialog" aria-modal="true" aria-labelledby="messagesTitle" aria-hidden="true">
+    <header class="messages-header">
+      <h2 class="mm-title" id="messagesTitle">Messages <span class="messages-header__badge" id="messagesUnreadBadge"></span></h2>
+      <div class="messages-status" id="messagesStatus" data-connected="false" aria-live="polite">
+        <span class="messages-status__dot" aria-hidden="true"></span>
+        <span class="messages-status__text">Déconnecté</span>
+      </div>
+      <button type="button" class="messages-drawer__close" id="messagesClose" aria-label="Fermer">✕</button>
+    </header>
+    <div class="messages-drawer__content">
+      <div class="messages-drawer__body">
+        <div class="messages-layout" id="messagesLayout">
+          <!-- Sidebar conversations -->
+          <aside class="messages-sidebar" id="messagesSidebar">
+            <div class="messages-sidebar__header">
+              <h3 class="messages-sidebar__title">Conversations</h3>
+              <p class="messages-sidebar__hint">Sélectionnez une conversation pour commencer</p>
+              <div class="messages-search"><input id="messagesSearch" type="search" placeholder="Recherche…" autocomplete="off"></div>
+            </div>
+            <div class="conversations-list" id="conversationsList" aria-live="polite"></div>
+            <div class="conversations-list__empty" id="conversationsEmpty" hidden>
+              <div class="conversations-list__empty-icon" aria-hidden="true">💬</div>
+              <p class="conversations-list__empty-title">Aucun message</p>
+              <p class="conversations-list__empty-text">Vos conversations apparaîtront ici.</p>
+            </div>
+          </aside>
+          <!-- Chat panel -->
+          <section class="chat-panel chat-panel--hidden" id="chatPanel" aria-labelledby="chatTitle" aria-live="polite">
+            <div class="chat-panel__header">
+              <button type="button" class="chat-panel__back" id="chatBack" aria-label="Retour">←</button>
+              <div class="chat-panel__info">
+                <h3 class="chat-panel__title" id="chatTitle">Sélectionnez une conversation</h3>
+                <p class="chat-panel__subtitle" id="chatSubtitle">En attente…</p>
+              </div>
+              <button type="button" class="chat-panel__delete" id="chatDelete" aria-label="Supprimer / masquer" hidden>🗑</button>
+            </div>
+            <div class="chat-panel__banner" id="chatSecurityBanner" hidden>
+              <p class="chat-panel__banner-text"><strong>Rappel sécurité</strong> Ne partagez jamais d’informations sensibles (IBAN, codes). Utilisez la messagerie pour fixer un rendez-vous en lieu sûr.</p>
+              <button type="button" class="chat-panel__banner-close" id="chatBannerClose">Compris</button>
+            </div>
+            <div class="chat-panel__messages-wrapper">
+              <div class="chat-panel__messages" id="chatMessages" tabindex="0" aria-label="Historique des messages"></div>
+              <div class="mm-typing" id="typingIndicator" hidden>Votre interlocuteur est en train d'écrire…</div>
+              <button type="button" class="mm-scroll-bottom" id="scrollToBottom" aria-hidden="true">Bas ↓</button>
+            </div>
+            <div class="chat-panel__input" id="chatInputArea">
+              <div class="chat-panel__input-field">
+                <textarea id="chatTextarea" rows="2" maxlength="2000" placeholder="Écrire un message…" aria-label="Écrire un message"></textarea>
+                <p class="chat-panel__input-note" id="chatInputNote" hidden>Limite atteinte</p>
+              </div>
+              <button type="button" class="chat-panel__send" id="chatSend" disabled>Envoyer</button>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 

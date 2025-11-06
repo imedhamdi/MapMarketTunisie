@@ -24,10 +24,10 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: onRateLimit,
-  skip: (req) => {
+  skip: (request) => {
     // Skip pour les fichiers statiques et health checks
     const staticPaths = ['/health', '/', '/css/', '/js/', '/icons/', '/uploads/', '/favicon'];
-    return staticPaths.some(path => req.path.startsWith(path));
+    return staticPaths.some((path) => request.path.startsWith(path));
   }
 });
 
@@ -64,7 +64,7 @@ export const uploadLimiter = rateLimit({
     // Rate limit par IP pour les uploads
     return req.ip;
   },
-  skip: (req) => {
+  skip: (_req) => {
     // Permettre plus d'uploads pour les utilisateurs authentifiés
     return false;
   }

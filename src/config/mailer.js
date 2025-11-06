@@ -2,16 +2,14 @@ import nodemailer from 'nodemailer';
 
 import env from './env.js';
 
+const hasCredentials = Boolean(env.mail.user && env.mail.pass);
+const auth = hasCredentials ? { user: env.mail.user, pass: env.mail.pass } : undefined;
+
 const transportOptions = {
   host: env.mail.host,
   port: env.mail.port,
   secure: env.mail.port === 465,
-  auth: env.mail.user
-    ? {
-        user: env.mail.user,
-        pass: env.mail.pass
-      }
-    : undefined
+  auth
 };
 
 const transporter = nodemailer.createTransport(transportOptions);

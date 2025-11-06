@@ -61,7 +61,9 @@ export async function generateSitemap(req, res) {
     res.header('Content-Type', 'application/xml');
     res.send(xml);
   } catch (error) {
-    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><error>Sitemap generation failed</error>');
+    res
+      .status(500)
+      .send('<?xml version="1.0" encoding="UTF-8"?><error>Sitemap generation failed</error>');
   }
 }
 

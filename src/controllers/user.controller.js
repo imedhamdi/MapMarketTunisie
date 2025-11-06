@@ -44,13 +44,16 @@ import { clearAuthCookies } from '../utils/generateTokens.js';
 import { optimizeAvatar } from '../services/image.service.js';
 import userService from '../services/user.service.js';
 
-const sanitize = (value) =>
-  typeof value === 'string'
-    ? sanitizeHtml(value, {
-        allowedTags: [],
-        allowedAttributes: {}
-      }).trim()
-    : value;
+function sanitize(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const cleaned = sanitizeHtml(value, {
+    allowedTags: [],
+    allowedAttributes: {}
+  });
+  return cleaned.trim();
+}
 
 function normalizeCoords(coords) {
   if (!coords) {
@@ -237,7 +240,7 @@ export async function updateAvatar(req, res) {
     return sendError(res, {
       statusCode: 500,
       code: 'AVATAR_OPTIMIZATION_ERROR',
-      message: 'Erreur lors de l\'optimisation de l\'avatar.'
+      message: "Erreur lors de l'optimisation de l'avatar."
     });
   }
 }
@@ -324,7 +327,9 @@ export async function getUserStats(req, res) {
     const userId = req.user._id;
 
     const userAds = await Ad.find({ owner: userId })
-      .select('title status price views favoritesCount thumbnails previews images locationText createdAt updatedAt')
+      .select(
+        'title status price views favoritesCount thumbnails previews images locationText createdAt updatedAt'
+      )
       .lean();
 
     const totals = {
@@ -378,7 +383,9 @@ export async function getUserStats(req, res) {
       engagement: {
         averageViews: Number((totalViews / totalAds).toFixed(1)),
         averageFavorites: Number((totalFavorites / totalAds).toFixed(1)),
-        activeRate: totals.total ? Number(((totals.active || 0) / totals.total * 100).toFixed(1)) : 0
+        activeRate: totals.total
+          ? Number((((totals.active || 0) / totals.total) * 100).toFixed(1))
+          : 0
       },
       price: {
         min: minPrice,
@@ -424,7 +431,9 @@ export async function getUserAnalytics(req, res) {
   try {
     const userId = req.user._id;
     const userAds = await Ad.find({ owner: userId })
-      .select('title status price views favoritesCount thumbnails previews images locationText location.category category createdAt updatedAt')
+      .select(
+        'title status price views favoritesCount thumbnails previews images locationText location.category category createdAt updatedAt'
+      )
       .lean();
 
     if (userAds.length === 0) {
@@ -511,7 +520,10 @@ export async function getUserAnalytics(req, res) {
         averageFavorites,
         inventoryValue: Number(totalValue.toFixed(2))
       },
-      statusBreakdown: Array.from(statusMap.entries()).map(([status, count]) => ({ status, count })),
+      statusBreakdown: Array.from(statusMap.entries()).map(([status, count]) => ({
+        status,
+        count
+      })),
       categoryPerformance: Array.from(categoryMap.entries())
         .map(([category, data]) => ({
           category,
@@ -552,19 +564,21 @@ function buildAnalyticsInsights({ totals, averageViews, averageFavorites }) {
   const total = Array.from(totals.values()).reduce((sum, value) => sum + value, 0) || 1;
 
   if (active === 0 && draft > 0) {
-    insights.push("Vous avez des brouillons en attente. Publiez-les pour gagner en visibilité.");
+    insights.push('Vous avez des brouillons en attente. Publiez-les pour gagner en visibilité.');
   }
 
   if (archived > active) {
-    insights.push("Votre catalogue semble calme. Réactivez des annonces pour rester visible.");
+    insights.push('Votre catalogue semble calme. Réactivez des annonces pour rester visible.');
   }
 
   if (averageViews < 10) {
-    insights.push("Boostez vos annonces avec des photos de qualité et des descriptions détaillées.");
+    insights.push(
+      'Boostez vos annonces avec des photos de qualité et des descriptions détaillées.'
+    );
   }
 
   if (averageFavorites === 0 && active > 0) {
-    insights.push("Ajoutez des promotions ou réductions pour attirer plus de favoris.");
+    insights.push('Ajoutez des promotions ou réductions pour attirer plus de favoris.');
   }
 
   const activeRate = Number(((active / total) * 100).toFixed(1));
@@ -601,7 +615,7 @@ export const changePassword = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur lors du changement de mot de passe', { error: error.message });
-    
+
     // Gérer les erreurs spécifiques du service
     if (error.statusCode === 401 || error.code === 'INVALID_PASSWORD') {
       return sendError(res, {
@@ -610,7 +624,7 @@ export const changePassword = async (req, res) => {
         message: 'Mot de passe actuel incorrect.'
       });
     }
-    
+
     if (error.statusCode === 404) {
       return sendError(res, {
         statusCode: 404,
@@ -618,7 +632,7 @@ export const changePassword = async (req, res) => {
         message: 'Utilisateur introuvable.'
       });
     }
-    
+
     return sendError(res, {
       statusCode: 500,
       code: 'SERVER_ERROR',

@@ -90,17 +90,31 @@ const env = {
   monitoringAllowedIps: (process.env.MONITORING_ALLOWED_IPS ?? '127.0.0.1,::1')
     .split(',')
     .map((ip) => ip.trim())
-    .filter(Boolean)
+    .filter(Boolean),
+  // Socket.IO configuration & Chat specific rate limits
+  socketIoEnabled: process.env.SOCKET_IO_ENABLED !== 'false',
+  socketIoPath: process.env.SOCKET_IO_PATH ?? '/ws/chat',
+  socketIoCorsOrigins: (process.env.SOCKET_IO_CORS_ORIGINS
+    ? process.env.SOCKET_IO_CORS_ORIGINS
+    : (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
+  )
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
+  chat: {
+    rateLimit: {
+      messagesPerMinute: Number(process.env.CHAT_MESSAGES_PER_MINUTE ?? 60),
+      typingPerTenSeconds: Number(process.env.CHAT_TYPING_EVENTS_PER_10S ?? 20)
+    },
+    typing: {
+      debounceMs: Number(process.env.CHAT_TYPING_DEBOUNCE_MS ?? 3000)
+    }
+  }
 };
 
 // Validation en production
 if (env.isProd) {
-  const requiredVars = [
-    'MONGO_URI',
-    'JWT_ACCESS_SECRET',
-    'JWT_REFRESH_SECRET',
-    'MONITORING_TOKEN'
-  ];
+  const requiredVars = ['MONGO_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'MONITORING_TOKEN'];
 
   const missing = requiredVars.filter((key) => !process.env[key]);
 

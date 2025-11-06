@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import app from './app.js';
+import { initChatSocket } from './chat/chat.socket.js';
 import env from './config/env.js';
 import logger from './config/logger.js';
 import connectMongoose from './db/mongoose.js';
@@ -10,6 +11,7 @@ import redis from './config/redis.js';
 import Ad from './models/ad.model.js';
 
 const server = http.createServer(app);
+let io = null; // Socket.IO instance
 const port = env.port;
 
 async function start() {
@@ -28,7 +30,7 @@ async function start() {
     // Connexion à Redis (optionnel)
     if (env.redisEnabled) {
       await redis.connect();
-      
+
       // Vider le cache au démarrage en dev/test (garder le cache en production)
       if (env.nodeEnv !== 'production') {
         await redis.flushAll();
@@ -36,12 +38,25 @@ async function start() {
       }
     }
 
-    // Démarrer le serveur
+    // Initialiser Socket.IO si activé
+    if (env.socketIoEnabled) {
+      try {
+        io = await initChatSocket(server);
+        logger.info('💬 Socket.IO chat initialisé', { path: env.socketIoPath });
+      } catch (e) {
+        logger.error('Erreur initialisation Socket.IO', { error: e.message });
+      }
+    } else {
+      logger.info('Socket.IO désactivé (SOCKET_IO_ENABLED=false)');
+    }
+
+    // Démarrer le serveur HTTP
     server.listen(port, () => {
       logger.info(`🚀 Serveur démarré sur http://localhost:${port}`, {
         environment: env.nodeEnv,
         port,
-        redis: env.redisEnabled ? 'enabled' : 'disabled'
+        redis: env.redisEnabled ? 'enabled' : 'disabled',
+        socket: env.socketIoEnabled ? 'enabled' : 'disabled'
       });
     });
 
@@ -52,6 +67,15 @@ async function start() {
       // Fermer Redis
       if (env.redisEnabled) {
         await redis.disconnect();
+      }
+
+      if (io) {
+        try {
+          await new Promise((resolve) => io.close(resolve));
+          logger.info('🔌 Socket.IO arrêté');
+        } catch (e) {
+          logger.warn('Arrêt Socket.IO échoué', { error: e.message });
+        }
       }
 
       server.close(() => {

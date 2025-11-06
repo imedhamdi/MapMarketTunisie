@@ -22,7 +22,7 @@ describe('POST /api/users/me/change-password', () => {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGO_URI_TEST || process.env.MONGO_URI);
     }
-    
+
     // Nettoyer le cache Redis si activé
     if (redis.isConnected) {
       await redis.flushAll();
@@ -32,7 +32,7 @@ describe('POST /api/users/me/change-password', () => {
   beforeEach(async () => {
     // Nettoyer la collection users
     await User.deleteMany({});
-    
+
     // Nettoyer le cache Redis avant chaque test si activé
     if (redis.isConnected) {
       await redis.flushAll();
@@ -47,12 +47,10 @@ describe('POST /api/users/me/change-password', () => {
     });
 
     // Authentifier l'utilisateur pour obtenir un token
-    const loginRes = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'test@example.com',
-        password: originalPassword
-      });
+    const loginRes = await request(app).post('/api/auth/login').send({
+      email: 'test@example.com',
+      password: originalPassword
+    });
 
     authToken = loginRes.body.data.accessToken;
   });
@@ -103,13 +101,11 @@ describe('POST /api/users/me/change-password', () => {
       expect(res.body.message).to.include('8 caractères');
     });
 
-    it('devrait retourner 401 sans token d\'authentification', async () => {
-      const res = await request(app)
-        .post('/api/users/me/change-password')
-        .send({
-          currentPassword: originalPassword,
-          newPassword: newPassword
-        });
+    it("devrait retourner 401 sans token d'authentification", async () => {
+      const res = await request(app).post('/api/users/me/change-password').send({
+        currentPassword: originalPassword,
+        newPassword: newPassword
+      });
 
       expect(res.status).to.equal(401);
     });
@@ -156,10 +152,10 @@ describe('POST /api/users/me/change-password', () => {
         });
 
       const updatedUser = await User.findById(testUser._id).select('+password');
-      
+
       // Le mot de passe ne doit pas être stocké en clair
       expect(updatedUser.password).to.not.equal(newPassword);
-      
+
       // Le mot de passe doit être un hash bcrypt
       expect(updatedUser.password).to.match(/^\$2[ayb]\$.{56}$/);
     });
@@ -175,18 +171,16 @@ describe('POST /api/users/me/change-password', () => {
         });
 
       // Essayer de se connecter avec le nouveau mot de passe
-      const loginRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: newPassword
-        });
+      const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: newPassword
+      });
 
       expect(loginRes.status).to.equal(200);
       expect(loginRes.body.data.accessToken).to.exist;
     });
 
-    it('ne devrait plus permettre la connexion avec l\'ancien mot de passe', async () => {
+    it("ne devrait plus permettre la connexion avec l'ancien mot de passe", async () => {
       // Changer le mot de passe
       await request(app)
         .post('/api/users/me/change-password')
@@ -197,12 +191,10 @@ describe('POST /api/users/me/change-password', () => {
         });
 
       // Essayer de se connecter avec l'ancien mot de passe
-      const loginRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: originalPassword
-        });
+      const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: originalPassword
+      });
 
       expect(loginRes.status).to.equal(401);
     });
@@ -221,14 +213,12 @@ describe('POST /api/users/me/change-password', () => {
         });
 
       expect(res.status).to.equal(200);
-      
+
       // Vérifier que le nouveau mot de passe fonctionne
-      const loginRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: newPassword
-        });
+      const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: newPassword
+      });
 
       expect(loginRes.status).to.equal(200);
     });
@@ -237,7 +227,7 @@ describe('POST /api/users/me/change-password', () => {
   describe('Cas limites', () => {
     it('devrait gérer les caractères spéciaux dans le mot de passe', async () => {
       const specialPassword = 'P@ssw0rd!#$%^&*()_+{}[]|:;<>?,./~`';
-      
+
       const res = await request(app)
         .post('/api/users/me/change-password')
         .set('Cookie', `access_token=${authToken}`)
@@ -249,19 +239,17 @@ describe('POST /api/users/me/change-password', () => {
       expect(res.status).to.equal(200);
 
       // Vérifier la connexion avec le nouveau mot de passe
-      const loginRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: specialPassword
-        });
+      const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: specialPassword
+      });
 
       expect(loginRes.status).to.equal(200);
     });
 
     it('devrait gérer un mot de passe très long', async () => {
       const longPassword = 'A'.repeat(100) + '1!';
-      
+
       const res = await request(app)
         .post('/api/users/me/change-password')
         .set('Cookie', `access_token=${authToken}`)

@@ -32,7 +32,7 @@ export function monitoringAuth(req, res, next) {
     return sendError(res, {
       statusCode: 500,
       code: 'MONITORING_NOT_CONFIGURED',
-      message: 'Le monitoring n\'est pas configuré correctement.'
+      message: "Le monitoring n'est pas configuré correctement."
     });
   }
 
@@ -105,7 +105,9 @@ export function monitoringIpRestriction(req, res, next) {
  */
 export function secureMonitoring(req, res, next) {
   monitoringAuth(req, res, (err) => {
-    if (err) return next(err);
+    if (err) {
+      return next(err);
+    }
     monitoringIpRestriction(req, res, next);
   });
 }

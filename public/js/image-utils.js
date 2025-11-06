@@ -17,13 +17,13 @@ export function createResponsiveImage({
   placeholder = null
 }) {
   const picture = document.createElement('picture');
-  
+
   // Extraire le nom de base et l'extension
   const pathParts = src.split('/');
   const filename = pathParts[pathParts.length - 1];
   const basePath = pathParts.slice(0, -1).join('/');
-  const [name, ext] = filename.split('.');
-  
+  const [name] = filename.split('.');
+
   // Source WebP pour navigateurs modernes
   const sourceWebp = document.createElement('source');
   sourceWebp.srcset = `
@@ -34,7 +34,7 @@ export function createResponsiveImage({
   sourceWebp.type = 'image/webp';
   sourceWebp.sizes = sizes;
   picture.appendChild(sourceWebp);
-  
+
   // Source JPEG fallback
   const sourceJpeg = document.createElement('source');
   sourceJpeg.srcset = `
@@ -45,7 +45,7 @@ export function createResponsiveImage({
   sourceJpeg.type = 'image/jpeg';
   sourceJpeg.sizes = sizes;
   picture.appendChild(sourceJpeg);
-  
+
   // Image fallback
   const img = document.createElement('img');
   img.src = `${basePath}/${name}-medium.jpeg`;
@@ -54,15 +54,15 @@ export function createResponsiveImage({
   if (className) {
     img.className = className;
   }
-  
+
   // Placeholder LQIP si fourni
   if (placeholder) {
     img.style.backgroundImage = `url(${placeholder})`;
     img.style.backgroundSize = 'cover';
   }
-  
+
   picture.appendChild(img);
-  
+
   return picture;
 }
 
@@ -72,11 +72,11 @@ export function createResponsiveImage({
 export function initLazyLoading() {
   // Ajouter loading="lazy" aux images sans cet attribut
   const images = document.querySelectorAll('img:not([loading])');
-  images.forEach(img => {
+  images.forEach((img) => {
     // Ne pas lazy load les images au-dessus du fold
     const rect = img.getBoundingClientRect();
     const isAboveFold = rect.top < window.innerHeight;
-    
+
     if (!isAboveFold) {
       img.loading = 'lazy';
     }
@@ -90,24 +90,27 @@ export function initLazyLoadingWithObserver() {
   if (!('IntersectionObserver' in window)) {
     return; // Pas de support, utiliser le loading natif
   }
-  
+
   const images = document.querySelectorAll('img[data-src]');
-  
-  const imageObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const img = entry.target;
-        img.src = img.dataset.src;
-        img.removeAttribute('data-src');
-        observer.unobserve(img);
-      }
-    });
-  }, {
-    rootMargin: '50px 0px', // Charger 50px avant que l'image soit visible
-    threshold: 0.01
-  });
-  
-  images.forEach(img => imageObserver.observe(img));
+
+  const imageObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          img.src = img.dataset.src;
+          img.removeAttribute('data-src');
+          observer.unobserve(img);
+        }
+      });
+    },
+    {
+      rootMargin: '50px 0px', // Charger 50px avant que l'image soit visible
+      threshold: 0.01
+    }
+  );
+
+  images.forEach((img) => imageObserver.observe(img));
 }
 
 /**
@@ -117,7 +120,7 @@ export function initLazyLoadingWithObserver() {
 export const CDN_CONFIG = {
   enabled: false, // À activer en production
   baseUrl: 'https://cdn.mapmarket.tn', // À remplacer par votre CDN
-  
+
   /**
    * Transforme une URL locale en URL CDN
    * @param {string} url - URL locale
@@ -127,12 +130,12 @@ export const CDN_CONFIG = {
     if (!this.enabled || !url) {
       return url;
     }
-    
+
     // Si l'URL commence par /uploads/, remplacer par le CDN
     if (url.startsWith('/uploads/')) {
       return `${this.baseUrl}${url}`;
     }
-    
+
     return url;
   }
 };
@@ -143,8 +146,8 @@ export const CDN_CONFIG = {
  */
 export function preloadImages(urls) {
   const head = document.head;
-  
-  urls.forEach(url => {
+
+  urls.forEach((url) => {
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'image';
@@ -158,7 +161,7 @@ export function preloadImages(urls) {
  * @returns {Promise<boolean>}
  */
 export function supportsWebP() {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img.width === 1);
     img.onerror = () => resolve(false);

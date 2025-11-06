@@ -2,7 +2,7 @@
  * Script de seed pour créer un grand nombre d'annonces (300)
  * Usage: node scripts/seed-large.js
  */
-
+/* eslint-disable no-console */
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
@@ -25,7 +25,7 @@ const tunisianCities = [
   { name: 'Bizerte', lat: 37.2744, lng: 9.8739 },
   { name: 'Gabès', lat: 33.8815, lng: 10.0982 },
   { name: 'Ariana', lat: 36.8625, lng: 10.1956 },
-  { name: 'Gafsa', lat: 34.4250, lng: 8.7842 },
+  { name: 'Gafsa', lat: 34.425, lng: 8.7842 },
   { name: 'Monastir', lat: 35.7772, lng: 10.8264 },
   { name: 'Ben Arous', lat: 36.7531, lng: 10.2181 }
 ];
@@ -33,46 +33,226 @@ const tunisianCities = [
 // Templates d'annonces par catégorie
 const adTemplates = {
   immobilier: [
-    { title: 'Appartement S+2', desc: 'Bel appartement avec balcon', minPrice: 150000, maxPrice: 350000, attrs: { surface: 80, rooms: 2 } },
-    { title: 'Villa S+4', desc: 'Villa spacieuse avec jardin', minPrice: 400000, maxPrice: 900000, attrs: { surface: 200, rooms: 4 } },
-    { title: 'Studio meublé', desc: 'Studio tout équipé', minPrice: 50000, maxPrice: 120000, attrs: { surface: 35, rooms: 1, furnished: true } },
-    { title: 'Duplex S+3', desc: 'Duplex moderne', minPrice: 250000, maxPrice: 500000, attrs: { surface: 140, rooms: 3 } },
-    { title: 'Terrain 500m²', desc: 'Terrain constructible', minPrice: 80000, maxPrice: 200000, attrs: { surface: 500 } }
+    {
+      title: 'Appartement S+2',
+      desc: 'Bel appartement avec balcon',
+      minPrice: 150000,
+      maxPrice: 350000,
+      attrs: { surface: 80, rooms: 2 }
+    },
+    {
+      title: 'Villa S+4',
+      desc: 'Villa spacieuse avec jardin',
+      minPrice: 400000,
+      maxPrice: 900000,
+      attrs: { surface: 200, rooms: 4 }
+    },
+    {
+      title: 'Studio meublé',
+      desc: 'Studio tout équipé',
+      minPrice: 50000,
+      maxPrice: 120000,
+      attrs: { surface: 35, rooms: 1, furnished: true }
+    },
+    {
+      title: 'Duplex S+3',
+      desc: 'Duplex moderne',
+      minPrice: 250000,
+      maxPrice: 500000,
+      attrs: { surface: 140, rooms: 3 }
+    },
+    {
+      title: 'Terrain 500m²',
+      desc: 'Terrain constructible',
+      minPrice: 80000,
+      maxPrice: 200000,
+      attrs: { surface: 500 }
+    }
   ],
   auto: [
-    { title: 'Peugeot 208', desc: 'Voiture économique en bon état', minPrice: 20000, maxPrice: 45000, attrs: { year: 2018, mileage: 65000, fuel: 'Diesel', gearbox: 'Manuelle' } },
-    { title: 'Renault Clio', desc: 'Citadine fiable', minPrice: 18000, maxPrice: 35000, attrs: { year: 2017, mileage: 75000, fuel: 'Essence', gearbox: 'Manuelle' } },
-    { title: 'BMW Série 3', desc: 'Berline de luxe', minPrice: 55000, maxPrice: 95000, attrs: { year: 2016, mileage: 80000, fuel: 'Diesel', gearbox: 'Automatique' } },
-    { title: 'Volkswagen Golf', desc: 'Compacte polyvalente', minPrice: 28000, maxPrice: 48000, attrs: { year: 2019, mileage: 45000, fuel: 'Diesel', gearbox: 'Manuelle' } },
-    { title: 'Toyota Yaris', desc: 'Petite citadine économique', minPrice: 22000, maxPrice: 38000, attrs: { year: 2020, mileage: 30000, fuel: 'Essence', gearbox: 'Manuelle' } }
+    {
+      title: 'Peugeot 208',
+      desc: 'Voiture économique en bon état',
+      minPrice: 20000,
+      maxPrice: 45000,
+      attrs: { year: 2018, mileage: 65000, fuel: 'Diesel', gearbox: 'Manuelle' }
+    },
+    {
+      title: 'Renault Clio',
+      desc: 'Citadine fiable',
+      minPrice: 18000,
+      maxPrice: 35000,
+      attrs: { year: 2017, mileage: 75000, fuel: 'Essence', gearbox: 'Manuelle' }
+    },
+    {
+      title: 'BMW Série 3',
+      desc: 'Berline de luxe',
+      minPrice: 55000,
+      maxPrice: 95000,
+      attrs: { year: 2016, mileage: 80000, fuel: 'Diesel', gearbox: 'Automatique' }
+    },
+    {
+      title: 'Volkswagen Golf',
+      desc: 'Compacte polyvalente',
+      minPrice: 28000,
+      maxPrice: 48000,
+      attrs: { year: 2019, mileage: 45000, fuel: 'Diesel', gearbox: 'Manuelle' }
+    },
+    {
+      title: 'Toyota Yaris',
+      desc: 'Petite citadine économique',
+      minPrice: 22000,
+      maxPrice: 38000,
+      attrs: { year: 2020, mileage: 30000, fuel: 'Essence', gearbox: 'Manuelle' }
+    }
   ],
   electroniques: [
-    { title: 'iPhone 14 Pro', desc: 'Smartphone Apple dernière génération', minPrice: 2200, maxPrice: 3200, attrs: { storage: 256, brand: 'Apple' } },
-    { title: 'Samsung Galaxy S23', desc: 'Smartphone Samsung flagship', minPrice: 1800, maxPrice: 2800, attrs: { storage: 256, brand: 'Samsung' } },
-    { title: 'MacBook Air M2', desc: 'Ordinateur portable Apple', minPrice: 2800, maxPrice: 3800, attrs: { storage: 512, brand: 'Apple' } },
-    { title: 'iPad Pro', desc: 'Tablette professionnelle', minPrice: 2000, maxPrice: 3000, attrs: { storage: 256, brand: 'Apple' } },
-    { title: 'Console PS5', desc: 'PlayStation 5 avec jeux', minPrice: 1500, maxPrice: 2200, attrs: { storage: 825, brand: 'Sony' } }
+    {
+      title: 'iPhone 14 Pro',
+      desc: 'Smartphone Apple dernière génération',
+      minPrice: 2200,
+      maxPrice: 3200,
+      attrs: { storage: 256, brand: 'Apple' }
+    },
+    {
+      title: 'Samsung Galaxy S23',
+      desc: 'Smartphone Samsung flagship',
+      minPrice: 1800,
+      maxPrice: 2800,
+      attrs: { storage: 256, brand: 'Samsung' }
+    },
+    {
+      title: 'MacBook Air M2',
+      desc: 'Ordinateur portable Apple',
+      minPrice: 2800,
+      maxPrice: 3800,
+      attrs: { storage: 512, brand: 'Apple' }
+    },
+    {
+      title: 'iPad Pro',
+      desc: 'Tablette professionnelle',
+      minPrice: 2000,
+      maxPrice: 3000,
+      attrs: { storage: 256, brand: 'Apple' }
+    },
+    {
+      title: 'Console PS5',
+      desc: 'PlayStation 5 avec jeux',
+      minPrice: 1500,
+      maxPrice: 2200,
+      attrs: { storage: 825, brand: 'Sony' }
+    }
   ],
   mode: [
-    { title: 'Veste en cuir', desc: 'Veste cuir véritable', minPrice: 120, maxPrice: 300, attrs: { gender: 'Homme', size: 'M', brand: 'Zara' } },
-    { title: 'Robe de soirée', desc: 'Robe élégante', minPrice: 180, maxPrice: 400, attrs: { gender: 'Femme', size: '38', brand: 'H&M' } },
-    { title: 'Sneakers Nike', desc: 'Baskets sport', minPrice: 150, maxPrice: 280, attrs: { gender: 'Mixte', size: '42', brand: 'Nike' } },
-    { title: 'Sac à main', desc: 'Sac de marque', minPrice: 800, maxPrice: 1500, attrs: { gender: 'Femme', size: 'Unique', brand: 'Louis Vuitton' } },
-    { title: 'Costume homme', desc: 'Costume 2 pièces', minPrice: 350, maxPrice: 600, attrs: { gender: 'Homme', size: '50', brand: 'Hugo Boss' } }
+    {
+      title: 'Veste en cuir',
+      desc: 'Veste cuir véritable',
+      minPrice: 120,
+      maxPrice: 300,
+      attrs: { gender: 'Homme', size: 'M', brand: 'Zara' }
+    },
+    {
+      title: 'Robe de soirée',
+      desc: 'Robe élégante',
+      minPrice: 180,
+      maxPrice: 400,
+      attrs: { gender: 'Femme', size: '38', brand: 'H&M' }
+    },
+    {
+      title: 'Sneakers Nike',
+      desc: 'Baskets sport',
+      minPrice: 150,
+      maxPrice: 280,
+      attrs: { gender: 'Mixte', size: '42', brand: 'Nike' }
+    },
+    {
+      title: 'Sac à main',
+      desc: 'Sac de marque',
+      minPrice: 800,
+      maxPrice: 1500,
+      attrs: { gender: 'Femme', size: 'Unique', brand: 'Louis Vuitton' }
+    },
+    {
+      title: 'Costume homme',
+      desc: 'Costume 2 pièces',
+      minPrice: 350,
+      maxPrice: 600,
+      attrs: { gender: 'Homme', size: '50', brand: 'Hugo Boss' }
+    }
   ],
   pieces: [
-    { title: 'Phares avant Peugeot', desc: 'Paire de phares neufs', minPrice: 200, maxPrice: 350, attrs: { compatible: 'Peugeot 208', grade: 'Neuf' } },
-    { title: 'Turbo Renault', desc: 'Turbo reconditionné', minPrice: 350, maxPrice: 550, attrs: { compatible: 'Renault', grade: 'Reconditionné' } },
-    { title: 'Jantes alu 17"', desc: 'Set de 4 jantes', minPrice: 600, maxPrice: 1000, attrs: { compatible: 'Universel', grade: 'Bon état' } },
-    { title: 'Batterie voiture', desc: 'Batterie neuve 70Ah', minPrice: 140, maxPrice: 220, attrs: { compatible: 'Universel', grade: 'Neuf' } },
-    { title: 'Pare-brise VW', desc: 'Pare-brise d\'origine', minPrice: 250, maxPrice: 400, attrs: { compatible: 'VW Golf', grade: 'Neuf' } }
+    {
+      title: 'Phares avant Peugeot',
+      desc: 'Paire de phares neufs',
+      minPrice: 200,
+      maxPrice: 350,
+      attrs: { compatible: 'Peugeot 208', grade: 'Neuf' }
+    },
+    {
+      title: 'Turbo Renault',
+      desc: 'Turbo reconditionné',
+      minPrice: 350,
+      maxPrice: 550,
+      attrs: { compatible: 'Renault', grade: 'Reconditionné' }
+    },
+    {
+      title: 'Jantes alu 17"',
+      desc: 'Set de 4 jantes',
+      minPrice: 600,
+      maxPrice: 1000,
+      attrs: { compatible: 'Universel', grade: 'Bon état' }
+    },
+    {
+      title: 'Batterie voiture',
+      desc: 'Batterie neuve 70Ah',
+      minPrice: 140,
+      maxPrice: 220,
+      attrs: { compatible: 'Universel', grade: 'Neuf' }
+    },
+    {
+      title: 'Pare-brise VW',
+      desc: "Pare-brise d'origine",
+      minPrice: 250,
+      maxPrice: 400,
+      attrs: { compatible: 'VW Golf', grade: 'Neuf' }
+    }
   ],
   loisirs: [
-    { title: 'VTT 29 pouces', desc: 'Vélo tout terrain', minPrice: 600, maxPrice: 1200, attrs: { activity: 'Cyclisme' } },
-    { title: 'Raquettes tennis', desc: 'Paire de raquettes pro', minPrice: 120, maxPrice: 250, attrs: { activity: 'Tennis' } },
-    { title: 'Kayak gonflable', desc: 'Kayak 2 places', minPrice: 300, maxPrice: 500, attrs: { activity: 'Nautique' } },
-    { title: 'Tapis de yoga', desc: 'Tapis + accessoires', minPrice: 60, maxPrice: 120, attrs: { activity: 'Fitness' } },
-    { title: 'Nintendo Switch', desc: 'Console + jeux', minPrice: 800, maxPrice: 1200, attrs: { activity: 'Gaming' } }
+    {
+      title: 'VTT 29 pouces',
+      desc: 'Vélo tout terrain',
+      minPrice: 600,
+      maxPrice: 1200,
+      attrs: { activity: 'Cyclisme' }
+    },
+    {
+      title: 'Raquettes tennis',
+      desc: 'Paire de raquettes pro',
+      minPrice: 120,
+      maxPrice: 250,
+      attrs: { activity: 'Tennis' }
+    },
+    {
+      title: 'Kayak gonflable',
+      desc: 'Kayak 2 places',
+      minPrice: 300,
+      maxPrice: 500,
+      attrs: { activity: 'Nautique' }
+    },
+    {
+      title: 'Tapis de yoga',
+      desc: 'Tapis + accessoires',
+      minPrice: 60,
+      maxPrice: 120,
+      attrs: { activity: 'Fitness' }
+    },
+    {
+      title: 'Nintendo Switch',
+      desc: 'Console + jeux',
+      minPrice: 800,
+      maxPrice: 1200,
+      attrs: { activity: 'Gaming' }
+    }
   ]
 };
 
@@ -149,7 +329,7 @@ function generateAds(users) {
     // Stats réalistes basées sur l'état et le prix
     let baseViews = 50;
     let baseFavorites = 5;
-    
+
     // Les articles en meilleur état ont plus de vues
     if (condition === 'new') {
       baseViews = random(100, 300);
@@ -172,7 +352,9 @@ function generateAds(users) {
     const ad = {
       owner: owner._id,
       title: `${template.title} ${city.name}`,
-      description: template.desc + '. Excellent rapport qualité-prix. Visible sur rendez-vous. N\'hésitez pas à me contacter pour plus d\'informations ou pour organiser une visite.',
+      description:
+        template.desc +
+        ". Excellent rapport qualité-prix. Visible sur rendez-vous. N'hésitez pas à me contacter pour plus d'informations ou pour organiser une visite.",
       category,
       condition,
       price: random(template.minPrice, template.maxPrice),
@@ -214,17 +396,22 @@ async function seed() {
 
     // Trouver ou créer des utilisateurs
     let users = await User.find().limit(5);
-    
+
     if (users.length === 0) {
       console.log('👤 Création de 5 utilisateurs...');
-      const testUsers = await Promise.all([
-        { name: 'Ahmed', email: 'ahmed@test.tn', password: await bcrypt.hash('Password123!', 10) },
-        { name: 'Fatma', email: 'fatma@test.tn', password: await bcrypt.hash('Password123!', 10) },
-        { name: 'Karim', email: 'karim@test.tn', password: await bcrypt.hash('Password123!', 10) },
-        { name: 'Leila', email: 'leila@test.tn', password: await bcrypt.hash('Password123!', 10) },
-        { name: 'Omar', email: 'omar@test.tn', password: await bcrypt.hash('Password123!', 10) }
-      ].map(async u => u));
-      
+      const userTemplates = [
+        { name: 'Ahmed', email: 'ahmed@test.tn' },
+        { name: 'Fatma', email: 'fatma@test.tn' },
+        { name: 'Karim', email: 'karim@test.tn' },
+        { name: 'Leila', email: 'leila@test.tn' },
+        { name: 'Omar', email: 'omar@test.tn' }
+      ];
+      const testUsers = await Promise.all(
+        userTemplates.map(async (user) => ({
+          ...user,
+          password: await bcrypt.hash('Password123!', 10)
+        }))
+      );
       users = await User.insertMany(testUsers);
       console.log(`✅ ${users.length} utilisateurs créés`);
     } else {
@@ -244,7 +431,7 @@ async function seed() {
 
     // Stats
     const stats = {};
-    createdAds.forEach(ad => {
+    createdAds.forEach((ad) => {
       stats[ad.category] = (stats[ad.category] || 0) + 1;
     });
 
@@ -254,7 +441,9 @@ async function seed() {
     });
 
     console.log('\n🎉 Seeding terminé avec succès!');
-    console.log(`\n⚡ Performance: ${(NUMBER_OF_ADS / parseFloat(duration)).toFixed(0)} annonces/seconde`);
+    console.log(
+      `\n⚡ Performance: ${(NUMBER_OF_ADS / parseFloat(duration)).toFixed(0)} annonces/seconde`
+    );
 
     process.exit(0);
   } catch (error) {
@@ -264,3 +453,4 @@ async function seed() {
 }
 
 seed();
+/* eslint-disable no-console */
