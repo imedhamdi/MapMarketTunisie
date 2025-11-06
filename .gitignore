@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.staging
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+public/dist/
+build/
+
+# Uploads and user-generated content
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+uploads/ads/*
+!uploads/ads/.gitkeep
+
+# Database backups
+backups/mongodb/*
+!backups/mongodb/.gitkeep
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp

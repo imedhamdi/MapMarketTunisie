@@ -28,6 +28,12 @@ async function start() {
     // Connexion à Redis (optionnel)
     if (env.redisEnabled) {
       await redis.connect();
+      
+      // Vider le cache au démarrage en dev/test (garder le cache en production)
+      if (env.nodeEnv !== 'production') {
+        await redis.flushAll();
+        logger.info(`🧹 Cache Redis vidé (mode ${env.nodeEnv})`);
+      }
     }
 
     // Démarrer le serveur

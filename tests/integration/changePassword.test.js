@@ -9,6 +9,7 @@ import app from '../../src/app.js';
 import User from '../../src/models/user.model.js';
 import { hashPassword } from '../../src/utils/crypto.js';
 import mongoose from 'mongoose';
+import redis from '../../src/config/redis.js';
 
 describe('POST /api/users/me/change-password', () => {
   let authToken;
@@ -21,11 +22,21 @@ describe('POST /api/users/me/change-password', () => {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGO_URI_TEST || process.env.MONGO_URI);
     }
+    
+    // Nettoyer le cache Redis si activé
+    if (redis.isConnected) {
+      await redis.flushAll();
+    }
   });
 
   beforeEach(async () => {
     // Nettoyer la collection users
     await User.deleteMany({});
+    
+    // Nettoyer le cache Redis avant chaque test si activé
+    if (redis.isConnected) {
+      await redis.flushAll();
+    }
 
     // Créer un utilisateur de test
     const hashedPassword = await hashPassword(originalPassword);
