@@ -152,6 +152,60 @@ export async function updateMe(req, res) {
   });
 }
 
+/**
+ * Calcule la distance entre deux points en kilomètres (formule de Haversine)
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371; // Rayon de la Terre en km
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Récupère le nom de la ville via géocodage inverse (Nominatim)
+ */
+async function getCityFromCoords(lat, lng) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
+      {
+        headers: {
+          'Accept-Language': 'fr',
+          'User-Agent': 'MapMarketTunisie/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      logger.warn(`Échec du géocodage inverse pour ${lat},${lng}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const address = data.address || {};
+    
+    // Extraire le nom de la ville (priorité: city > town > village > municipality > county)
+    const city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county ||
+      address.state ||
+      null;
+
+    return city;
+  } catch (error) {
+    logger.error('Erreur lors du géocodage inverse:', error);
+    return null;
+  }
+}
+
 export async function updateLocation(req, res) {
   const user = await User.findById(req.user._id);
   if (!user) {
@@ -166,28 +220,69 @@ export async function updateLocation(req, res) {
   const { lat, lng, radiusKm } = req.body;
 
   if (lat != null && lng != null) {
-    // Nouveau format simplifié
-    const locationUpdate = {
-      coords: [Number(lng), Number(lat)],
-      consent: true
-    };
+    const newLat = Number(lat);
+    const newLng = Number(lng);
 
-    if (radiusKm !== undefined) {
-      locationUpdate.radiusKm = Number(radiusKm);
+    // Vérifier si les coordonnées ont vraiment changé (distance > 0.01 km = 10 mètres)
+    let shouldUpdate = true;
+    if (user.location?.coords?.coordinates?.length === 2) {
+      const [oldLng, oldLat] = user.location.coords.coordinates;
+      const distance = calculateDistance(oldLat, oldLng, newLat, newLng);
+      
+      // Ne pas mettre à jour si la distance est inférieure à 10 mètres
+      if (distance < 0.01) {
+        shouldUpdate = false;
+      }
     }
 
-    applyLocation(user, locationUpdate);
+    if (shouldUpdate) {
+      // Récupérer automatiquement le nom de la ville via géocodage inverse
+      const city = await getCityFromCoords(newLat, newLng);
+
+      const locationUpdate = {
+        coords: [newLng, newLat],
+        consent: true
+      };
+
+      // Ajouter la ville si elle a été trouvée
+      if (city) {
+        locationUpdate.city = city;
+      }
+
+      if (radiusKm !== undefined) {
+        locationUpdate.radiusKm = Number(radiusKm);
+      }
+
+      applyLocation(user, locationUpdate);
+      await user.save();
+
+      return sendSuccess(res, {
+        message: city ? `Localisation enregistrée: ${city}` : 'Localisation enregistrée',
+        data: { location: user.location }
+      });
+    } else {
+      // Les coordonnées n'ont pas changé de manière significative
+      // Mettre à jour uniquement le radiusKm si fourni
+      if (radiusKm !== undefined) {
+        user.location.radiusKm = Number(radiusKm);
+        await user.save();
+      }
+
+      return sendSuccess(res, {
+        message: 'Localisation inchangée',
+        data: { location: user.location }
+      });
+    }
   } else {
     // Ancien format (support legacy)
     applyLocation(user, req.body);
+    await user.save();
+
+    return sendSuccess(res, {
+      message: 'Localisation enregistrée',
+      data: { location: user.location }
+    });
   }
-
-  await user.save();
-
-  return sendSuccess(res, {
-    message: 'Localisation enregistrée',
-    data: { location: user.location }
-  });
 }
 
 export async function updateAvatar(req, res) {

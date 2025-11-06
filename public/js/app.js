@@ -2918,7 +2918,7 @@
 
     async function saveLocationToAPI(lat, lng, radiusKm) {
       try {
-        const response = await fetch(buildApiUrl('/api/user/me/location'), {
+        const response = await fetch(buildApiUrl('/api/users/me/location'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -2928,7 +2928,9 @@
         });
 
         if (response.ok) {
-          return true;
+          const result = await response.json();
+          // Retourner les données de localisation (incluant la ville si disponible)
+          return result.data?.location || true;
         }
         return false;
       } catch (error) {
@@ -3266,8 +3268,12 @@
         applyRadius({ reFit: true, mapInstance });
 
         // Sauvegarder dans la BDD si nécessaire
+        let cityName = null;
         if (shouldSave) {
-          await saveLocationToAPI(latitude, longitude, geo.radiusKm);
+          const locationData = await saveLocationToAPI(latitude, longitude, geo.radiusKm);
+          if (locationData && typeof locationData === 'object' && locationData.city) {
+            cityName = locationData.city;
+          }
         }
 
         if (typeof window.mmSetRadius === 'function') {
@@ -3279,7 +3285,10 @@
         if (typeof window.mmOnLocate === 'function') {
           window.mmOnLocate([latitude, longitude]);
         }
-        showGeoToast('Position détectée ✅');
+        
+        // Afficher le nom de la ville si disponible
+        const toastMessage = cityName ? `Position détectée: ${cityName} ✅` : 'Position détectée ✅';
+        showGeoToast(toastMessage);
         requestAnimationFrame(() => mapInstance.invalidateSize?.());
       } catch (error) {
         showGeoToast("Impossible d'obtenir la position");
