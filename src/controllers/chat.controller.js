@@ -6,10 +6,7 @@ import logger from '../config/logger.js';
 import { formatConversationForUser } from '../utils/chat.js';
 
 // (Pièces jointes & recherche: implémentations minimales ci-dessous)
-import {
-  storeAttachment,
-  deleteAttachment as removeAttachment
-} from '../chat/attachments.service.js';
+import { storeAttachment, deleteAttachmentForUser } from '../chat/attachments.service.js';
 import { searchUserMessages } from '../chat/search.service.js';
 
 export const startConversation = asyncHandler(async (req, res) => {
@@ -143,7 +140,7 @@ export const deleteAttachment = asyncHandler(async (req, res) => {
   const key = decodeURIComponent(req.params.key || '').trim();
   const userId = req.user._id;
   if (!key) throw createError.badRequest('Clé de pièce jointe manquante.');
-  await removeAttachment(key, userId);
+  await deleteAttachmentForUser(key, userId);
   return sendSuccess(res, { message: 'Pièce jointe supprimée', data: { removed: true } });
 });
 

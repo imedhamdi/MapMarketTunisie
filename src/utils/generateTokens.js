@@ -24,11 +24,11 @@ function parseDurationToMs(value) {
   return amount * multipliers[unit];
 }
 
-export function createAccessToken(payload) {
+function createAccessToken(payload) {
   return jwt.sign(payload, env.jwtAccessSecret, { expiresIn: env.jwtAccessExpires });
 }
 
-export function createRefreshToken(payload) {
+function createRefreshToken(payload) {
   return jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: env.jwtRefreshExpires });
 }
 

@@ -26,7 +26,7 @@ export async function storeAttachment({ buffer, mimetype, originalName, size, us
   };
 }
 
-export async function deleteAttachment(key) {
+async function deleteAttachment(key) {
   const filePath = path.join(baseDir, key);
   try {
     await rm(filePath);
@@ -39,13 +39,3 @@ export async function deleteAttachmentForUser(key, _userId) {
   // Ici on pourrait vérifier propriétaire; simplifié pour MVP
   return deleteAttachment(key);
 }
-
-export async function deleteAttachmentByKey(key) {
-  return deleteAttachment(key);
-}
-
-export async function removeAttachment(key) {
-  return deleteAttachment(key);
-}
-
-export default { storeAttachment, deleteAttachment };

@@ -33,5 +33,3 @@ Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.
 
   await transporter.sendMail(message);
 }
-
-export default transporter;

@@ -8,7 +8,7 @@ import { sendError } from '../utils/responses.js';
  * Requiert un token spécifique via header X-Monitoring-Token
  * ou paramètre d'URL token
  */
-export function monitoringAuth(req, res, next) {
+function monitoringAuth(req, res, next) {
   // En développement, on peut désactiver la protection si configuré
   if (env.isDev && !env.monitoringTokenRequired) {
     return next();
@@ -66,7 +66,7 @@ export function monitoringAuth(req, res, next) {
  * Middleware pour restreindre l'accès aux IPs autorisées
  * Optionnel, à utiliser en complément du token
  */
-export function monitoringIpRestriction(req, res, next) {
+function monitoringIpRestriction(req, res, next) {
   // Si pas d'IPs configurées, on skip
   if (!env.monitoringAllowedIps || env.monitoringAllowedIps.length === 0) {
     return next();

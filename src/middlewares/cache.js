@@ -12,7 +12,7 @@ import logger from '../config/logger.js';
  * @param {Function} keyGenerator - Fonction pour générer la clé de cache
  * @returns {Function} - Middleware Express
  */
-export function cacheMiddleware(ttl = 300, keyGenerator = null) {
+function cacheMiddleware(ttl = 300, keyGenerator = null) {
   return async (req, res, next) => {
     // Seulement pour GET requests
     if (req.method !== 'GET') {
@@ -63,7 +63,7 @@ export function cacheMiddleware(ttl = 300, keyGenerator = null) {
  * @param {string|Function} pattern - Pattern de clés à invalider ou fonction
  * @returns {Function} - Middleware Express
  */
-export function invalidateCache(pattern) {
+function invalidateCache(pattern) {
   return async (req, res, next) => {
     if (!redis.isConnected) {
       return next();

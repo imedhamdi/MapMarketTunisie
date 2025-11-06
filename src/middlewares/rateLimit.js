@@ -82,33 +82,3 @@ export const createAdLimiter = rateLimit({
     return req.user?._id?.toString() || req.ip;
   }
 });
-
-// API calls - 50 requêtes / minute par IP (protection DDoS)
-export const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: onRateLimit
-});
-
-// Strict limiter pour endpoints sensibles
-export const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.error('Rate limit strict atteint', {
-      ip: req.ip,
-      path: req.path,
-      userAgent: req.get('user-agent')
-    });
-
-    return sendError(res, {
-      statusCode: 429,
-      code: 'TOO_MANY_REQUESTS',
-      message: 'Trop de tentatives. Compte temporairement bloqué.'
-    });
-  }
-});

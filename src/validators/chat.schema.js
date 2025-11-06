@@ -54,14 +54,3 @@ export const searchMessagesSchema = Joi.object({
   limit: Joi.number().min(1).max(100).optional(),
   cursor: Joi.string().optional()
 });
-
-export default {
-  startConversationSchema,
-  sendMessageSchema,
-  getMessagesSchema,
-  getConversationsSchema,
-  conversationIdSchema,
-  reportMessageParamsSchema,
-  reportMessageBodySchema,
-  searchMessagesSchema
-};

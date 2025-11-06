@@ -14,7 +14,7 @@ export const asyncHandler = (fn) => {
 /**
  * Classe d'erreur personnalisée pour les erreurs API
  */
-export class ApiError extends Error {
+class ApiError extends Error {
   constructor(statusCode, code, message, isOperational = true) {
     super(message);
     this.statusCode = statusCode;
@@ -50,5 +50,3 @@ export const createError = {
   internal: (message = 'Erreur interne du serveur.', code = 'INTERNAL_ERROR') =>
     new ApiError(500, code, message)
 };
-
-export default asyncHandler;

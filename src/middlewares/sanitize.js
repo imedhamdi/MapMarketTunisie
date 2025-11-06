@@ -11,7 +11,7 @@ const defaultSanitizeOptions = {
 /**
  * Sanitize une valeur string
  */
-export function sanitizeString(value, options = {}) {
+function sanitizeString(value, options = {}) {
   if (typeof value !== 'string') {
     return value;
   }
@@ -25,7 +25,7 @@ export function sanitizeString(value, options = {}) {
 /**
  * Sanitize récursivement un objet
  */
-export function sanitizeObject(obj, options = {}) {
+function sanitizeObject(obj, options = {}) {
   if (obj === null || typeof obj !== 'object') {
     return typeof obj === 'string' ? sanitizeString(obj, options) : obj;
   }
@@ -67,9 +67,3 @@ export function sanitizeMiddleware(req, res, next) {
 
   next();
 }
-
-export default {
-  sanitizeString,
-  sanitizeObject,
-  sanitizeMiddleware
-};

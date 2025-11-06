@@ -76,16 +76,3 @@ export function validateNonEmptyCoordinates(value) {
  * @param {number} latitude
  * @returns {Object} - Objet GeoJSON Point
  */
-export function createGeoPoint(longitude, latitude) {
-  const lng = Number(longitude);
-  const lat = Number(latitude);
-
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-    throw new Error('Les coordonnées doivent être des nombres valides');
-  }
-
-  return {
-    type: 'Point',
-    coordinates: [lng, lat]
-  };
-}

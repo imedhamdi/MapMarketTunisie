@@ -43,5 +43,3 @@ export async function searchUserMessages(
     hasMore
   };
 }
-
-export default { searchUserMessages };

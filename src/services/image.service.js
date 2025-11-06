@@ -10,25 +10,6 @@ import { unlink, mkdir } from 'node:fs/promises';
 
 import logger from '../config/logger.js';
 
-/**
- * Tailles d'images prédéfinies
- */
-export const IMAGE_SIZES = {
-  thumbnail: { width: 200, height: 200 },
-  preview: { width: 400, height: 400 },
-  large: { width: 800, height: 800 },
-  avatar: { width: 200, height: 200 }
-};
-
-/**
- * Options de qualité par défaut
- */
-const QUALITY_OPTIONS = {
-  jpeg: { quality: 85, progressive: true },
-  webp: { quality: 85 },
-  png: { compressionLevel: 9 }
-};
-
 const ADS_UPLOAD_DIR = path.resolve('uploads/ads');
 
 function isDataUri(value) {
@@ -45,87 +26,6 @@ function parseDataUri(value) {
     mime,
     buffer: Buffer.from(data, 'base64')
   };
-}
-
-/**
- * Optimise une image et génère plusieurs tailles
- * @param {string} inputPath - Chemin du fichier source
- * @param {string} outputDir - Dossier de destination
- * @param {string} baseName - Nom de base du fichier
- * @param {Object} options - Options d'optimisation
- * @returns {Promise<Object>} - Chemins des fichiers générés
- */
-export async function optimizeImage(inputPath, outputDir, baseName, options = {}) {
-  const {
-    sizes = ['thumbnail', 'preview', 'large'],
-    formats = ['jpeg', 'webp'],
-    keepOriginal = false
-  } = options;
-
-  const results = {
-    original: null,
-    variants: {}
-  };
-
-  try {
-    // Charger l'image
-    const image = sharp(inputPath);
-    const metadata = await image.metadata();
-
-    logger.info('Optimisation image démarrée', {
-      file: baseName,
-      originalSize: metadata.size,
-      format: metadata.format,
-      dimensions: `${metadata.width}x${metadata.height}`
-    });
-
-    // Générer les différentes tailles
-    for (const sizeName of sizes) {
-      const sizeConfig = IMAGE_SIZES[sizeName];
-      if (!sizeConfig) {
-        logger.warn(`Taille inconnue: ${sizeName}`);
-        continue;
-      }
-
-      for (const format of formats) {
-        const outputName = `${baseName}-${sizeName}.${format}`;
-        const outputPath = path.join(outputDir, outputName);
-
-        await image
-          .clone()
-          .resize(sizeConfig.width, sizeConfig.height, {
-            fit: 'cover',
-            position: 'center'
-          })
-          .toFormat(format, QUALITY_OPTIONS[format])
-          .toFile(outputPath);
-
-        if (!results.variants[sizeName]) {
-          results.variants[sizeName] = {};
-        }
-        results.variants[sizeName][format] = outputPath;
-
-        logger.debug('Variante créée', { size: sizeName, format, path: outputPath });
-      }
-    }
-
-    // Garder l'original si demandé
-    if (keepOriginal) {
-      const originalPath = path.join(outputDir, `${baseName}-original.${metadata.format}`);
-      await sharp(inputPath).toFile(originalPath);
-      results.original = originalPath;
-    }
-
-    logger.info('Optimisation terminée', {
-      file: baseName,
-      variantsCount: Object.keys(results.variants).length * formats.length
-    });
-
-    return results;
-  } catch (error) {
-    logger.error('Erreur optimisation image', { error: error.message, file: inputPath });
-    throw error;
-  }
 }
 
 /**
@@ -280,46 +180,4 @@ export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
     webpPreviews: results.webpPreviews,
     webpThumbnails: results.webpThumbnails
   };
-}
-
-/**
- * Génère un placeholder LQIP (Low Quality Image Placeholder)
- * @param {string} inputPath - Chemin de l'image source
- * @returns {Promise<string>} - Base64 du placeholder
- */
-export async function generatePlaceholder(inputPath) {
-  try {
-    const buffer = await sharp(inputPath)
-      .resize(20, 20, { fit: 'cover' })
-      .blur(10)
-      .jpeg({ quality: 50 })
-      .toBuffer();
-
-    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
-  } catch (error) {
-    logger.error('Erreur génération placeholder', { error: error.message });
-    return null;
-  }
-}
-
-/**
- * Obtenir les métadonnées d'une image
- * @param {string} filePath - Chemin du fichier
- * @returns {Promise<Object>} - Métadonnées
- */
-export async function getImageMetadata(filePath) {
-  try {
-    const metadata = await sharp(filePath).metadata();
-    return {
-      width: metadata.width,
-      height: metadata.height,
-      format: metadata.format,
-      size: metadata.size,
-      hasAlpha: metadata.hasAlpha,
-      orientation: metadata.orientation
-    };
-  } catch (error) {
-    logger.error('Erreur lecture métadonnées', { error: error.message });
-    return null;
-  }
 }

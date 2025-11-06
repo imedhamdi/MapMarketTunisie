@@ -327,5 +327,3 @@ export async function initChatSocket(httpServer) {
 
   return io;
 }
-
-export default initChatSocket;
