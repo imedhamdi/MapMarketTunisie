@@ -117,6 +117,7 @@ app.use(sanitizeMiddleware);
 
 // Static files
 const avatarsDir = path.resolve('uploads/avatars');
+const adsDir = path.resolve('uploads/ads');
 const publicDir = path.resolve('public');
 
 // Cache headers for static assets
@@ -137,8 +138,14 @@ app.use('/uploads/avatars', (req, res, next) => {
   res.setHeader('Cache-Control', 'public, max-age=86400');
   next();
 });
+app.use('/uploads/ads', (req, res, next) => {
+  // Cache des images d'annonces pendant 1 jour (modifiable selon besoins)
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  next();
+});
 
 app.use('/uploads/avatars', express.static(avatarsDir));
+app.use('/uploads/ads', express.static(adsDir));
 app.use(express.static(publicDir));
 
 // SEO Routes (sitemap, robots.txt)
