@@ -27,10 +27,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{js,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,json}\"",
-    "prepare": "husky install"
+    "prepare": "node -e \"if(process.env.NODE_ENV!=='production'){try{require('child_process').execSync('npx husky install',{stdio:'inherit'})}catch(e){}}\""
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": "20.x"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
