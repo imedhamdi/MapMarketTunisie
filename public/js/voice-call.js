@@ -233,7 +233,7 @@
         hasCurrentCall: !!this.currentCall,
         callState: this.callState
       });
-      
+
       const wasInitiatorWaitingOffer = this.isInitiator && this._pendingOffer && !this.currentCall;
       this.currentCall = data;
       this.conversationId = data.conversationId;
@@ -252,14 +252,14 @@
         console.log('[VoiceCall] Destinataire reçoit appel entrant, callId:', data.callId);
         this.isInitiator = false;
         this.remoteUserId = data.initiatorId;
-        
+
         // Rejoindre la room conversation pour recevoir les événements WebRTC
         this.socket.emit('conversation:join', {
           conversationId: data.conversationId,
           markAsRead: false
         });
         console.log('[VoiceCall] Destinataire rejoint conversation room:', data.conversationId);
-        
+
         this.updateCallState(CALL_STATES.RINGING);
         this.playRingtone();
       }
@@ -306,7 +306,7 @@
           this.peerConnection.addTrack(track, this.localStream);
         });
         console.log('[VoiceCall] Pistes audio ajoutées');
-        
+
         // Si une offre était en attente, la traiter maintenant
         if (this._pendingIncomingOffer) {
           console.log('[VoiceCall] Traitement offre en attente...');
@@ -353,7 +353,7 @@
      */
     async handleOffer(data) {
       console.log('[VoiceCall] handleOffer reçu, peerConnection existe:', !!this.peerConnection);
-      
+
       try {
         // Si pas de peerConnection, c'est que l'utilisateur n'a pas encore répondu
         // Stocker l'offre et attendre answerCall()
@@ -395,13 +395,13 @@
         if (!this.peerConnection || !data.candidate) {
           return;
         }
-        
+
         // Attendre que remoteDescription soit définie avant d'ajouter les candidats ICE
         if (!this.peerConnection.remoteDescription) {
           console.warn('[VoiceCall] Candidat ICE reçu avant remoteDescription, en attente...');
           return;
         }
-        
+
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (error) {
         console.error("Erreur lors de l'ajout du candidat ICE:", error);
@@ -460,7 +460,7 @@
           resolve();
           return;
         }
-        
+
         if (this.peerConnection.iceGatheringState === 'complete') {
           resolve();
         } else {
@@ -628,25 +628,25 @@
     playRingtone() {
       // Arrêter toute sonnerie existante d'abord
       this.stopRingtone();
-      
+
       console.log('[VoiceCall] playRingtone démarrage...');
-      
+
       try {
         this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         // Reprendre le contexte si suspendu (autoplay policy)
         if (this._audioContext.state === 'suspended') {
-          this._audioContext.resume().catch(e => {
+          this._audioContext.resume().catch((e) => {
             console.warn('[VoiceCall] Impossible de reprendre AudioContext:', e);
           });
         }
-        
+
         const playBeep = () => {
           if (!this._audioContext || this._audioContext.state === 'closed') {
             console.warn('[VoiceCall] AudioContext fermé, arrêt beep');
             return;
           }
-          
+
           const oscillator = this._audioContext.createOscillator();
           const gainNode = this._audioContext.createGain();
 
@@ -670,12 +670,12 @@
 
         // Premier beep
         playBeep();
-        
+
         // Répéter toutes les 2 secondes
         this._ringtoneInterval = setInterval(() => {
           playBeep();
         }, 2000);
-        
+
         console.log('[VoiceCall] Sonnerie démarrée');
       } catch (error) {
         console.warn('[VoiceCall] Erreur lors de la lecture de la sonnerie:', error);
@@ -690,13 +690,13 @@
         hasInterval: !!this._ringtoneInterval,
         hasContext: !!this._audioContext
       });
-      
+
       if (this._ringtoneInterval) {
         clearInterval(this._ringtoneInterval);
         this._ringtoneInterval = null;
         console.log('[VoiceCall] Interval sonnerie nettoyé');
       }
-      
+
       if (this._audioContext) {
         try {
           this._audioContext.close();
@@ -706,12 +706,12 @@
         }
         this._audioContext = null;
       }
-      
+
       if (this.ringtoneAudio) {
         this.ringtoneAudio.pause();
         this.ringtoneAudio.currentTime = 0;
       }
-      
+
       console.log('[VoiceCall] stopRingtone terminé');
     }
 
