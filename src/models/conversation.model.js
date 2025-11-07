@@ -89,14 +89,22 @@ ConversationSchema.methods.getLastReadAt = function (userId) {
   return this.lastReadAt.get(userId.toString()) || null;
 };
 ConversationSchema.methods.isParticipant = function (userId) {
-  return this.participants.some((p) => p.toString() === userId.toString());
+  const expected = userId?.toString();
+  if (!expected) return false;
+  return this.participants.some((p) => {
+    const participantId = p && typeof p === 'object' && p._id ? p._id : p;
+    return participantId?.toString() === expected;
+  });
 };
 ConversationSchema.methods.isBlockedForUser = function (_userId) {
   if (!this.isBlocked) return false;
   return true; // simple: considéré bloqué pour tous sauf l'auteur du blocage
 };
 ConversationSchema.methods.hideForUser = function (userId) {
-  if (!this.hiddenFor.includes(userId)) {
+  const expected = userId?.toString();
+  if (!expected) return;
+  const alreadyHidden = this.hiddenFor.some((id) => id?.toString() === expected);
+  if (!alreadyHidden) {
     this.hiddenFor.push(userId);
   }
 };

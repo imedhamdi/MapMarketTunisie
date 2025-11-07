@@ -363,10 +363,11 @@
 }
 
 .conversation-item__cover-img {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
   transition: transform 0.3s ease;
 }
 
@@ -489,10 +490,11 @@
 }
 
 .conversation-item__contact-avatar-img {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
 }
 
 .conversation-item__contact-avatar-fallback {
@@ -777,6 +779,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .chat-panel__banner-text {
@@ -807,7 +810,7 @@
   position: relative;
   flex: 1;
   overflow: hidden;
-  padding: 0 20px 12px;
+  padding: 0 24px 12px;
   display: flex;
   flex-direction: column;
   min-height: 0; /* Important pour le flex scrolling */
@@ -850,6 +853,10 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
+}
+
+.message-row--typing {
+  padding-left: 40px;
 }
 
 .message-row--own {
@@ -951,9 +958,8 @@
 }
 
 .message-bubble--own .message-bubble__meta {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--messages-text-secondary);
 }
-
 
 .message-bubble__status {
   display: inline-flex;
@@ -963,11 +969,15 @@
 }
 
 .message-bubble__status[data-status='read'] {
-  color: rgba(255, 255, 255, 0.95);
+  color: inherit;
 }
 
 .message-row:not(.message-row--own) .message-bubble__status {
   color: var(--messages-text-tertiary);
+}
+
+.message-row.message-row--own .message-bubble__status {
+  color: var(--messages-accent-strong);
 }
 
 .message-bubble__status[data-status='failed'] {
@@ -1019,20 +1029,19 @@
 }
 
 .mm-typing {
-  align-self: flex-start;
-  margin: 8px 0 0;
-  padding: 8px 12px;
+  margin: 0;
+  padding: 8px 14px;
   font-size: 0.75rem;
   color: var(--messages-text-secondary);
   background: var(--messages-bg);
-  border-radius: var(--messages-radius);
-  box-shadow: var(--messages-shadow-card);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transform: translateY(4px);
+  transform: translateY(6px);
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .mm-typing.is-visible {
@@ -1078,15 +1087,15 @@
   border-radius: 50%;
   background: var(--messages-accent);
   opacity: 0.5;
-  animation: typingDots 1.4s ease-in-out infinite;
+  animation: typingDots 0.6s ease-in-out infinite;
 }
 
 .mm-typing__dots span:nth-child(2) {
-  animation-delay: 0.2s;
+  animation-delay: 0.12s;
 }
 
 .mm-typing__dots span:nth-child(3) {
-  animation-delay: 0.4s;
+  animation-delay: 0.24s;
 }
 
 @keyframes typingDots {

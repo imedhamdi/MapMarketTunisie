@@ -5,6 +5,7 @@
   const API_BASE = window.__API_BASE__ || `${window.location.origin}/api/v1`;
   const CONVERSATION_LIMIT = 60;
   const MESSAGE_LIMIT = 80;
+  const OLDER_MESSAGES_LIMIT = 50;
   const MAX_ATTACHMENTS = 5;
   const LAYOUT_BREAKPOINT = 960;
   const ATTACHMENT_PLACEHOLDER =
@@ -17,6 +18,8 @@
   let pendingSelectConversationId = null;
   let composerAttachments = [];
   let compactLayoutQuery = null;
+  let typingIndicatorHideTimer = null;
+  let loadingOlderMessages = false;
 
   const pendingRead = new Set();
   const pendingMessages = new Map();
@@ -26,6 +29,7 @@
     conversations: [],
     filteredConversations: [],
     messagesByConversation: new Map(),
+    messagesPagination: new Map(),
     searchTerm: '',
     conversationsLoaded: false,
     loadingConversations: false,
@@ -107,9 +111,22 @@
     dom.chatBannerClose = document.getElementById('chatBannerClose');
     dom.messagesWrapper = document.querySelector('.chat-panel__messages-wrapper');
     dom.chatMessages = document.getElementById('chatMessages');
+    if (dom.chatMessages) {
+      dom.loadMoreButton = document.createElement('button');
+      dom.loadMoreButton.type = 'button';
+      dom.loadMoreButton.className = 'chat-messages__load-more';
+      dom.loadMoreButton.textContent = 'Charger plus';
+      dom.loadMoreButton.setAttribute('hidden', 'true');
+      dom.loadMoreButton.addEventListener('click', handleLoadOlderMessages);
+    }
     dom.typingIndicator = document.getElementById('typingIndicator');
     dom.typingIndicatorText = dom.typingIndicator?.querySelector('.mm-typing__text') || null;
     dom.typingIndicatorAvatar = dom.typingIndicator?.querySelector('.mm-typing__avatar') || null;
+    if (dom.typingIndicator) {
+      dom.typingIndicatorWrapper = document.createElement('div');
+      dom.typingIndicatorWrapper.className = 'message-row message-row--typing';
+      dom.typingIndicatorWrapper.appendChild(dom.typingIndicator);
+    }
     dom.scrollToBottom = document.getElementById('scrollToBottom');
     dom.chatTextarea = document.getElementById('chatTextarea');
     dom.chatSend = document.getElementById('chatSend');
@@ -387,7 +404,7 @@
     });
     socket.on('typing:stop', ({ conversationId, userId }) => {
       if (conversationId === activeConversationId && userId !== state.userId) {
-        hideTypingIndicator();
+        hideTypingIndicator({ delay: 600 });
       }
     });
   }
@@ -484,7 +501,7 @@
   async function loadMessages(conversationId, { force = false } = {}) {
     if (state.loadingMessages) return;
     const existing = state.messagesByConversation.get(conversationId);
-    if (existing?.length && !force) {
+    if (existing?.length && !force && state.messagesPagination.has(conversationId)) {
       renderMessages(conversationId);
       scrollMessagesToBottom({ smooth: false });
       return;
@@ -503,6 +520,7 @@
           : [];
       const formatted = messages.map(enhanceMessage).sort((a, b) => a.createdAt - b.createdAt);
       state.messagesByConversation.set(conversationId, formatted);
+      state.messagesPagination.set(conversationId, { hasMore: Boolean(data?.hasMore) });
       renderMessages(conversationId);
       scrollMessagesToBottom({ smooth: false, force: true });
     } catch (error) {
@@ -510,6 +528,37 @@
       showMessagesError(error?.message || 'Impossible de charger cette conversation.');
     } finally {
       state.loadingMessages = false;
+    }
+  }
+
+  async function loadOlderMessages(conversationId, beforeDate) {
+    if (!conversationId || !beforeDate) return false;
+    const cursor =
+      beforeDate instanceof Date ? beforeDate.toISOString() : new Date(beforeDate).toISOString();
+    try {
+      const data = await apiFetch(`/chat/conversations/${conversationId}/messages`, {
+        query: { limit: OLDER_MESSAGES_LIMIT, before: cursor }
+      });
+      const payload = Array.isArray(data?.messages)
+        ? data.messages
+        : Array.isArray(data)
+          ? data
+          : [];
+      const enhanced = payload.map(enhanceMessage).sort((a, b) => a.createdAt - b.createdAt);
+      enhanced.forEach((message) => {
+        storeMessage(conversationId, message);
+      });
+      state.messagesPagination.set(conversationId, { hasMore: Boolean(data?.hasMore) });
+      if (conversationId === activeConversationId) {
+        renderMessages(conversationId);
+      }
+      return enhanced.length > 0;
+    } catch (error) {
+      console.error('[chat] Impossible de charger plus de messages', error);
+      if (conversationId === activeConversationId && typeof window.showToast === 'function') {
+        window.showToast('Impossible de charger les messages précédents.');
+      }
+      return false;
     }
   }
 
@@ -854,9 +903,14 @@
     }
 
     if (image) {
-      return `<span class="conversation-item__cover-img" style="background-image:url('${encodeURI(
+      const altText =
+        conversation.ad?.title ||
+        conversation.title ||
+        getConversationContactName(conversation) ||
+        'Annonce';
+      return `<img class="conversation-item__cover-img" src="${encodeURI(
         image
-      )}')"></span>`;
+      )}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async" width="72" height="72">`;
     }
     return `<span class="conversation-item__cover-fallback" aria-hidden="true">${getIconMarkup('image')}</span>`;
   }
@@ -864,9 +918,9 @@
   function buildContactAvatar(conversation) {
     const image = conversation.otherParticipant?.avatar || null;
     if (image) {
-      return `<span class="conversation-item__contact-avatar-img" style="background-image:url('${encodeURI(
+      return `<img class="conversation-item__contact-avatar-img" src="${encodeURI(
         image
-      )}')"></span>`;
+      )}" alt="" loading="lazy" decoding="async" width="20" height="20" aria-hidden="true">`;
     }
     const name = conversation.otherParticipant?.name || conversation.title || '';
     const letter = name.charAt(0).toUpperCase() || '?';
@@ -926,8 +980,16 @@
     }
   }
 
+  function hideLoadMoreButton() {
+    if (!dom.loadMoreButton) return;
+    dom.loadMoreButton.setAttribute('hidden', 'true');
+    dom.loadMoreButton.disabled = false;
+    dom.loadMoreButton.textContent = 'Charger plus';
+  }
+
   function renderEmptyMessages() {
     if (!dom.chatMessages) return;
+    hideLoadMoreButton();
     dom.chatMessages.innerHTML =
       '<div class="chat-panel__empty">Sélectionnez une conversation pour lire vos échanges.</div>';
   }
@@ -936,6 +998,7 @@
     if (!dom.chatMessages) return;
     dom.chatMessages.innerHTML = '';
     dom.chatMessages.classList.add('is-loading');
+    hideLoadMoreButton();
     for (let index = 0; index < 6; index += 1) {
       const bubble = document.createElement('div');
       bubble.className = 'message-row message-row--skeleton';
@@ -952,6 +1015,7 @@
   function showMessagesError(message) {
     if (!dom.chatMessages) return;
     dom.chatMessages.classList.remove('is-loading');
+    hideLoadMoreButton();
     dom.chatMessages.innerHTML = `<div class="chat-panel__empty">${escapeHtml(message)}</div>`;
   }
 
@@ -1055,17 +1119,29 @@
 
     const messages = state.messagesByConversation.get(conversationId) || [];
     if (!messages.length) {
+      hideLoadMoreButton();
       dom.chatMessages.innerHTML =
         '<div class="chat-panel__empty">Commencez la discussion avec un premier message.</div>';
       return;
     }
 
-    dom.chatMessages.innerHTML = '';
     const fragment = document.createDocumentFragment();
+    if (dom.loadMoreButton) {
+      const pagination = state.messagesPagination.get(conversationId);
+      const hasMore = Boolean(pagination?.hasMore);
+      if (hasMore) {
+        dom.loadMoreButton.removeAttribute('hidden');
+        dom.loadMoreButton.disabled = loadingOlderMessages;
+        dom.loadMoreButton.textContent = loadingOlderMessages ? 'Chargement…' : 'Charger plus';
+      } else {
+        hideLoadMoreButton();
+      }
+      fragment.appendChild(dom.loadMoreButton);
+    }
     messages.forEach((message) => {
       fragment.appendChild(createMessageElement(message));
     });
-    dom.chatMessages.appendChild(fragment);
+    dom.chatMessages.replaceChildren(fragment);
   }
 
   function createMessageElement(message) {
@@ -1200,6 +1276,11 @@
     }
     list.sort((a, b) => a.createdAt - b.createdAt);
     state.messagesByConversation.set(conversationId, list);
+  }
+
+  function getOldestMessage(conversationId) {
+    const list = state.messagesByConversation.get(conversationId) || [];
+    return list.length ? list[0] : null;
   }
 
   function findMessageByRef(reference) {
@@ -1397,6 +1478,7 @@
         (c) => c.id !== activeConversationId
       );
       state.messagesByConversation.delete(activeConversationId);
+      state.messagesPagination.delete(activeConversationId);
       activeConversationId = null;
       state.activeParticipantAvatar = null;
       hideChatPanel();
@@ -1406,13 +1488,47 @@
         window.showToast('Conversation supprimée de votre messagerie.');
       }
     } catch (error) {
-      console.error('[chat] Impossible de masquer', error);
+      console.warn('[chat] Impossible de masquer', error);
+      let feedback = 'Suppression impossible, réessayez.';
+      if (error?.status === 403) {
+        feedback = 'Vous ne pouvez pas masquer cette conversation.';
+        dom.chatDelete.hidden = true;
+      }
       if (typeof window.showToast === 'function') {
-        window.showToast('Suppression impossible, réessayez.');
+        window.showToast(feedback);
       }
     } finally {
-      dom.chatDelete.disabled = false;
+      if (!dom.chatDelete.hidden) {
+        dom.chatDelete.disabled = false;
+      }
     }
+  }
+
+  async function handleLoadOlderMessages() {
+    if (!activeConversationId || !dom.chatMessages || loadingOlderMessages) return;
+    const pagination = state.messagesPagination.get(activeConversationId);
+    if (!pagination?.hasMore) return;
+    const oldest = getOldestMessage(activeConversationId);
+    if (!oldest?.createdAt) return;
+    const conversationId = activeConversationId;
+    const previousHeight = dom.chatMessages.scrollHeight;
+    const previousTop = dom.chatMessages.scrollTop;
+    loadingOlderMessages = true;
+    if (dom.loadMoreButton) {
+      dom.loadMoreButton.disabled = true;
+      dom.loadMoreButton.textContent = 'Chargement…';
+    }
+    const loaded = await loadOlderMessages(conversationId, oldest.createdAt);
+    loadingOlderMessages = false;
+    if (dom.loadMoreButton) {
+      dom.loadMoreButton.disabled = false;
+      dom.loadMoreButton.textContent = 'Charger plus';
+    }
+    if (!loaded || activeConversationId !== conversationId || !dom.chatMessages) {
+      return;
+    }
+    const newHeight = dom.chatMessages.scrollHeight;
+    dom.chatMessages.scrollTop = newHeight - previousHeight + previousTop;
   }
 
   function handleTextareaInput() {
@@ -1807,42 +1923,69 @@
   }
 
   function showTypingIndicator(conversationId) {
-    if (!dom.typingIndicator) return;
-    if (conversationId) {
-      const conversation = findConversation(conversationId);
-      const name = conversation?.otherParticipant?.name || 'Votre interlocuteur';
-      if (dom.typingIndicatorText) {
-        dom.typingIndicatorText.textContent = `${name} est en train d'écrire…`;
-      }
-      if (dom.typingIndicatorAvatar) {
-        const image =
-          conversation?.otherParticipant?.avatar || state.activeParticipantAvatar || null;
-        dom.typingIndicatorAvatar.style.removeProperty('background-image');
-        dom.typingIndicatorAvatar.classList.remove('has-image');
-        dom.typingIndicatorAvatar.textContent = '';
-        if (image) {
-          dom.typingIndicatorAvatar.style.backgroundImage = `url('${encodeURI(image)}')`;
-          dom.typingIndicatorAvatar.classList.add('has-image');
-        } else {
-          const initial = (name || '').trim().charAt(0).toUpperCase() || '•';
-          dom.typingIndicatorAvatar.textContent = initial;
-        }
-      }
-    } else if (dom.typingIndicatorText) {
-      dom.typingIndicatorText.textContent = "Votre interlocuteur est en train d'écrire…";
+    if (!dom.typingIndicator || !dom.chatMessages) return;
+    window.clearTimeout(typingIndicatorHideTimer);
+    typingIndicatorHideTimer = null;
+
+    const conversation = conversationId ? findConversation(conversationId) : null;
+    const name = conversation?.otherParticipant?.name || 'Votre interlocuteur';
+    if (dom.typingIndicatorText) {
+      dom.typingIndicatorText.textContent = `${name} est en train d'écrire…`;
     }
+    if (dom.typingIndicatorAvatar) {
+      const image = conversation?.otherParticipant?.avatar || state.activeParticipantAvatar || null;
+      dom.typingIndicatorAvatar.style.removeProperty('background-image');
+      dom.typingIndicatorAvatar.classList.remove('has-image');
+      dom.typingIndicatorAvatar.textContent = '';
+      if (image) {
+        dom.typingIndicatorAvatar.style.backgroundImage = `url('${encodeURI(image)}')`;
+        dom.typingIndicatorAvatar.classList.add('has-image');
+      } else {
+        const initial = (name || '').trim().charAt(0).toUpperCase() || '•';
+        dom.typingIndicatorAvatar.textContent = initial;
+      }
+    }
+
+    if (dom.typingIndicatorWrapper) {
+      dom.chatMessages.appendChild(dom.typingIndicatorWrapper);
+    } else if (!dom.typingIndicator.isConnected) {
+      dom.chatMessages.appendChild(dom.typingIndicator);
+    }
+
+    dom.typingIndicator.dataset.conversationId = conversationId || '';
     dom.typingIndicator.classList.add('is-visible');
     dom.typingIndicator.removeAttribute('hidden');
   }
 
-  function hideTypingIndicator() {
+  function hideTypingIndicator(options = {}) {
+    if (!dom.typingIndicator) return;
+    const delay =
+      typeof options.delay === 'number' && options.delay > 0 ? Math.min(options.delay, 1000) : 0;
+    window.clearTimeout(typingIndicatorHideTimer);
+    if (delay) {
+      typingIndicatorHideTimer = window.setTimeout(() => {
+        typingIndicatorHideTimer = null;
+        removeTypingIndicator();
+      }, delay);
+      return;
+    }
+    removeTypingIndicator();
+  }
+
+  function removeTypingIndicator() {
     if (!dom.typingIndicator) return;
     dom.typingIndicator.classList.remove('is-visible');
     dom.typingIndicator.setAttribute('hidden', 'true');
+    dom.typingIndicator.dataset.conversationId = '';
     if (dom.typingIndicatorAvatar) {
       dom.typingIndicatorAvatar.style.removeProperty('background-image');
       dom.typingIndicatorAvatar.classList.remove('has-image');
       dom.typingIndicatorAvatar.textContent = '';
+    }
+    if (dom.typingIndicatorWrapper) {
+      dom.typingIndicatorWrapper.remove();
+    } else {
+      dom.typingIndicator.remove();
     }
   }
 
