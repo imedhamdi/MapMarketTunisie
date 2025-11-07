@@ -44,6 +44,8 @@
   const pendingAudioUrls = new Map();
   const pendingRemoteRead = new Set();
   let activeAudioPlayer = null;
+  let voiceCallManager = null;
+  const voiceCallModals = {};
 
   const state = {
     conversations: [],
@@ -209,6 +211,7 @@
     bindUiEvents();
     setupLayoutObserver();
     hydrateUser();
+    setupVoiceCallManager();
     if (state.userId) {
       startBackgroundSync();
     } else {
@@ -239,6 +242,7 @@
     dom.chatBack = document.getElementById('chatBack');
     dom.chatDelete = document.getElementById('chatDelete');
     dom.chatAdThumb = document.getElementById('chatAdThumb');
+    dom.chatCallBtn = document.getElementById('chatCallBtn');
     dom.chatTitle = document.getElementById('chatTitle');
     dom.chatSubtitle = document.getElementById('chatSubtitle');
     dom.chatBanner = document.getElementById('chatSecurityBanner');
@@ -275,6 +279,18 @@
     dom.chatVoiceStatus = document.getElementById('chatVoiceStatus');
     dom.chatVoiceTimer = document.getElementById('chatVoiceTimer');
     dom.chatVoiceCancel = document.getElementById('chatVoiceCancel');
+
+    // Éléments pour l'appel vocal
+    voiceCallModals.modal = document.getElementById('voiceCallModal');
+    voiceCallModals.avatar = document.getElementById('voiceCallAvatar');
+    voiceCallModals.username = document.getElementById('voiceCallUsername');
+    voiceCallModals.status = document.getElementById('voiceCallStatus');
+    voiceCallModals.connecting = document.getElementById('voiceCallConnecting');
+    voiceCallModals.duration = document.getElementById('voiceCallDuration');
+    voiceCallModals.answerBtn = document.getElementById('voiceCallAnswer');
+    voiceCallModals.muteBtn = document.getElementById('voiceCallMute');
+    voiceCallModals.endBtn = document.getElementById('voiceCallEnd');
+    voiceCallModals.remoteAudio = document.getElementById('voiceCallRemoteAudio');
   }
 
   function bindUiEvents() {
@@ -323,6 +339,7 @@
     dom.chatAttachButton?.addEventListener('click', handleAttachClick);
     dom.chatFileInput?.addEventListener('change', handleAttachmentSelection);
     dom.chatAttachmentPreview?.addEventListener('click', handleAttachmentRemove);
+    dom.chatCallBtn?.addEventListener('click', handleCallButtonClick);
     setupVoiceRecorderControls();
     dom.chatMessages?.addEventListener('click', handleMessageActionClick);
 
@@ -586,12 +603,19 @@
   }
 
   function ensureSocket() {
+    console.log(
+      '[Messages] ensureSocket appelé, socket actuel:',
+      !!socket,
+      'userId:',
+      state.userId
+    );
     if (socket || !state.userId) return socket;
     if (!window.io) {
       console.warn('[chat] Socket.IO client manquant');
       return null;
     }
     const token = window.__ACCESS_TOKEN__ || null;
+    console.log('[Messages] Création du socket avec token:', !!token);
     socket = window.io(window.location.origin, {
       path: SOCKET_PATH,
       auth: token ? { token } : {},
@@ -600,7 +624,36 @@
       reconnectionDelay: 750,
       timeout: 20000
     });
+
+    console.log('[Messages] Socket créé, ID:', socket.id, 'connected:', socket.connected);
+
+    // Écouter les événements de connexion
+    socket.on('connect', () => {
+      console.log('[Messages] Socket CONNECTÉ ! ID:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('[Messages] Erreur de connexion Socket:', error.message);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('[Messages] Socket DÉCONNECTÉ:', reason);
+    });
+
     bindSocketEvents();
+
+    // Initialiser le gestionnaire d'appels vocaux avec le socket
+    console.log('[Messages] Initialisation du voiceCallManager avec socket');
+    if (voiceCallManager && !voiceCallManager.socket) {
+      console.log('[Messages] Appel de voiceCallManager.init()');
+      voiceCallManager.init(socket);
+    } else {
+      console.log('[Messages] voiceCallManager non disponible ou déjà initialisé:', {
+        hasVoiceCallManager: !!voiceCallManager,
+        hasSocket: voiceCallManager?.socket
+      });
+    }
+
     return socket;
   }
 
@@ -1321,6 +1374,7 @@
     markConversationAsRead(conversationId);
     loadMessages(conversationId);
     updateVoiceUi();
+    updateCallButtonVisibility();
     pendingSelectConversationId = null;
   }
 
@@ -1401,6 +1455,7 @@
     }
     syncLayoutMode();
     updateVoiceUi();
+    updateCallButtonVisibility();
   }
 
   function hideChatPanel() {
@@ -1428,6 +1483,7 @@
     dom.chatBanner?.setAttribute('hidden', 'true');
     syncLayoutMode();
     updateVoiceUi();
+    updateCallButtonVisibility();
   }
 
   function dismissSecurityBanner() {
@@ -3202,6 +3258,344 @@
       }),
     notifyTyping
   };
+
+  // ==================== VOICE CALL FUNCTIONS ====================
+
+  function setupVoiceCallManager() {
+    console.log('[Messages] setupVoiceCallManager appelé');
+    if (!window.VoiceCallManager) {
+      console.warn('[VoiceCall] VoiceCallManager non disponible');
+      return;
+    }
+
+    console.log("[Messages] Création d'une nouvelle instance VoiceCallManager");
+    voiceCallManager = new window.VoiceCallManager();
+
+    // Configurer les callbacks
+    voiceCallManager.onStateChange = handleCallStateChange;
+    voiceCallManager.onError = handleCallError;
+    voiceCallManager.onCallEnded = handleCallEndedUI;
+
+    // Configurer les boutons du modal
+    if (voiceCallModals.answerBtn) {
+      voiceCallModals.answerBtn.addEventListener('click', () => {
+        voiceCallManager.answerCall();
+      });
+    }
+
+    if (voiceCallModals.endBtn) {
+      voiceCallModals.endBtn.addEventListener('click', () => {
+        if (
+          voiceCallManager.callState === window.CALL_STATES.RINGING &&
+          !voiceCallManager.isInitiator
+        ) {
+          voiceCallManager.rejectCall();
+        } else if (
+          voiceCallManager.callState === window.CALL_STATES.RINGING &&
+          voiceCallManager.isInitiator
+        ) {
+          voiceCallManager.cancelCall();
+        } else {
+          voiceCallManager.endCall();
+        }
+      });
+    }
+
+    if (voiceCallModals.muteBtn) {
+      voiceCallModals.muteBtn.addEventListener('click', () => {
+        const isMuted = voiceCallManager.toggleMute();
+        if (isMuted) {
+          voiceCallModals.muteBtn.classList.add('active');
+          voiceCallModals.muteBtn.setAttribute('aria-label', 'Activer le micro');
+        } else {
+          voiceCallModals.muteBtn.classList.remove('active');
+          voiceCallModals.muteBtn.setAttribute('aria-label', 'Couper le micro');
+        }
+      });
+    }
+  }
+
+  async function handleCallButtonClick() {
+    console.log(
+      '[Messages] handleCallButtonClick appelé, activeConversationId:',
+      activeConversationId
+    );
+    if (!activeConversationId) {
+      console.warn('[Messages] Pas de conversation active');
+      return;
+    }
+
+    const conversation = findConversation(activeConversationId);
+    console.log('[Messages] Conversation trouvée:', conversation);
+    if (!conversation || !conversation.otherParticipant) {
+      console.error('[Messages] Conversation ou participant introuvable');
+      if (typeof window.showToast === 'function') {
+        window.showToast("Impossible d'identifier l'autre participant.");
+      }
+      return;
+    }
+
+    const remoteUserId = conversation.otherParticipant.id;
+    const remoteUsername = conversation.otherParticipant.name || 'Utilisateur';
+    const remoteAvatar = conversation.otherParticipant.avatar || '/uploads/avatars/default.jpg';
+
+    console.log("[Messages] Préparation de l'appel vers:", {
+      remoteUserId,
+      remoteUsername,
+      conversationId: activeConversationId
+    });
+
+    // Initialiser / connecter le socket si nécessaire
+    if (!socket) {
+      console.log('[Messages] Socket non initialisé, appel de ensureSocket()');
+      ensureSocket();
+    }
+
+    // Attendre connexion effective si pas encore connectée
+    // La connexion socket valide l'authentification (cookie HttpOnly)
+    if (!socket.connected) {
+      console.log('[Messages] Attente connexion socket avant appel...');
+      const connected = await waitForSocketConnected(socket, 4000).catch(() => false);
+      if (!connected) {
+        console.error('[Messages] Échec connexion socket avant appel');
+        if (typeof window.showToast === 'function') {
+          window.showToast('Connexion à la messagerie impossible. Réessayez.');
+        }
+        return;
+      }
+    }
+
+    // Si socket connecté, l'authentification est validée côté serveur
+    console.log('[Messages] Socket connecté, authentification OK');
+
+    // Initialiser le manager avec le socket
+    if (!voiceCallManager.socket) {
+      console.log('[Messages] Initialisation du voiceCallManager avec socket');
+      voiceCallManager.init(socket);
+    }
+
+    // Mettre à jour l'interface du modal
+    if (voiceCallModals.avatar) {
+      const img = voiceCallModals.avatar.querySelector('img');
+      if (img) img.src = remoteAvatar;
+    }
+    if (voiceCallModals.username) {
+      voiceCallModals.username.textContent = remoteUsername;
+    }
+    if (voiceCallModals.status) {
+      voiceCallModals.status.textContent = 'Appel en cours...';
+    }
+
+    // Afficher le modal
+    console.log("[Messages] Affichage du modal d'appel");
+    showVoiceCallModal();
+
+    // Initier l'appel
+    console.log('[Messages] Appel de voiceCallManager.initiateCall()');
+    voiceCallManager.initiateCall(activeConversationId, remoteUserId, remoteUsername);
+  }
+
+  // Attente utilitaire de connexion socket (résout true/false)
+  function waitForSocketConnected(sock, timeout = 5000) {
+    return new Promise((resolve, reject) => {
+      if (!sock) return resolve(false);
+      if (sock.connected) return resolve(true);
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, timeout);
+      function onConnect() {
+        cleanup();
+        resolve(true);
+      }
+      function onError() {
+        // connect_error
+        cleanup();
+        resolve(false);
+      }
+      function cleanup() {
+        clearTimeout(timer);
+        sock.off('connect', onConnect);
+        sock.off('connect_error', onError);
+        sock.off('error', onError);
+      }
+      sock.on('connect', onConnect);
+      sock.on('connect_error', onError);
+      sock.on('error', onError);
+    });
+  }
+
+  function handleCallStateChange(data) {
+    const { state, duration, remoteStream, isIncoming, conversationId, initiatorId } = data;
+
+    if (!voiceCallModals.modal) return;
+
+    // Si c'est un appel entrant, mettre à jour les infos de l'appelant
+    if (isIncoming && conversationId) {
+      const conversation = findConversation(conversationId);
+      if (conversation && conversation.otherParticipant) {
+        const remoteAvatar = conversation.otherParticipant.avatar || '/uploads/avatars/default.jpg';
+        const remoteUsername = conversation.otherParticipant.name || 'Utilisateur';
+
+        if (voiceCallModals.avatar) {
+          const img = voiceCallModals.avatar.querySelector('img');
+          if (img) img.src = remoteAvatar;
+        }
+        if (voiceCallModals.username) {
+          voiceCallModals.username.textContent = remoteUsername;
+        }
+      }
+    }
+
+    // Gérer l'état
+    switch (state) {
+      case window.CALL_STATES.IDLE:
+        hideVoiceCallModal();
+        break;
+
+      case window.CALL_STATES.INITIATING:
+        if (voiceCallModals.status) {
+          voiceCallModals.status.textContent = 'Initialisation...';
+          voiceCallModals.status.classList.remove('ringing');
+        }
+        if (voiceCallModals.answerBtn) voiceCallModals.answerBtn.hidden = true;
+        if (voiceCallModals.muteBtn) voiceCallModals.muteBtn.hidden = true;
+        if (voiceCallModals.duration) voiceCallModals.duration.hidden = true;
+        if (voiceCallModals.connecting) voiceCallModals.connecting.hidden = false;
+        break;
+
+      case window.CALL_STATES.RINGING:
+        if (isIncoming) {
+          // Appel entrant
+          if (voiceCallModals.status) {
+            voiceCallModals.status.textContent = 'Appel entrant';
+            voiceCallModals.status.classList.add('ringing');
+          }
+          if (voiceCallModals.answerBtn) voiceCallModals.answerBtn.hidden = false;
+          showVoiceCallModal();
+        } else {
+          // Appel sortant
+          if (voiceCallModals.status) {
+            voiceCallModals.status.textContent = 'Sonnerie';
+            voiceCallModals.status.classList.add('ringing');
+          }
+          if (voiceCallModals.answerBtn) voiceCallModals.answerBtn.hidden = true;
+        }
+        if (voiceCallModals.muteBtn) voiceCallModals.muteBtn.hidden = true;
+        if (voiceCallModals.duration) voiceCallModals.duration.hidden = true;
+        if (voiceCallModals.connecting) voiceCallModals.connecting.hidden = true;
+        break;
+
+      case window.CALL_STATES.CONNECTING:
+        if (voiceCallModals.status) {
+          voiceCallModals.status.textContent = 'Connexion...';
+          voiceCallModals.status.classList.remove('ringing');
+        }
+        if (voiceCallModals.answerBtn) voiceCallModals.answerBtn.hidden = true;
+        if (voiceCallModals.muteBtn) voiceCallModals.muteBtn.hidden = true;
+        if (voiceCallModals.duration) voiceCallModals.duration.hidden = true;
+        if (voiceCallModals.connecting) voiceCallModals.connecting.hidden = false;
+        break;
+
+      case window.CALL_STATES.CONNECTED:
+        if (voiceCallModals.status) {
+          voiceCallModals.status.textContent = 'En ligne';
+          voiceCallModals.status.classList.remove('ringing');
+        }
+        if (voiceCallModals.answerBtn) voiceCallModals.answerBtn.hidden = true;
+        if (voiceCallModals.muteBtn) voiceCallModals.muteBtn.hidden = false;
+        if (voiceCallModals.duration) voiceCallModals.duration.hidden = false;
+        if (voiceCallModals.connecting) voiceCallModals.connecting.hidden = true;
+
+        // Connecter le flux audio distant
+        if (remoteStream && voiceCallModals.remoteAudio) {
+          voiceCallModals.remoteAudio.srcObject = remoteStream;
+        }
+        break;
+
+      case window.CALL_STATES.ENDED:
+        hideVoiceCallModal();
+        break;
+    }
+
+    // Mettre à jour la durée si fournie
+    if (duration !== undefined && voiceCallModals.duration) {
+      const minutes = Math.floor(duration / 60);
+      const seconds = duration % 60;
+      voiceCallModals.duration.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+  }
+
+  function handleCallError(message) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message);
+    }
+    console.error('[VoiceCall] Erreur:', message);
+  }
+
+  function handleCallEndedUI(data) {
+    hideVoiceCallModal();
+
+    const reason = data.reason || 'completed';
+    let message = 'Appel terminé';
+
+    switch (reason) {
+      case 'rejected':
+        message = 'Appel rejeté';
+        break;
+      case 'cancelled':
+        message = 'Appel annulé';
+        break;
+      case 'timeout':
+        message = 'Pas de réponse';
+        break;
+      case 'network':
+        message = 'Problème de connexion';
+        break;
+      case 'error':
+        message = "Erreur lors de l'appel";
+        break;
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(message);
+    }
+  }
+
+  function showVoiceCallModal() {
+    if (voiceCallModals.modal) {
+      voiceCallModals.modal.classList.remove('hidden');
+    }
+  }
+
+  function hideVoiceCallModal() {
+    if (voiceCallModals.modal) {
+      voiceCallModals.modal.classList.add('hidden');
+    }
+    // Réinitialiser l'état du bouton mute
+    if (voiceCallModals.muteBtn) {
+      voiceCallModals.muteBtn.classList.remove('active');
+    }
+    // Nettoyer le flux audio
+    if (voiceCallModals.remoteAudio) {
+      voiceCallModals.remoteAudio.srcObject = null;
+    }
+  }
+
+  function updateCallButtonVisibility() {
+    if (!dom.chatCallBtn) return;
+
+    const conversation = activeConversationId ? findConversation(activeConversationId) : null;
+    const hasOtherParticipant = conversation && conversation.otherParticipant;
+
+    if (hasOtherParticipant && !voiceCallManager?.isInCall()) {
+      dom.chatCallBtn.hidden = false;
+    } else {
+      dom.chatCallBtn.hidden = true;
+    }
+  }
+
+  // ==================== END VOICE CALL FUNCTIONS ====================
 })();
 const PRICE_FORMATTER = new Intl.NumberFormat('fr-TN', {
   style: 'currency',

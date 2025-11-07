@@ -33,10 +33,12 @@
   <link rel="stylesheet" href="./dist/app.min.css">
   <!-- Module Messages (drawer de messagerie) -->
   <link rel="stylesheet" href="/css/modules/messages.css">
+  <link rel="stylesheet" href="/css/modules/voice-call.css">
   <link rel="stylesheet" href="/css/modules/image-viewer.css">
   <script src="./runtime-config.js"></script>
   <!-- Socket.IO client (nécessaire pour window.io) -->
   <script src="https://unpkg.com/socket.io-client@4.7.2/dist/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
+  <script defer src="/js/voice-call.js"></script>
   <script defer src="/js/messages.js"></script>
 </head>
 
@@ -953,6 +955,11 @@
                 <h3 class="chat-panel__title" id="chatTitle">Sélectionnez une conversation</h3>
                 <p class="chat-panel__subtitle" id="chatSubtitle">En attente…</p>
               </div>
+              <button type="button" class="messages-header__call-btn" id="chatCallBtn" aria-label="Appeler" hidden>
+                <svg class="messages-icon messages-icon--phone" aria-hidden="true" focusable="false">
+                  <use href="/icons/messages-icons.svg#icon-phone"></use>
+                </svg>
+              </button>
               <button type="button" class="chat-panel__delete" id="chatDelete" aria-label="Supprimer / masquer" hidden>
                 <svg class="messages-icon messages-icon--delete" aria-hidden="true" focusable="false">
                   <use href="/icons/messages-icons.svg#icon-delete"></use>
@@ -1021,6 +1028,41 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- VOICE CALL MODAL -->
+  <div id="voiceCallModal" class="voice-call-modal hidden">
+    <div class="voice-call-content">
+      <div class="voice-call-avatar" id="voiceCallAvatar">
+        <img src="/uploads/avatars/default.jpg" alt="Avatar">
+      </div>
+      <h3 class="voice-call-username" id="voiceCallUsername">Utilisateur</h3>
+      <p class="voice-call-status" id="voiceCallStatus">En attente...</p>
+      <div class="voice-call-connecting" id="voiceCallConnecting" hidden>
+        <span class="voice-call-connecting-dot"></span>
+        <span class="voice-call-connecting-dot"></span>
+        <span class="voice-call-connecting-dot"></span>
+      </div>
+      <div class="voice-call-duration" id="voiceCallDuration" hidden>00:00</div>
+      <div class="voice-call-controls" id="voiceCallControls">
+        <button type="button" class="voice-call-btn voice-call-btn--answer" id="voiceCallAnswer" hidden aria-label="Répondre">
+          <svg class="messages-icon messages-icon--phone" aria-hidden="true" focusable="false">
+            <use href="/icons/messages-icons.svg#icon-phone"></use>
+          </svg>
+        </button>
+        <button type="button" class="voice-call-btn voice-call-btn--mute" id="voiceCallMute" hidden aria-label="Couper le micro">
+          <svg class="messages-icon messages-icon--mic" aria-hidden="true" focusable="false">
+            <use href="/icons/messages-icons.svg#icon-mic"></use>
+          </svg>
+        </button>
+        <button type="button" class="voice-call-btn voice-call-btn--end" id="voiceCallEnd" aria-label="Raccrocher">
+          <svg class="messages-icon messages-icon--phone-off" aria-hidden="true" focusable="false">
+            <use href="/icons/messages-icons.svg#icon-phone-off"></use>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <audio id="voiceCallRemoteAudio" class="voice-call-remote-audio" autoplay></audio>
   </div>
 
   <!-- IMAGE VIEWER -->

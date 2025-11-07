@@ -8,6 +8,7 @@ import Message from '../models/message.model.js';
 import { createError } from '../utils/asyncHandler.js';
 import User from '../models/user.model.js';
 import Joi from 'joi';
+import callService from '../services/call.service.js';
 
 // --- Presence simple ---
 const onlineUsers = new Map(); // userId -> { sockets: Set<socketId>, lastSeenAt }
@@ -179,6 +180,18 @@ export async function initChatSocket(httpServer) {
       if (!token && socket.handshake.headers?.authorization) {
         token = socket.handshake.headers.authorization.replace('Bearer ', '');
       }
+
+      // Si pas de token dans auth/query/header, essayer de lire depuis les cookies
+      if (!token && socket.handshake.headers?.cookie) {
+        const cookies = socket.handshake.headers.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        // Cookie défini côté HTTP comme 'access_token'
+        token = cookies.access_token || cookies.accessToken || token;
+      }
+
       if (!token) return next(new Error('Token manquant'));
       const decoded = jwt.verify(token, env.jwtAccessSecret);
       const user = await User.findById(decoded.sub);
@@ -357,6 +370,229 @@ export async function initChatSocket(httpServer) {
         userId
       });
     });
+
+    // ==================== APPELS VOCAUX / WEBRTC ====================
+
+    /**
+     * Initier un appel vocal
+     */
+    socket.on('call:initiate', async (raw = {}) => {
+      try {
+        const { conversationId, type = 'audio' } = raw;
+
+        // Vérifier que la conversation existe et que l'utilisateur y participe
+        const convo = await Conversation.findById(conversationId);
+        if (!convo) {
+          return socket.emit('error', {
+            code: 'CONVERSATION_NOT_FOUND',
+            message: 'Conversation introuvable'
+          });
+        }
+        if (!convo.isParticipant(userId)) {
+          return socket.emit('error', { code: 'NOT_PARTICIPANT', message: 'Non autorisé' });
+        }
+
+        // Créer l'enregistrement de l'appel
+        const call = await callService.createCall({
+          conversationId,
+          initiatorId: userId,
+          type
+        });
+
+        // Notifier l'autre participant directement via sa room user
+        const otherParticipantId = convo.participants
+          .find((p) => p.toString() !== userId.toString())
+          .toString();
+
+        // Envoyer la notification d'appel entrant à l'utilisateur spécifique
+        io.to(`user:${otherParticipantId}`).emit('call:incoming', {
+          callId: call._id.toString(),
+          conversationId,
+          initiatorId: userId,
+          type,
+          timestamp: call.createdAt
+        });
+
+        logger.info('Appel initié', {
+          callId: call._id,
+          conversationId,
+          initiatorId: userId,
+          recipientId: otherParticipantId
+        });
+      } catch (error) {
+        logger.error('call:initiate error:', error);
+        socket.emit('error', { code: 'CALL_INITIATE_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Envoyer une offre WebRTC
+     */
+    socket.on('call:offer', async (raw = {}) => {
+      try {
+        const { callId, conversationId, offer } = raw;
+
+        if (!callId || !conversationId || !offer) {
+          return socket.emit('error', { code: 'INVALID_OFFER', message: 'Données invalides' });
+        }
+
+        // Mettre à jour le statut de l'appel
+        await callService.updateCallStatus(callId, 'ringing');
+
+        // Transmettre l'offre à l'autre participant
+        socket.to(`conversation:${conversationId}`).emit('call:offer', {
+          callId,
+          conversationId,
+          offer,
+          initiatorId: userId
+        });
+
+        logger.info('Offre WebRTC envoyée', { callId, conversationId });
+      } catch (error) {
+        logger.error('call:offer error:', error);
+        socket.emit('error', { code: 'OFFER_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Envoyer une réponse WebRTC
+     */
+    socket.on('call:answer', async (raw = {}) => {
+      try {
+        const { callId, conversationId, answer } = raw;
+
+        if (!callId || !conversationId || !answer) {
+          return socket.emit('error', { code: 'INVALID_ANSWER', message: 'Données invalides' });
+        }
+
+        // Mettre à jour le statut de l'appel comme répondu
+        await callService.updateCallStatus(callId, 'answered', { startedAt: new Date() });
+
+        // Transmettre la réponse à l'initiateur
+        socket.to(`conversation:${conversationId}`).emit('call:answer', {
+          callId,
+          conversationId,
+          answer,
+          responderId: userId
+        });
+
+        logger.info('Réponse WebRTC envoyée', { callId, conversationId });
+      } catch (error) {
+        logger.error('call:answer error:', error);
+        socket.emit('error', { code: 'ANSWER_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Échanger des candidats ICE pour la connexion peer-to-peer
+     */
+    socket.on('call:ice-candidate', (raw = {}) => {
+      try {
+        const { callId, conversationId, candidate } = raw;
+
+        if (!conversationId || !candidate) {
+          return socket.emit('error', { code: 'INVALID_ICE', message: 'Données invalides' });
+        }
+
+        // Transmettre le candidat ICE à l'autre participant
+        socket.to(`conversation:${conversationId}`).emit('call:ice-candidate', {
+          callId,
+          conversationId,
+          candidate,
+          senderId: userId
+        });
+      } catch (error) {
+        logger.error('call:ice-candidate error:', error);
+        socket.emit('error', { code: 'ICE_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Terminer un appel
+     */
+    socket.on('call:end', async (raw = {}) => {
+      try {
+        const { callId, conversationId, reason = 'completed' } = raw;
+
+        if (!callId) {
+          return socket.emit('error', { code: 'INVALID_CALL_ID', message: "ID d'appel invalide" });
+        }
+
+        // Terminer l'appel dans la base de données
+        await callService.endCall(callId, reason);
+
+        // Notifier tous les participants
+        io.to(`conversation:${conversationId}`).emit('call:ended', {
+          callId,
+          conversationId,
+          endedBy: userId,
+          reason
+        });
+
+        logger.info('Appel terminé', { callId, conversationId, reason });
+      } catch (error) {
+        logger.error('call:end error:', error);
+        socket.emit('error', { code: 'END_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Rejeter un appel entrant
+     */
+    socket.on('call:reject', async (raw = {}) => {
+      try {
+        const { callId, conversationId } = raw;
+
+        if (!callId) {
+          return socket.emit('error', { code: 'INVALID_CALL_ID', message: "ID d'appel invalide" });
+        }
+
+        // Marquer l'appel comme rejeté
+        await callService.rejectCall(callId);
+
+        // Notifier l'initiateur
+        io.to(`conversation:${conversationId}`).emit('call:rejected', {
+          callId,
+          conversationId,
+          rejectedBy: userId
+        });
+
+        logger.info('Appel rejeté', { callId, conversationId });
+      } catch (error) {
+        logger.error('call:reject error:', error);
+        socket.emit('error', { code: 'REJECT_FAILED', message: error.message });
+      }
+    });
+
+    /**
+     * Annuler un appel avant qu'il ne soit répondu
+     */
+    socket.on('call:cancel', async (raw = {}) => {
+      try {
+        const { callId, conversationId } = raw;
+
+        if (!callId) {
+          return socket.emit('error', { code: 'INVALID_CALL_ID', message: "ID d'appel invalide" });
+        }
+
+        // Terminer l'appel avec raison "cancelled"
+        await callService.endCall(callId, 'cancelled');
+
+        // Notifier l'autre participant
+        io.to(`conversation:${conversationId}`).emit('call:cancelled', {
+          callId,
+          conversationId,
+          cancelledBy: userId
+        });
+
+        logger.info('Appel annulé', { callId, conversationId });
+      } catch (error) {
+        logger.error('call:cancel error:', error);
+        socket.emit('error', { code: 'CANCEL_FAILED', message: error.message });
+      }
+    });
+
+    // ==================== FIN APPELS VOCAUX ====================
 
     socket.on('disconnect', () => {
       const presenceState = goOffline(userId, socket.id);

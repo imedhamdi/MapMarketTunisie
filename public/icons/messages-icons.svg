@@ -85,4 +85,14 @@
     <line x1="12" y1="17" x2="12" y2="22"/>
     <line x1="8" y1="22" x2="16" y2="22"/>
   </symbol>
+  <symbol id="icon-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.05 19 19.5 19.5 0 0 1 3 10.18 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.81.37 1.59.72 2.32a2 2 0 0 1-.45 2.11L8.09 10.91a16 16 0 0 0 5 5l2.76-2.24a2 2 0 0 1 2.11-.45c.73.35 1.51.6 2.32.72a2 2 0 0 1 1.72 1.98z"/>
+  </symbol>
+  <symbol id="icon-phone-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.68 10.68a2 2 0 0 0 2.64 2.64"/>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.05 19 19.5 19.5 0 0 1 5.54 12.46"/>
+    <path d="M6.1 4h2.95a2 2 0 0 1 2 1.72c.12.81.37 1.59.72 2.32a2 2 0 0 1-.45 2.11l-.57.57"/>
+    <path d="m16 5 3.04-.04a2 2 0 0 1 2 1.98A2 2 0 0 1 19.32 9"/>
+    <line x1="2" y1="2" x2="22" y2="22"/>
+  </symbol>
 </svg>
