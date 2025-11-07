@@ -33,6 +33,8 @@ export function formatConversationForUser(conversation, userId) {
       id: adDoc._id?.toString?.() ?? null,
       title: adDoc.title || '',
       price: adDoc.price ?? null,
+      locationText: adDoc.locationText || '',
+      ownerName: adDoc.owner?.name || '',
       thumbnail: cover,
       cover,
       thumbnails,

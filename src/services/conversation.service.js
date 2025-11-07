@@ -5,7 +5,7 @@ import { formatConversationForUser } from '../utils/chat.js';
 import messageService from './message.service.js';
 
 const AD_SUMMARY_FIELDS =
-  'title price thumbnails previews images photos pictures media cover coverUrl previewUrl';
+  'title price locationText owner thumbnails previews images photos pictures media cover coverUrl previewUrl';
 
 function normalizeId(id) {
   return typeof id === 'object' && id !== null ? id.toString() : id;
@@ -41,7 +41,11 @@ async function startConversation(adId, userId, initialText) {
   }
   // Rafraîchir la conversation pour renvoyer les dernières informations (dernier message, unread…)
   conversation = await Conversation.findById(conversation._id)
-    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS })
+    .populate({
+      path: 'adId',
+      select: AD_SUMMARY_FIELDS,
+      populate: { path: 'owner', select: 'name' }
+    })
     .populate({ path: 'participants', select: 'name avatar avatarUrl' });
   return { conversation: formatConversationForUser(conversation, userId), created };
 }
@@ -55,14 +59,22 @@ async function getUserConversations(userId, { limit = 20, skip = 0 } = {}) {
     .sort({ lastMessageAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS })
+    .populate({
+      path: 'adId',
+      select: AD_SUMMARY_FIELDS,
+      populate: { path: 'owner', select: 'name' }
+    })
     .populate({ path: 'participants', select: 'name avatar avatarUrl' });
   return conversations.map((c) => formatConversationForUser(c, userId));
 }
 
 async function getConversationById(id, userId) {
   const convo = await Conversation.findById(id)
-    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS })
+    .populate({
+      path: 'adId',
+      select: AD_SUMMARY_FIELDS,
+      populate: { path: 'owner', select: 'name' }
+    })
     .populate({ path: 'participants', select: 'name avatar avatarUrl' });
   if (!convo) throw createError.notFound('Conversation introuvable');
   if (!convo.isParticipant(userId)) throw createError.forbidden('Accès à la conversation refusé');

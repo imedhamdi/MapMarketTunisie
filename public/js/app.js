@@ -4743,7 +4743,8 @@
       return;
     }
     postModal.setAttribute('aria-hidden', hidden ? 'true' : 'false');
-    document.body.classList.toggle('modal-open', !hidden);
+    // Disable pointer events when hidden to prevent click-through when in preview mode
+    postModal.style.pointerEvents = hidden ? 'none' : 'auto';
     if (hidden) {
       unlockBodyScroll();
     } else {
@@ -5539,35 +5540,59 @@
   function showPreview() {
     const payload = collectPostPayload();
     const auth = authStore.get();
+    const rawImages = Array.isArray(payload.images) && payload.images.length ? payload.images : [];
+    const previewImages = rawImages.length ? rawImages : [DEFAULT_IMAGE];
+    const categoryConfig = getCategoryConfig(payload.category);
+    const categoryLabel = categoryConfig?.label || normalizeLabel(payload.category, 'Autres');
+    const categorySlug = categoryConfig?.slug || mapCategoryLabelToSlug(payload.category);
+    const conditionSlug = payload.condition || 'good';
+    const conditionLabel = CONDITION_LABELS[conditionSlug] || capitalize(conditionSlug);
+    const locationText = payload.locationText || 'Localisation à préciser';
+    const latitude = Number.isFinite(payload.latitude) ? payload.latitude : 36.8065;
+    const longitude = Number.isFinite(payload.longitude) ? payload.longitude : 10.1815;
+    let chips = buildChipsFromAttributes(payload.category, payload.attributes);
+    if (!chips.length) {
+      chips = [categoryLabel, conditionLabel, fmtPrice(payload.price)];
+    }
 
-    // Create a preview ad object matching the real ad structure
+    // Create a preview ad object matching the detail modal structure
     const previewAd = {
+      id: 'preview-temp-id',
       _id: 'preview-temp-id',
-      title: payload.title,
-      description: payload.description,
-      price: payload.price,
-      category: payload.category,
-      condition: payload.condition || 'bon',
-      images: payload.images || [],
-      city: payload.locationText || 'Tunisie',
+      title: payload.title || 'Votre annonce',
+      desc: payload.description,
+      category: payload.category || '',
+      catSlug: categorySlug || payload.category || 'autres',
+      cat: categoryLabel,
+      condition: conditionSlug,
+      state: conditionLabel,
+      price: Number.isFinite(payload.price) ? payload.price : 0,
+      city: locationText.split(',')[0]?.trim() || 'Tunisie',
+      locationText,
+      latlng: [latitude, longitude],
+      coords: {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      },
       status: 'active',
       views: 0,
+      likes: 0,
+      favorites: 0,
       favoritesCount: 0,
       contacts: 0,
       date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+      img: previewImages[0],
+      gallery: previewImages,
+      attributes: payload.attributes || {},
+      chips,
       owner: auth?._id || 'preview-user',
       ownerId: auth?._id || 'preview-user',
       sellerName: auth?.name || 'Votre nom',
       sellerEmail: auth?.email || 'votre@email.com',
-      sellerAvatar: auth?.avatar || null,
+      sellerAvatar: auth?.avatar || DEFAULT_AVATAR,
       sellerMemberSince: auth?.createdAt || new Date().toISOString(),
-      sellerAnnouncements: 1,
-      attributes: payload.attributes || {},
-      coords: {
-        type: 'Point',
-        coordinates: [payload.longitude || 10.1815, payload.latitude || 36.8065]
-      },
+      sellerAnnouncements: auth?.stats?.activeAds || 1,
       __preview: true // Flag to indicate this is a preview
     };
 

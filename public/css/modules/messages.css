@@ -128,6 +128,7 @@
 
 /* Layout principal */
 .messages-layout {
+  position: relative;
   flex: 1;
   display: grid;
   grid-template-columns: minmax(240px, var(--messages-sidebar-width)) minmax(0, 1fr);
@@ -1135,6 +1136,14 @@
   color: inherit;
   font-size: 0.75rem;
   text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.message-attachment:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
 }
 
 .message-attachment img {
@@ -1363,17 +1372,20 @@
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 5px;
+  /* Réduction du padding pour diminuer la hauteur totale */
+  padding: 2px 5px; /* 2px vertical, 5px horizontal conservé */
   border-radius: 26px;
   background: var(--color-surface);
   border: 1px solid var(--chat-input-border);
-  box-shadow: var(--chat-input-shadow);
+  /* Suppression du shadow pour aspect plus plat */
+  box-shadow: none;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chat-panel__input-row:focus-within {
   border-color: rgba(var(--color-brand-rgb), 0.3);
-  box-shadow: var(--chat-input-shadow-focus);
+  /* Pas de shadow en focus, on conserve uniquement la bordure */
+  box-shadow: none;
   background: var(--color-surface);
 }
 
@@ -1741,12 +1753,24 @@
 
 /* Responsive - Mobile */
 @media (max-width: 640px) {
+  .messages-sidebar {
+    display: none !important;
+  }
+
   .mm-modal--messages {
     width: 100vw;
     max-width: 100vw;
     border-radius: 0;
     bottom: 0;
     top: 0;
+  }
+
+  .chat-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
   }
 
   .messages-header {
@@ -1808,7 +1832,8 @@
   }
 
   .chat-panel__input-row {
-    padding: 4px;
+    /* Harmonisation avec nouvelle hauteur réduite */
+    padding: 2px 4px;
   }
 
   .chat-panel__send,

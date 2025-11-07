@@ -245,6 +245,9 @@
     dom.chatBannerClose = document.getElementById('chatBannerClose');
     dom.messagesWrapper = document.querySelector('.chat-panel__messages-wrapper');
     dom.chatMessages = document.getElementById('chatMessages');
+    dom.imageViewer = document.getElementById('imageViewer');
+    dom.imageViewerImg = document.getElementById('imageViewerImg');
+    dom.imageViewerClose = document.getElementById('imageViewerClose');
     if (dom.chatMessages) {
       dom.loadMoreButton = document.createElement('button');
       dom.loadMoreButton.type = 'button';
@@ -280,11 +283,19 @@
     dom.close?.addEventListener('click', closeModal);
     dom.overlay?.addEventListener('click', closeModal);
     window.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && dom.modal?.classList.contains('mm-open')) {
-        event.preventDefault();
-        closeModal();
+      if (event.key === 'Escape') {
+        if (dom.imageViewer && !dom.imageViewer.hidden) {
+          event.preventDefault();
+          closeImageViewer();
+        } else if (dom.modal?.classList.contains('mm-open')) {
+          event.preventDefault();
+          closeModal();
+        }
       }
     });
+
+    dom.imageViewerClose?.addEventListener('click', closeImageViewer);
+    dom.imageViewer?.querySelector('.image-viewer__overlay')?.addEventListener('click', closeImageViewer);
 
     dom.searchInput?.addEventListener('input', handleSearchInput);
     dom.searchClear?.addEventListener('click', handleSearchClear);
@@ -508,10 +519,11 @@
     if (!dom.modal) return;
     hydrateUser();
     if (!state.userId) {
+      // Utilisateur non connecté: feedback uniquement, ne pas ouvrir modal.
       if (typeof window.showToast === 'function') {
         window.showToast('Connectez-vous pour ouvrir la messagerie.');
       }
-      renderUnauthenticated();
+      return; // On stop ici, pas d'ouverture d'overlay ni du modal
     } else {
       ensureSocket();
       if (!state.conversationsLoaded && !state.loadingConversations) {
@@ -555,6 +567,20 @@
     clearComposerAttachments();
     cancelVoiceRecording();
     document.body.style.overflow = '';
+  }
+
+  function openImageViewer(imageUrl) {
+    if (!dom.imageViewer || !dom.imageViewerImg) return;
+    dom.imageViewerImg.src = imageUrl;
+    dom.imageViewer.hidden = false;
+  }
+
+  function closeImageViewer() {
+    if (!dom.imageViewer) return;
+    dom.imageViewer.hidden = true;
+    if (dom.imageViewerImg) {
+      dom.imageViewerImg.src = '';
+    }
   }
 
   function ensureSocket() {
@@ -631,9 +657,9 @@
       updateUnreadBadge();
       if (!state.conversations.length) {
         showConversationsEmpty({
-          icon: getIconMarkup('messages'),
-          title: 'Aucun message',
-          text: 'Vos conversations apparaîtront ici.'
+          icon: '💬',
+          title: 'Aucune conversation pour le moment',
+          text: 'Contactez un vendeur pour démarrer une conversation !'
         });
       } else {
         hideConversationsEmpty();
@@ -1195,19 +1221,44 @@
 
   function showConversationsEmpty(content) {
     if (!dom.conversationsEmpty) return;
-    const icon = dom.conversationsEmpty.querySelector('.conversations-list__empty-icon');
-    const title = dom.conversationsEmpty.querySelector('.conversations-list__empty-title');
-    const text = dom.conversationsEmpty.querySelector('.conversations-list__empty-text');
-    const iconMarkup = content?.icon || getIconMarkup('messages');
+    // Nouveau markup .mm-empty + rétrocompatibilité ancien.
+    const icon =
+      dom.conversationsEmpty.querySelector('.mm-empty-illu') ||
+      dom.conversationsEmpty.querySelector('.conversations-list__empty-icon');
+    const title =
+      dom.conversationsEmpty.querySelector('.mm-empty-title') ||
+      dom.conversationsEmpty.querySelector('.conversations-list__empty-title') ||
+      dom.conversationsEmpty.querySelector('h3');
+    const text =
+      dom.conversationsEmpty.querySelector('.mm-empty-text') ||
+      dom.conversationsEmpty.querySelector('.conversations-list__empty-text') ||
+      dom.conversationsEmpty.querySelector('p');
+    const iconMarkup = content?.icon || '💬';
     if (icon) icon.innerHTML = iconMarkup;
     if (content?.title && title) title.textContent = content.title;
     if (content?.text && text) text.textContent = content.text;
     dom.conversationsEmpty.hidden = false;
+    
+    // Cacher chatPanel et messagesSidebar quand il n'y a pas de conversations
+    if (dom.chatPanel) {
+      dom.chatPanel.style.display = 'none';
+    }
+    if (dom.sidebar) {
+      dom.sidebar.style.display = 'none';
+    }
   }
 
   function hideConversationsEmpty() {
     if (dom.conversationsEmpty) {
       dom.conversationsEmpty.hidden = true;
+    }
+    
+    // Réafficher chatPanel et messagesSidebar quand il y a des conversations
+    if (dom.chatPanel) {
+      dom.chatPanel.style.display = '';
+    }
+    if (dom.sidebar) {
+      dom.sidebar.style.display = '';
     }
   }
 
@@ -1301,12 +1352,12 @@
       dom.messagesLayout?.classList.remove('messages-layout--detail');
     }
     dom.chatTitle.textContent = conversation.title || 'Conversation';
-    const partner = getConversationContactName(conversation);
+    const sellerName = conversation.ad?.ownerName || '';
     const adTitle = conversation.ad?.title || '';
-    const city = conversation.ad?.city || conversation.ad?.locationText || '';
+    const city = conversation.ad?.locationText || '';
     const priceLabel = formatPriceLabel(conversation.ad?.price);
-    const subtitleParts = [partner, city, priceLabel].filter(Boolean);
-    dom.chatSubtitle.textContent = subtitleParts.join(' • ') || partner || adTitle || '';
+    const subtitleParts = [sellerName, city, priceLabel].filter(Boolean);
+    dom.chatSubtitle.textContent = subtitleParts.join(' • ') || sellerName || adTitle || '';
 
     // Gérer la miniature de l'annonce
     if (dom.chatAdThumb && conversation.ad) {
@@ -1432,18 +1483,6 @@
       row.classList.add('message-row--error');
     }
 
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    if (isMine) {
-      avatar.innerHTML = '<span class="message-avatar__bubble">Moi</span>';
-    } else if (state.activeParticipantAvatar) {
-      avatar.innerHTML = `<span class="message-avatar__img" style="background-image:url('${encodeURI(
-        state.activeParticipantAvatar
-      )}')"></span>`;
-    } else {
-      avatar.innerHTML = '<span class="message-avatar__bubble">•</span>';
-    }
-
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     if (isMine) bubble.classList.add('message-bubble--own');
@@ -1457,15 +1496,14 @@
       const attachments = document.createElement('div');
       attachments.className = 'message-attachments';
       message.attachments.forEach((attachment) => {
-        const item = document.createElement('a');
-        item.className = 'message-attachment';
+        const isImage = attachment.thumbnailUrl || attachment.mime?.startsWith('image/');
         const href = attachment.url || (attachment.key ? `/uploads/chat/${attachment.key}` : null);
-        if (href) {
-          item.href = href;
-          item.target = '_blank';
-          item.rel = 'noopener noreferrer';
-        }
-        if (attachment.thumbnailUrl || attachment.mime?.startsWith('image/')) {
+        
+        if (isImage) {
+          // Pour les images, créer un élément cliquable qui ouvre la visionneuse
+          const item = document.createElement('button');
+          item.className = 'message-attachment';
+          item.type = 'button';
           const thumb =
             attachment.thumbnailUrl ||
             attachment.url ||
@@ -1473,10 +1511,22 @@
           item.innerHTML = `<img src="${encodeURI(
             thumb || ''
           )}" alt="${escapeHtml(attachment.originalName || 'Pièce jointe')}">`;
+          item.addEventListener('click', () => {
+            openImageViewer(href || thumb);
+          });
+          attachments.appendChild(item);
         } else {
+          // Pour les autres fichiers, garder le lien normal
+          const item = document.createElement('a');
+          item.className = 'message-attachment';
+          if (href) {
+            item.href = href;
+            item.target = '_blank';
+            item.rel = 'noopener noreferrer';
+          }
           item.textContent = attachment.originalName || 'Pièce jointe';
+          attachments.appendChild(item);
         }
-        attachments.appendChild(item);
       });
       bubble.appendChild(attachments);
     }
@@ -1499,7 +1549,6 @@
 
     bubble.appendChild(meta);
 
-    row.appendChild(avatar);
     row.appendChild(bubble);
 
     return row;
@@ -1834,15 +1883,14 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'message-attachments';
       message.attachments.forEach((attachment) => {
-        const item = document.createElement('a');
-        item.className = 'message-attachment';
+        const isImage = attachment.thumbnailUrl || attachment.mime?.startsWith('image/');
         const href = attachment.url || (attachment.key ? `/uploads/chat/${attachment.key}` : null);
-        if (href) {
-          item.href = href;
-          item.target = '_blank';
-          item.rel = 'noopener noreferrer';
-        }
-        if (attachment.thumbnailUrl || attachment.mime?.startsWith('image/')) {
+        
+        if (isImage) {
+          // Pour les images, créer un élément cliquable qui ouvre la visionneuse
+          const item = document.createElement('button');
+          item.className = 'message-attachment';
+          item.type = 'button';
           const thumb =
             attachment.thumbnailUrl ||
             attachment.url ||
@@ -1850,10 +1898,22 @@
           item.innerHTML = `<img src="${encodeURI(
             thumb || ''
           )}" alt="${escapeHtml(attachment.originalName || 'Pièce jointe')}">`;
+          item.addEventListener('click', () => {
+            openImageViewer(href || thumb);
+          });
+          wrapper.appendChild(item);
         } else {
+          // Pour les autres fichiers, garder le lien normal
+          const item = document.createElement('a');
+          item.className = 'message-attachment';
+          if (href) {
+            item.href = href;
+            item.target = '_blank';
+            item.rel = 'noopener noreferrer';
+          }
           item.textContent = attachment.originalName || 'Pièce jointe';
+          wrapper.appendChild(item);
         }
-        wrapper.appendChild(item);
       });
       bubble.appendChild(wrapper);
     }
