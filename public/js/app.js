@@ -6408,8 +6408,41 @@
     }
     const currentUser = authStore.get();
     const isOwner = currentUser && ad.ownerId && String(currentUser._id) === String(ad.ownerId);
+    const isPreview = ad && ad.__preview === true;
 
-    if (isOwner) {
+    if (isPreview) {
+      // Boutons pour le mode prévisualisation (désactivés)
+      detailsActionsContainer.innerHTML = `
+          <button class="cta-outline" id="detailsSave" type="button" aria-label="Ajouter aux favoris" disabled style="opacity: 0.5; cursor: not-allowed;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+            <span>Ajouter aux favoris</span>
+          </button>
+          <button class="cta-primary" id="detailsContact" type="button" aria-label="Contacter le vendeur" disabled style="opacity: 0.5; cursor: not-allowed;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M22 12h-4" />
+              <path d="M2 12h4" />
+              <path d="M12 2v4" />
+              <path d="M12 22v-4" />
+              <rect x="7" y="7" width="10" height="10" rx="2" />
+            </svg>
+            <span>Contacter</span>
+          </button>
+          <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte" disabled style="opacity: 0.5; cursor: not-allowed;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M12 19V6" />
+              <path d="m5 12 7-7 7 7" />
+            </svg>
+            <span>Voir sur la carte</span>
+          </button>
+        `;
+      // Pas d'événements attachés en mode preview car les boutons sont désactivés
+    } else if (isOwner) {
       // Boutons pour le propriétaire
       detailsActionsContainer.innerHTML = `
           <button class="cta-primary" id="detailsEdit" type="button" aria-label="Modifier l'annonce">
@@ -6913,6 +6946,9 @@
     resetContactForm();
     setDetailsLoading(false);
 
+    // Check if we were in preview mode
+    const wasInPreviewMode = !!document.getElementById('previewBanner');
+
     // Remove preview banner if exists
     const previewBanner = document.getElementById('previewBanner');
     if (previewBanner) {
@@ -6948,6 +6984,13 @@
     }
     detailsCarouselTrack.innerHTML = '';
     detailsCarouselDots.innerHTML = '';
+
+    // If we were in preview mode, reopen the post modal
+    if (wasInPreviewMode) {
+      setTimeout(() => {
+        setPostModalHidden(false);
+      }, 100);
+    }
     detailsSkeleton.classList.remove('active');
     detailsCurrentImages = [];
     detailsCurrentIndex = 0;

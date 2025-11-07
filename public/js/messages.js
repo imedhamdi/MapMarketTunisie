@@ -43,6 +43,7 @@
   const pendingMessages = new Map();
   const pendingAudioUrls = new Map();
   const pendingRemoteRead = new Set();
+  let activeAudioPlayer = null;
 
   const state = {
     conversations: [],
@@ -1510,30 +1511,229 @@
     container.classList.toggle('message-bubble__content--audio', Boolean(isAudio));
     container.innerHTML = '';
     if (isAudio) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'message-audio';
-      const audioPlayer = document.createElement('audio');
-      audioPlayer.className = 'message-audio__player';
-      audioPlayer.controls = true;
-      audioPlayer.preload = 'none';
-      const source = resolveAudioSource(message.audio);
-      if (source) {
-        audioPlayer.src = source;
-      } else {
-        audioPlayer.controls = false;
-        audioPlayer.textContent = 'Message audio indisponible';
-      }
-      wrapper.appendChild(audioPlayer);
-      if (message.audio?.duration) {
-        const duration = document.createElement('span');
-        duration.className = 'message-audio__duration';
-        duration.textContent = formatDuration(message.audio.duration);
-        wrapper.appendChild(duration);
-      }
-      container.appendChild(wrapper);
+      container.appendChild(createMessageAudioPlayer(message));
       return;
     }
     container.innerHTML = formatMessageText(message.text);
+  }
+
+  function createMessageAudioPlayer(message) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-audio';
+
+    const playButton = document.createElement('button');
+    playButton.type = 'button';
+    playButton.className = 'message-audio__button';
+    playButton.setAttribute('aria-label', 'Lire le message audio');
+    wrapper.appendChild(playButton);
+
+    const body = document.createElement('div');
+    body.className = 'message-audio__body';
+    wrapper.appendChild(body);
+
+    const source = resolveAudioSource(message.audio);
+    if (!source) {
+      wrapper.classList.add('message-audio--error');
+      playButton.disabled = true;
+      const errorLabel = document.createElement('span');
+      errorLabel.className = 'message-audio__error';
+      errorLabel.textContent = 'Message audio indisponible';
+      body.appendChild(errorLabel);
+      return wrapper;
+    }
+
+    const providedDuration = Number(message?.audio?.duration);
+    const hasDuration = Number.isFinite(providedDuration);
+    const estimatedDuration = hasDuration ? providedDuration : MAX_VOICE_DURATION * 0.35;
+    wrapper.style.setProperty('--message-audio-width', `${computeAudioBubbleWidth(estimatedDuration)}px`);
+
+    const track = document.createElement('div');
+    track.className = 'message-audio__track';
+    const trackProgress = document.createElement('div');
+    trackProgress.className = 'message-audio__track-progress';
+    track.appendChild(trackProgress);
+    body.appendChild(track);
+
+    const times = document.createElement('div');
+    times.className = 'message-audio__times';
+
+    const currentTime = document.createElement('span');
+    currentTime.className = 'message-audio__time';
+    currentTime.textContent = '00:00';
+    times.appendChild(currentTime);
+
+    const duration = document.createElement('span');
+    duration.className = 'message-audio__duration';
+    duration.textContent = hasDuration ? formatDuration(providedDuration) : '--:--';
+    times.appendChild(duration);
+
+    body.appendChild(times);
+
+    const audioPlayer = document.createElement('audio');
+    audioPlayer.className = 'message-audio__player';
+    audioPlayer.preload = 'metadata';
+    audioPlayer.controls = false;
+    audioPlayer.src = source;
+    audioPlayer.tabIndex = -1;
+    audioPlayer.setAttribute('aria-hidden', 'true');
+    wrapper.appendChild(audioPlayer);
+
+    attachAudioPlayerBehavior({
+      wrapper,
+      playButton,
+      progressBar: trackProgress,
+      track,
+      currentTimeLabel: currentTime,
+      durationLabel: duration,
+      audioElement: audioPlayer,
+      initialDuration: hasDuration ? providedDuration : null
+    });
+
+    return wrapper;
+  }
+
+  function attachAudioPlayerBehavior({
+    wrapper,
+    playButton,
+    progressBar,
+    track,
+    currentTimeLabel,
+    durationLabel,
+    audioElement,
+    initialDuration
+  }) {
+    if (!audioElement) return;
+    let knownDuration = initialDuration;
+
+    const setButtonState = (isPlaying) => {
+      wrapper.classList.toggle('is-playing', Boolean(isPlaying));
+      playButton?.setAttribute(
+        'aria-label',
+        isPlaying ? 'Mettre en pause le message audio' : 'Lire le message audio'
+      );
+    };
+
+    const updateProgress = () => {
+      if (!currentTimeLabel || !progressBar) return;
+      currentTimeLabel.textContent = formatDuration(audioElement.currentTime || 0);
+      const duration = getAudioDuration();
+      if (!duration) {
+        progressBar.style.width = '0%';
+        return;
+      }
+      const percent = clamp((audioElement.currentTime / duration) * 100, 0, 100);
+      progressBar.style.width = `${percent}%`;
+    };
+
+    const getAudioDuration = () => {
+      if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+        knownDuration = audioElement.duration;
+      }
+      return knownDuration && knownDuration > 0 ? knownDuration : audioElement.duration;
+    };
+
+    const ensureDurationLabel = () => {
+      const duration = getAudioDuration();
+      if (
+        durationLabel &&
+        duration &&
+        (!initialDuration || durationLabel.textContent === '--:--')
+      ) {
+        durationLabel.textContent = formatDuration(duration);
+      }
+    };
+
+    const updateVisualWidth = () => {
+      if (initialDuration || !wrapper) return;
+      const duration = getAudioDuration();
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      wrapper.style.setProperty('--message-audio-width', `${computeAudioBubbleWidth(duration)}px`);
+    };
+
+    playButton?.addEventListener('click', () => {
+      if (audioElement.paused) {
+        ensureSingleAudioPlayback(audioElement);
+        audioElement.play().catch(() => {
+          wrapper.classList.add('message-audio--error');
+          playButton.disabled = true;
+          if (activeAudioPlayer === audioElement) {
+            activeAudioPlayer = null;
+          }
+          setButtonState(false);
+        });
+      } else {
+        audioElement.pause();
+      }
+    });
+
+    track?.addEventListener('click', (event) => {
+      const rect = track.getBoundingClientRect();
+      if (!rect.width) return;
+      const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+      const duration = getAudioDuration();
+      if (!duration || !Number.isFinite(duration)) return;
+      audioElement.currentTime = ratio * duration;
+      updateProgress();
+    });
+
+    audioElement.addEventListener('loadedmetadata', () => {
+      ensureDurationLabel();
+      updateVisualWidth();
+      updateProgress();
+    });
+
+    audioElement.addEventListener('timeupdate', () => {
+      updateProgress();
+    });
+
+    audioElement.addEventListener('play', () => {
+      ensureSingleAudioPlayback(audioElement);
+      activeAudioPlayer = audioElement;
+      setButtonState(true);
+    });
+
+    audioElement.addEventListener('pause', () => {
+      if (activeAudioPlayer === audioElement) {
+        activeAudioPlayer = null;
+      }
+      setButtonState(false);
+    });
+
+    audioElement.addEventListener('ended', () => {
+      audioElement.currentTime = 0;
+      updateProgress();
+      if (activeAudioPlayer === audioElement) {
+        activeAudioPlayer = null;
+      }
+      setButtonState(false);
+    });
+
+    audioElement.addEventListener('error', () => {
+      wrapper.classList.add('message-audio--error');
+      playButton && (playButton.disabled = true);
+    });
+
+    updateProgress();
+  }
+
+  function ensureSingleAudioPlayback(player) {
+    if (activeAudioPlayer && activeAudioPlayer !== player) {
+      activeAudioPlayer.pause();
+    }
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function computeAudioBubbleWidth(seconds) {
+    const minWidth = 180;
+    const maxWidth = 320;
+    const fallbackSeconds = MAX_VOICE_DURATION * 0.35;
+    const safeSeconds = Number.isFinite(seconds) ? seconds : fallbackSeconds;
+    const capped = clamp(safeSeconds, 1, MAX_VOICE_DURATION);
+    const ratio = capped / MAX_VOICE_DURATION;
+    return Math.round(minWidth + (maxWidth - minWidth) * ratio);
   }
 
   function resolveAudioSource(audio) {
