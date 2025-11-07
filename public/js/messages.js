@@ -1545,7 +1545,10 @@
     const providedDuration = Number(message?.audio?.duration);
     const hasDuration = Number.isFinite(providedDuration);
     const estimatedDuration = hasDuration ? providedDuration : MAX_VOICE_DURATION * 0.35;
-    wrapper.style.setProperty('--message-audio-width', `${computeAudioBubbleWidth(estimatedDuration)}px`);
+    wrapper.style.setProperty(
+      '--message-audio-width',
+      `${computeAudioBubbleWidth(estimatedDuration)}px`
+    );
 
     const track = document.createElement('div');
     track.className = 'message-audio__track';
