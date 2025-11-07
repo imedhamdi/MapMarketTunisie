@@ -902,7 +902,11 @@
     <header class="mm-header messages-header">
       <div class="messages-header__row">
         <h2 class="mm-title" id="messagesTitle">Messages <span class="messages-header__badge" id="messagesUnreadBadge"></span></h2>
-        <button type="button" class="mm-icon messages-header__close" id="messagesClose" aria-label="Fermer">✕</button>
+        <button type="button" class="mm-icon messages-header__close" id="messagesClose" aria-label="Fermer">
+          <svg class="messages-icon messages-icon--close" aria-hidden="true" focusable="false">
+            <use href="/icons/messages-icons.svg#icon-close"></use>
+          </svg>
+        </button>
       </div>
     </header>
     <div class="messages-drawer__content">
@@ -916,18 +920,26 @@
                 <p class="messages-sidebar__hint">Restez en contact avec les vendeurs et acheteurs.</p>
               </div>
               <div class="messages-search">
+                <span class="messages-search__icon" aria-hidden="true">
+                  <svg class="messages-icon messages-icon--search" aria-hidden="true" focusable="false">
+                    <use href="/icons/messages-icons.svg#icon-search"></use>
+                  </svg>
+                </span>
                 <input id="messagesSearch" type="search" placeholder="Recherche…" autocomplete="off">
                 <button type="button" class="messages-search__clear" id="messagesSearchClear" aria-label="Effacer la recherche" hidden>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                    <line x1="6" y1="18" x2="18" y2="6" />
+                  <svg class="messages-icon messages-icon--close" aria-hidden="true" focusable="false">
+                    <use href="/icons/messages-icons.svg#icon-close"></use>
                   </svg>
                 </button>
               </div>
             </div>
             <div class="conversations-list" id="conversationsList" aria-live="polite"></div>
             <div class="conversations-list__empty" id="conversationsEmpty" hidden>
-              <div class="conversations-list__empty-icon" aria-hidden="true">💬</div>
+              <div class="conversations-list__empty-icon" aria-hidden="true">
+                <svg class="messages-icon messages-icon--messages" aria-hidden="true" focusable="false">
+                  <use href="/icons/messages-icons.svg#icon-messages"></use>
+                </svg>
+              </div>
               <p class="conversations-list__empty-title">Aucun message</p>
               <p class="conversations-list__empty-text">Vos conversations apparaîtront ici.</p>
             </div>
@@ -935,12 +947,20 @@
           <!-- Chat panel -->
           <section class="chat-panel chat-panel--hidden" id="chatPanel" aria-labelledby="chatTitle" aria-live="polite">
             <div class="chat-panel__header">
-              <button type="button" class="chat-panel__back" id="chatBack" aria-label="Retour">←</button>
+              <button type="button" class="chat-panel__back" id="chatBack" aria-label="Retour">
+                <svg class="messages-icon messages-icon--back" aria-hidden="true" focusable="false">
+                  <use href="/icons/messages-icons.svg#icon-back"></use>
+                </svg>
+              </button>
               <div class="chat-panel__info">
                 <h3 class="chat-panel__title" id="chatTitle">Sélectionnez une conversation</h3>
                 <p class="chat-panel__subtitle" id="chatSubtitle">En attente…</p>
               </div>
-              <button type="button" class="chat-panel__delete" id="chatDelete" aria-label="Supprimer / masquer" hidden>🗑</button>
+              <button type="button" class="chat-panel__delete" id="chatDelete" aria-label="Supprimer / masquer" hidden>
+                <svg class="messages-icon messages-icon--delete" aria-hidden="true" focusable="false">
+                  <use href="/icons/messages-icons.svg#icon-delete"></use>
+                </svg>
+              </button>
             </div>
             <div class="chat-panel__banner" id="chatSecurityBanner" hidden>
               <p class="chat-panel__banner-text"><strong>Rappel sécurité</strong> Ne partagez jamais d’informations sensibles (IBAN, codes). Utilisez la messagerie pour fixer un rendez-vous en lieu sûr.</p>
@@ -965,8 +985,8 @@
               <div class="chat-panel__attachments" id="chatAttachmentPreview" hidden></div>
               <div class="chat-panel__input-row">
                 <button type="button" class="chat-panel__attach" id="chatAttachBtn" aria-label="Ajouter une pièce jointe">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                    <path d="M21.44 11.05 12 20.5a5 5 0 0 1-7.07-7.07l11-11a3.5 3.5 0 0 1 4.95 4.95l-11 11a2 2 0 0 1-2.83-2.83l9.19-9.18" />
+                  <svg class="messages-icon messages-icon--attach" aria-hidden="true" focusable="false">
+                    <use href="/icons/messages-icons.svg#icon-attach"></use>
                   </svg>
                 </button>
                 <div class="chat-panel__input-field">
@@ -975,9 +995,8 @@
                 </div>
                 <button type="button" class="chat-panel__send" id="chatSend" aria-label="Envoyer" disabled>
                   <span class="chat-panel__send-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="m3 3 18 9-18 9 4.5-9z" />
-                      <path d="M3 3l4.5 9L21 12" />
+                    <svg class="messages-icon messages-icon--send" aria-hidden="true" focusable="false">
+                      <use href="/icons/messages-icons.svg#icon-send"></use>
                     </svg>
                   </span>
                   <span class="sr-only">Envoyer</span>

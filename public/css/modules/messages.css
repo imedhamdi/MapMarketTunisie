@@ -19,6 +19,18 @@
   --messages-sidebar-width: 320px;
 }
 
+.messages-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-block;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
 
 .mm-modal--messages {
   background: var(--messages-bg);
@@ -188,18 +200,6 @@
   transition: all 0.2s ease;
 }
 
-.messages-search::before {
-  content: '';
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  background: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3-3'/%3E%3C/svg%3E") no-repeat center / contain;
-  pointer-events: none;
-}
-
 .messages-search__clear {
   position: absolute;
   top: 50%;
@@ -221,6 +221,24 @@
 .messages-search__clear:hover {
   background: var(--messages-bg);
   color: var(--messages-text-primary);
+}
+
+.messages-search__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--messages-text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.messages-search__icon .messages-icon,
+.messages-search__clear .messages-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .messages-search input::placeholder {
@@ -271,8 +289,13 @@
 }
 
 .conversations-list__empty-icon {
-  font-size: 3rem;
+  font-size: 0;
   opacity: 0.5;
+}
+
+.conversations-list__empty-icon .messages-icon {
+  width: 48px;
+  height: 48px;
 }
 
 .conversations-list__empty-title {
@@ -400,10 +423,39 @@
   margin: 0;
   font-size: 0.875rem;
   color: var(--messages-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
   line-height: 1.4;
+}
+
+.conversation-item__preview-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--messages-text-tertiary);
+  flex-shrink: 0;
+}
+
+.conversation-item__preview-status[data-status='failed'] {
+  color: #dc2626;
+}
+
+.conversation-item__preview-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.conversation-item__preview-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .conversation-item__footer {
@@ -906,23 +958,8 @@
 .message-bubble__status {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-}
-
-.message-bubble__status::before {
-  content: '✓';
-  font-size: 0.625rem;
-}
-
-.message-bubble__status[data-status='delivered']::before,
-.message-bubble__status[data-status='read']::before {
-  content: '✓✓';
-  letter-spacing: -0.15em;
-}
-
-.message-bubble__status[data-status='sending']::before {
-  content: '⋯';
-  letter-spacing: normal;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .message-bubble__status[data-status='read'] {
@@ -937,10 +974,35 @@
   color: #dc2626;
 }
 
-.message-bubble__status[data-status='failed']::before {
-  content: '!';
-  font-weight: 700;
-  letter-spacing: normal;
+.message-status__icon {
+  width: 14px;
+  height: 14px;
+}
+
+.message-status__icon.is-spinning,
+.conversation-item__preview-icon.is-spinning {
+  animation: messages-spin 0.9s linear infinite;
+  transform-origin: center;
+}
+
+.message-retry-btn {
+  border: none;
+  background: none;
+  color: var(--messages-accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.message-retry-btn:hover {
+  color: var(--messages-accent-strong);
+}
+
+@keyframes messages-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .message-row--pending .message-bubble {
@@ -1274,16 +1336,24 @@
   background: transparent;
   color: var(--messages-text-tertiary);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0;
   padding: 4px;
   border-radius: 4px;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chat-attachment-chip__remove:hover {
   background: var(--messages-border);
   color: var(--messages-text-primary);
+}
+
+.chat-attachment-chip__remove .messages-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .chat-attachment-chip--uploading {

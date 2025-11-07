@@ -38,6 +38,38 @@
   };
 
   const dom = {};
+  const ICON_SPRITE_PATH = '/icons/messages-icons.svg';
+  const SEARCH_DEBOUNCE_MS = 300;
+
+  function debounce(fn, wait) {
+    let timeoutId = null;
+    return function debounced(...args) {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        fn.apply(this, args);
+      }, wait);
+    };
+  }
+
+  const scheduleSearchFilter = debounce(() => {
+    applySearch();
+  }, SEARCH_DEBOUNCE_MS);
+
+  function getIconMarkup(name, className = '') {
+    const classes = ['messages-icon', `messages-icon--${name}`];
+    if (className) {
+      classes.push(className);
+    }
+    const cls = classes.join(' ').trim();
+    const symbolId = `icon-${name}`;
+    return `<svg class="${cls}" aria-hidden="true" focusable="false"><use href="${ICON_SPRITE_PATH}#${symbolId}"></use></svg>`;
+  }
+
+  function createIconElement(name, className = '') {
+    const template = document.createElement('template');
+    template.innerHTML = getIconMarkup(name, className);
+    return template.content.firstElementChild;
+  }
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -122,6 +154,7 @@
     dom.chatAttachButton?.addEventListener('click', handleAttachClick);
     dom.chatFileInput?.addEventListener('change', handleAttachmentSelection);
     dom.chatAttachmentPreview?.addEventListener('click', handleAttachmentRemove);
+    dom.chatMessages?.addEventListener('click', handleMessageActionClick);
 
     dom.conversationsList?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-conversation-id]');
@@ -241,7 +274,7 @@
   function renderUnauthenticated() {
     if (!dom.modal) return;
     showConversationsEmpty({
-      icon: '🔐',
+      icon: getIconMarkup('lock'),
       title: 'Messagerie réservée',
       text: 'Connectez-vous pour retrouver vos conversations.'
     });
@@ -382,7 +415,7 @@
       updateUnreadBadge();
       if (!state.conversations.length) {
         showConversationsEmpty({
-          icon: '💬',
+          icon: getIconMarkup('messages'),
           title: 'Aucun message',
           text: 'Vos conversations apparaîtront ici.'
         });
@@ -392,7 +425,7 @@
     } catch (error) {
       console.error('[chat] Impossible de charger les conversations', error);
       showConversationsEmpty({
-        icon: '⚠️',
+        icon: getIconMarkup('alert'),
         title: 'Chargement impossible',
         text: error.message || 'Vérifiez votre connexion.'
       });
@@ -611,7 +644,7 @@
         showConversationsEmpty(
           state.searchTerm
             ? {
-                icon: '🔍',
+                icon: getIconMarkup('search'),
                 title: 'Aucun résultat',
                 text: 'Aucune conversation ne correspond à votre recherche.'
               }
@@ -661,8 +694,7 @@
 
       const preview = document.createElement('p');
       preview.className = 'conversation-item__preview';
-      const previewText = (conversation.lastMessagePreview || '').trim();
-      preview.textContent = previewText || 'Commencez la discussion';
+      populateConversationPreview(preview, conversation);
 
       const footer = document.createElement('div');
       footer.className = 'conversation-item__footer';
@@ -693,7 +725,8 @@
         const status = document.createElement('span');
         status.className = 'conversation-item__status';
         status.dataset.status = lastStatus;
-        status.textContent = formatStatus(lastStatus);
+        const display = getStatusDisplay(lastStatus);
+        status.textContent = display.label;
         footer.appendChild(status);
       }
 
@@ -715,6 +748,66 @@
     });
 
     dom.conversationsList.appendChild(fragment);
+  }
+
+  function populateConversationPreview(element, conversation) {
+    if (!element) return;
+    element.innerHTML = '';
+    const previewText = (conversation.lastMessagePreview || '').trim() || 'Commencez la discussion';
+    const lastMessage = conversation.lastMessage || null;
+    const fromMe = lastMessage?.sender === state.userId;
+
+    if (fromMe && lastMessage?.status) {
+      const badge = document.createElement('span');
+      badge.className = 'conversation-item__preview-status';
+      badge.dataset.status = lastMessage.status;
+      const display = getStatusDisplay(lastMessage.status);
+      if (display.icon) {
+        const icon = createIconElement(display.icon, 'conversation-item__preview-icon');
+        if (display.spinner) {
+          icon.classList.add('is-spinning');
+        }
+        badge.appendChild(icon);
+      }
+      const label = document.createElement('span');
+      label.textContent = display.label;
+      badge.appendChild(label);
+      element.appendChild(badge);
+    }
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'conversation-item__preview-text';
+    textSpan.textContent = previewText;
+    element.appendChild(textSpan);
+  }
+
+  function renderMessageStatus(statusElement, message) {
+    if (!statusElement || !message) return;
+    const statusValue = message.status || 'sent';
+    const display = getStatusDisplay(statusValue);
+    statusElement.dataset.status = statusValue;
+    statusElement.innerHTML = '';
+    if (display.icon) {
+      const icon = createIconElement(display.icon, 'message-status__icon');
+      if (display.spinner) {
+        icon.classList.add('is-spinning');
+      }
+      statusElement.appendChild(icon);
+    }
+    if (display.label) {
+      const label = document.createElement('span');
+      label.textContent = display.label;
+      statusElement.appendChild(label);
+    }
+    if (statusValue === 'failed' && message.sender === state.userId) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'message-retry-btn';
+      retry.setAttribute('data-retry-message', message.clientTempId || message.id);
+      retry.setAttribute('aria-label', 'Réessayer l’envoi');
+      retry.textContent = 'Réessayer';
+      statusElement.appendChild(retry);
+    }
   }
 
   function buildConversationCover(conversation) {
@@ -765,7 +858,7 @@
         image
       )}')"></span>`;
     }
-    return '<span class="conversation-item__cover-fallback" aria-hidden="true">📷</span>';
+    return `<span class="conversation-item__cover-fallback" aria-hidden="true">${getIconMarkup('image')}</span>`;
   }
 
   function buildContactAvatar(conversation) {
@@ -820,7 +913,8 @@
     const icon = dom.conversationsEmpty.querySelector('.conversations-list__empty-icon');
     const title = dom.conversationsEmpty.querySelector('.conversations-list__empty-title');
     const text = dom.conversationsEmpty.querySelector('.conversations-list__empty-text');
-    if (content?.icon && icon) icon.textContent = content.icon;
+    const iconMarkup = content?.icon || getIconMarkup('messages');
+    if (icon) icon.innerHTML = iconMarkup;
     if (content?.title && title) title.textContent = content.title;
     if (content?.text && text) text.textContent = content.text;
     dom.conversationsEmpty.hidden = false;
@@ -985,8 +1079,11 @@
     if (isMine) {
       row.classList.add('message-row--own');
     }
-    if (message.status === 'sending') {
+    const statusValue = message.status || 'sent';
+    if (statusValue === 'sending') {
       row.classList.add('message-row--pending');
+    } else if (statusValue === 'failed') {
+      row.classList.add('message-row--error');
     }
 
     const avatar = document.createElement('div');
@@ -1050,9 +1147,7 @@
     if (isMine) {
       const status = document.createElement('span');
       status.className = 'message-bubble__status';
-      const statusValue = message.status || 'sent';
-      status.dataset.status = statusValue;
-      status.textContent = formatStatus(statusValue);
+      renderMessageStatus(status, message);
       meta.appendChild(status);
     }
 
@@ -1107,8 +1202,25 @@
     state.messagesByConversation.set(conversationId, list);
   }
 
+  function findMessageByRef(reference) {
+    if (!reference) return null;
+    for (const [conversationId, list] of state.messagesByConversation.entries()) {
+      const match = list.find((item) => {
+        if (item.id && item.id === reference) return true;
+        if (item.clientTempId && item.clientTempId === reference) return true;
+        return false;
+      });
+      if (match) {
+        return { conversationId, message: match };
+      }
+    }
+    return null;
+  }
+
   function updateMessageElement(element, message) {
-    element.classList.remove('message-row--pending');
+    const statusValue = message.status || 'sent';
+    element.classList.toggle('message-row--pending', statusValue === 'sending');
+    element.classList.toggle('message-row--error', statusValue === 'failed');
     element.dataset.messageId = message.id;
     const bubble = element.querySelector('.message-bubble');
     if (!bubble) return;
@@ -1158,9 +1270,7 @@
         metaBlock.appendChild(status);
       }
       if (status) {
-        const statusValue = message.status || 'sent';
-        status.dataset.status = statusValue;
-        status.textContent = formatStatus(statusValue);
+        renderMessageStatus(status, message);
       }
     } else if (status) {
       status.remove();
@@ -1173,19 +1283,36 @@
   }
 
   function updateMessageStatus(messageId, status, at) {
-    if (!dom.chatMessages) return;
-    const element = dom.chatMessages.querySelector(`[data-message-id="${messageId}"]`);
-    if (!element) return;
-    const meta = element.querySelector('.message-bubble__status');
-    if (meta) {
-      const statusValue = status || 'sent';
-      meta.dataset.status = statusValue;
-      meta.textContent = formatStatus(statusValue);
+    const lookup = findMessageByRef(messageId);
+    if (!lookup) return;
+    const { conversationId, message } = lookup;
+    const nextStatus = status || message.status || 'sent';
+    message.status = nextStatus;
+
+    if (conversationId === activeConversationId && dom.chatMessages) {
+      const element =
+        dom.chatMessages.querySelector(`[data-message-id="${message.id}"]`) ||
+        (message.clientTempId
+          ? dom.chatMessages.querySelector(`[data-client-id="${message.clientTempId}"]`)
+          : null);
+      if (element) {
+        updateMessageElement(element, message);
+        if (at) {
+          const timeElement = element.querySelector('.message-bubble__time');
+          if (timeElement) {
+            timeElement.dateTime = new Date(at).toISOString();
+          }
+        }
+      }
     }
-    if (at) {
-      const timeElement = element.querySelector('.message-bubble__time');
-      if (timeElement) {
-        timeElement.dateTime = new Date(at).toISOString();
+
+    const conversation = findConversation(conversationId);
+    if (conversation && conversation.lastMessage) {
+      const lastRef = conversation.lastMessage.id || conversation.lastMessage.clientTempId;
+      const messageRef = message.id || message.clientTempId;
+      if (lastRef && messageRef && lastRef === messageRef) {
+        updateConversationPreview(conversationId, message);
+        renderConversations();
       }
     }
   }
@@ -1334,6 +1461,17 @@
     removeAttachmentById(id);
   }
 
+  function handleMessageActionClick(event) {
+    const retryButton = event.target.closest('[data-retry-message]');
+    if (retryButton) {
+      event.preventDefault();
+      const ref = retryButton.getAttribute('data-retry-message');
+      if (ref) {
+        retryFailedMessage(ref);
+      }
+    }
+  }
+
   async function uploadAttachmentFile(file) {
     if (!file) return;
     const id = `att-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -1442,7 +1580,7 @@
       remove.className = 'chat-attachment-chip__remove';
       remove.setAttribute('data-attachment-remove', entry.id);
       remove.setAttribute('aria-label', 'Retirer la pièce jointe');
-      remove.textContent = '✕';
+      remove.innerHTML = getIconMarkup('close');
       if (entry.status === 'uploading') {
         remove.title = 'Annuler le téléversement';
       }
@@ -1531,6 +1669,9 @@
     const row = createMessageElement(pending);
     dom.chatMessages?.appendChild(row);
     pendingMessages.set(clientTempId, row);
+    updateConversationPreview(activeConversationId, pending);
+    moveConversationToTop(activeConversationId);
+    applySearch();
     scrollMessagesToBottom({ smooth: true });
 
     try {
@@ -1548,12 +1689,14 @@
       }
     } catch (error) {
       console.error('[chat] Envoi impossible', error);
+      pending.status = 'failed';
+      storeMessage(activeConversationId, pending);
       const element = pendingMessages.get(clientTempId);
       if (element) {
-        element.classList.add('message-row--error');
-        const status = element.querySelector('.message-bubble__status');
-        if (status) status.textContent = 'Échec';
+        updateMessageElement(element, pending);
       }
+      updateConversationPreview(activeConversationId, pending);
+      renderConversations();
       dom.chatTextarea.value = originalValue;
       if (typeof window.showToast === 'function') {
         window.showToast('Message non envoyé.');
@@ -1561,6 +1704,73 @@
     } finally {
       pendingMessages.delete(clientTempId);
       updateSendButtonState();
+    }
+  }
+
+  async function retryFailedMessage(reference) {
+    const lookup = findMessageByRef(reference);
+    if (!lookup) return;
+    const { conversationId, message } = lookup;
+    if (!message || message.status !== 'failed') return;
+    const payload = {
+      text: message.text,
+      attachments: Array.isArray(message.attachments) ? message.attachments : [],
+      clientTempId: message.clientTempId || reference
+    };
+    message.status = 'sending';
+    storeMessage(conversationId, message);
+    updateConversationPreview(conversationId, message);
+    renderConversations();
+
+    if (conversationId === activeConversationId && dom.chatMessages) {
+      const row =
+        dom.chatMessages.querySelector(`[data-message-id="${message.id}"]`) ||
+        (message.clientTempId
+          ? dom.chatMessages.querySelector(`[data-client-id="${message.clientTempId}"]`)
+          : null);
+      if (row) {
+        updateMessageElement(row, message);
+        pendingMessages.set(payload.clientTempId, row);
+      }
+    }
+
+    try {
+      const data = await apiFetch(`/chat/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: payload
+      });
+      const savedMessage = data?.message ? enhanceMessage(data.message) : null;
+      if (savedMessage) {
+        if (conversationId === activeConversationId) {
+          insertMessageIntoActive(savedMessage);
+        } else {
+          storeMessage(conversationId, savedMessage);
+        }
+        updateConversationPreview(conversationId, savedMessage);
+        moveConversationToTop(conversationId);
+        applySearch();
+      }
+    } catch (error) {
+      console.error('[chat] Réessai d’envoi impossible', error);
+      message.status = 'failed';
+      storeMessage(conversationId, message);
+      if (conversationId === activeConversationId && dom.chatMessages) {
+        const row =
+          dom.chatMessages.querySelector(`[data-message-id="${message.id}"]`) ||
+          (message.clientTempId
+            ? dom.chatMessages.querySelector(`[data-client-id="${message.clientTempId}"]`)
+            : null);
+        if (row) {
+          updateMessageElement(row, message);
+        }
+      }
+      updateConversationPreview(conversationId, message);
+      renderConversations();
+      if (typeof window.showToast === 'function') {
+        window.showToast('Message non envoyé.');
+      }
+    } finally {
+      pendingMessages.delete(payload.clientTempId);
     }
   }
 
@@ -1639,7 +1849,7 @@
   function handleSearchInput(event) {
     state.searchTerm = event.target.value || '';
     updateSearchClearButton();
-    applySearch();
+    scheduleSearchFilter();
   }
 
   function handleSearchClear() {
@@ -1647,7 +1857,7 @@
     dom.searchInput.value = '';
     state.searchTerm = '';
     updateSearchClearButton();
-    applySearch();
+    scheduleSearchFilter();
     dom.searchInput.focus();
   }
 
@@ -1713,9 +1923,9 @@
     }
     if (attachments.length === 1) {
       const name = attachments[0]?.originalName?.trim();
-      return name ? `📎 ${name}` : '📎 Pièce jointe';
+      return name ? `Pièce jointe · ${name}` : 'Pièce jointe';
     }
-    return `📎 ${attachments.length} pièces jointes`;
+    return `${attachments.length} pièces jointes`;
   }
 
   function formatStatus(status) {
@@ -1731,6 +1941,23 @@
       case 'sent':
       default:
         return 'Envoyé';
+    }
+  }
+
+  function getStatusDisplay(status) {
+    const value = status || 'sent';
+    switch (value) {
+      case 'sending':
+        return { label: formatStatus(value), icon: 'spinner', spinner: true };
+      case 'failed':
+        return { label: formatStatus(value), icon: 'alert', spinner: false };
+      case 'delivered':
+        return { label: formatStatus(value), icon: 'check-double', spinner: false };
+      case 'read':
+        return { label: formatStatus(value), icon: 'check-double', spinner: false };
+      case 'sent':
+      default:
+        return { label: formatStatus(value), icon: 'check', spinner: false };
     }
   }
 
