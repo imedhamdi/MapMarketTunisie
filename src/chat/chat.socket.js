@@ -76,17 +76,32 @@ const messageAttachmentSchema = Joi.object({
   width: Joi.number().allow(null),
   height: Joi.number().allow(null)
 });
+const messageAudioSchema = Joi.object({
+  key: Joi.string().required(),
+  url: Joi.string().uri({ allowRelative: true }).required(),
+  mime: Joi.string().required(),
+  size: Joi.number().min(1).required(),
+  duration: Joi.number().min(0).max(600).optional().allow(null),
+  waveform: Joi.array().items(Joi.number().min(0).max(1)).max(120).optional()
+});
 const messageSendSchema = Joi.object({
   conversationId: Joi.string()
     .regex(/^[0-9a-fA-F]{24}$/)
     .required(),
   text: Joi.string().allow('').trim().max(2000).optional(),
   attachments: Joi.array().items(messageAttachmentSchema).max(5).optional(),
-  clientTempId: Joi.string().allow(null).optional()
+  clientTempId: Joi.string().allow(null).optional(),
+  type: Joi.string().valid('text', 'audio').default('text'),
+  audio: messageAudioSchema.when('type', {
+    is: 'audio',
+    then: Joi.required(),
+    otherwise: Joi.forbidden().allow(null)
+  })
 }).custom((value, helpers) => {
+  const hasAudio = value.type === 'audio' && value.audio;
   const hasText = typeof value.text === 'string' && value.text.trim().length > 0;
   const hasAttachments = Array.isArray(value.attachments) && value.attachments.length > 0;
-  if (!hasText && !hasAttachments) {
+  if (!hasText && !hasAttachments && !hasAudio) {
     return helpers.error('any.invalid');
   }
   return value;
@@ -223,7 +238,14 @@ export async function initChatSocket(httpServer) {
       if (!rate.allowed) return emitRateLimitError(socket, rate.retryAfterMs);
       const { value, error } = messageSendSchema.validate(raw, { abortEarly: false });
       if (error) return emitValidationError(socket, error);
-      const { conversationId, text, attachments = [], clientTempId = null } = value;
+      const {
+        conversationId,
+        text,
+        attachments = [],
+        clientTempId = null,
+        type = 'text',
+        audio = null
+      } = value;
       try {
         const convo = await Conversation.findById(conversationId);
         if (!convo) throw createError.notFound('Conversation introuvable');
@@ -235,16 +257,27 @@ export async function initChatSocket(httpServer) {
         ) {
           throw createError.forbidden('Conversation bloquée');
         }
+        if (type === 'audio' && !audio) {
+          throw createError.badRequest('Métadonnées audio manquantes');
+        }
         const recipient = convo.participants.find((p) => p.toString() !== userId.toString());
         const message = await Message.create({
           conversationId,
           sender: userId,
           recipient,
-          text,
+          text: text || '',
           attachments,
-          clientTempId
+          clientTempId,
+          type,
+          audio: type === 'audio' ? audio : null
         });
-        convo.lastMessage = { text, sender: userId, timestamp: new Date() };
+        convo.lastMessage = {
+          text: text || '',
+          sender: userId,
+          timestamp: new Date(),
+          type,
+          audioDuration: type === 'audio' ? (audio?.duration ?? null) : null
+        };
         convo.lastMessageAt = new Date();
         convo.incrementUnread(recipient);
         await convo.save();

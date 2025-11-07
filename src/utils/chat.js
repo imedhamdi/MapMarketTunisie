@@ -63,6 +63,28 @@ export function formatConversationForUser(conversation, userId) {
     }
   }
 
+  const rawLastMessage = obj.lastMessage || null;
+  const lastMessage = rawLastMessage
+    ? {
+        ...rawLastMessage,
+        type: rawLastMessage.type || 'text',
+        audioDuration:
+          typeof rawLastMessage.audioDuration === 'number' ? rawLastMessage.audioDuration : null,
+        audio:
+          (rawLastMessage.type || 'text') === 'audio'
+            ? rawLastMessage.audio
+              ? {
+                  ...rawLastMessage.audio,
+                  duration:
+                    typeof rawLastMessage.audio.duration === 'number'
+                      ? rawLastMessage.audio.duration
+                      : (rawLastMessage.audioDuration ?? null)
+                }
+              : { duration: rawLastMessage.audioDuration ?? null }
+            : null
+      }
+    : null;
+
   return {
     id: obj._id?.toString?.() ?? obj.id,
     adId: adIdValue,
@@ -71,7 +93,7 @@ export function formatConversationForUser(conversation, userId) {
     otherParticipant,
     ownerId: obj.ownerId,
     buyerId: obj.buyerId,
-    lastMessage: obj.lastMessage,
+    lastMessage,
     lastMessageAt: obj.lastMessageAt,
     unreadCount: unread,
     isBlocked: obj.isBlocked,

@@ -6899,6 +6899,10 @@
     }
   }
 
+  // Exposer openDetailsModal globalement pour permettre l'ouverture depuis d'autres modules
+  window.openDetailsModal = openDetailsModal;
+  window.openDetailsById = openDetailsById;
+
   function closeDetailsModal() {
     if (lightboxActive) {
       closeLightbox({ restoreFocus: false });

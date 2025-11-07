@@ -10,7 +10,7 @@ async function createMessage(
   conversationId,
   userId,
   text,
-  { attachments = [], clientTempId = null } = {}
+  { attachments = [], clientTempId = null, type = 'text', audio = null } = {}
 ) {
   const convo = await Conversation.findById(conversationId);
   if (!convo) throw createError.notFound('Conversation introuvable');
@@ -18,19 +18,33 @@ async function createMessage(
   if (convo.isBlocked && convo.blockedBy && convo.blockedBy.toString() !== userId.toString()) {
     throw createError.forbidden('Conversation bloquée');
   }
+  if (type === 'audio' && !audio) {
+    throw createError.badRequest('Métadonnées audio manquantes');
+  }
   const recipient = otherParticipant(convo, userId);
   const message = await Message.create({
     conversationId,
     sender: userId,
     recipient,
-    text,
+    text: text || '',
     attachments,
-    clientTempId
+    clientTempId,
+    type,
+    audio: type === 'audio' ? audio : null
   });
   // update conversation last message + unread count for recipient
-  convo.lastMessage = { text, sender: userId, timestamp: new Date() };
+  convo.lastMessage = {
+    text: text || '',
+    sender: userId,
+    timestamp: new Date(),
+    type,
+    audioDuration: type === 'audio' ? (audio?.duration ?? null) : null
+  };
   convo.lastMessageAt = new Date();
   convo.incrementUnread(recipient);
+  // ensure conversation is visible for both participants after a new message
+  convo.unhideForUser(recipient);
+  convo.unhideForUser(userId);
   await convo.save();
   return message;
 }

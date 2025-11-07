@@ -71,6 +71,28 @@ const attachmentUpload = multer({
   }
 });
 
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = [
+      'audio/webm',
+      'audio/ogg',
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/mp4',
+      'audio/x-m4a'
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      const error = new Error('Format audio non supporté (webm, ogg, mp3, mp4 ou m4a uniquement).');
+      error.statusCode = 400;
+      error.code = 'UNSUPPORTED_MEDIA_TYPE';
+      return cb(error);
+    }
+    return cb(null, true);
+  }
+});
+
 router.use(authRequired);
 
 router.post(
@@ -119,6 +141,7 @@ router.post(
   attachmentUpload.single('file'),
   chatController.uploadAttachment
 );
+router.post('/audio', uploadLimiter, audioUpload.single('file'), chatController.uploadAudioMessage);
 router.delete('/attachments/:key', chatLimiter, chatController.deleteAttachment);
 router.post(
   '/conversations/:id/read',

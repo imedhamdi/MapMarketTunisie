@@ -1,5 +1,20 @@
 import mongoose, { Schema } from 'mongoose';
 
+const AudioMetadataSchema = new Schema(
+  {
+    key: { type: String, required: true },
+    url: { type: String, default: null },
+    mime: { type: String, required: true },
+    size: { type: Number, required: true },
+    duration: { type: Number, default: null },
+    waveform: {
+      type: [Number],
+      default: undefined
+    }
+  },
+  { _id: false }
+);
+
 const MessageSchema = new Schema(
   {
     conversationId: {
@@ -18,6 +33,12 @@ const MessageSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true
+    },
+    type: {
+      type: String,
+      enum: ['text', 'audio'],
+      default: 'text',
       index: true
     },
     text: {
@@ -44,6 +65,10 @@ const MessageSchema = new Schema(
         }
       ],
       default: []
+    },
+    audio: {
+      type: AudioMetadataSchema,
+      default: null
     },
     status: {
       type: String,

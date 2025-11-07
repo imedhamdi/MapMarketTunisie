@@ -7,9 +7,26 @@
   const MESSAGE_LIMIT = 80;
   const OLDER_MESSAGES_LIMIT = 50;
   const MAX_ATTACHMENTS = 5;
+  const MAX_VOICE_DURATION = 120;
+  const VOICE_MIME_CANDIDATES = [
+    'audio/webm;codecs=opus',
+    'audio/ogg;codecs=opus',
+    'audio/webm',
+    'audio/mp4'
+  ];
   const LAYOUT_BREAKPOINT = 960;
   const ATTACHMENT_PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2399A4B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10'/%3E%3Crect x='3' y='13' width='18' height='8' rx='2'/%3E%3Ccircle cx='12' cy='17' r='1.5'/%3E%3C/svg%3E";
+  const AD_IMAGE_PLACEHOLDER = 'https://via.placeholder.com/640x480?text=Annonce';
+  const AD_IMAGE_ARRAY_KEYS = [
+    'gallery',
+    'images',
+    'photos',
+    'thumbnails',
+    'previews',
+    'pictures',
+    'media'
+  ];
 
   let socket = null;
   let activeConversationId = null;
@@ -20,9 +37,11 @@
   let compactLayoutQuery = null;
   let typingIndicatorHideTimer = null;
   let loadingOlderMessages = false;
+  let unreadCountRequest = null;
 
   const pendingRead = new Set();
   const pendingMessages = new Map();
+  const pendingAudioUrls = new Map();
   const pendingRemoteRead = new Set();
 
   const state = {
@@ -38,7 +57,22 @@
     user: null,
     userId: null,
     unreadTotal: 0,
-    activeParticipantAvatar: null
+    activeParticipantAvatar: null,
+    voiceSupported: false
+  };
+
+  const voiceState = {
+    recorder: null,
+    stream: null,
+    chunks: [],
+    recording: false,
+    timerId: null,
+    startedAt: null,
+    mimeType: null,
+    discardNext: false,
+    uploading: false,
+    lastDuration: null,
+    conversationId: null
   };
 
   const dom = {};
@@ -75,6 +109,98 @@
     return template.content.firstElementChild;
   }
 
+  function formatPriceLabel(value) {
+    if (value === null || value === undefined) return '';
+    const amount = Number(value);
+    if (Number.isNaN(amount)) return '';
+    const formatted = PRICE_FORMATTER.format(amount);
+    return formatted.replace('TND', 'DT').trim();
+  }
+
+  function normalizeAdImageSource(value) {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed || null;
+    }
+    if (typeof value === 'object') {
+      if (typeof value.url === 'string') return value.url.trim() || null;
+      if (typeof value.src === 'string') return value.src.trim() || null;
+    }
+    return null;
+  }
+
+  function gatherConversationAdImages(ad) {
+    if (!ad) return [];
+    const urls = [];
+    const push = (candidate) => {
+      const normalized = normalizeAdImageSource(candidate);
+      if (normalized && !urls.includes(normalized)) {
+        urls.push(normalized);
+      }
+    };
+    AD_IMAGE_ARRAY_KEYS.forEach((key) => {
+      const source = ad[key];
+      if (!source) return;
+      if (Array.isArray(source)) {
+        source.forEach(push);
+      } else {
+        push(source);
+      }
+    });
+    ['thumbnail', 'cover', 'coverUrl', 'previewUrl', 'img'].forEach((key) => push(ad[key]));
+    return urls;
+  }
+
+  function getConversationAdPrimaryImage(ad) {
+    const [first] = gatherConversationAdImages(ad);
+    return first || null;
+  }
+
+  function buildAdFallbackFromConversation(conversation) {
+    if (!conversation?.ad) return null;
+    const ad = conversation.ad;
+    const adId = ad.id || conversation.adId || ad._id;
+    if (!adId) return null;
+    const gallery = gatherConversationAdImages(ad);
+    if (!gallery.length) {
+      gallery.push(AD_IMAGE_PLACEHOLDER);
+    }
+    const primary = gallery[0] || AD_IMAGE_PLACEHOLDER;
+    const location = ad.locationText || 'Localisation à préciser';
+    const date = ad.updatedAt || ad.createdAt || new Date().toISOString();
+    const sellerName = conversation.otherParticipant?.name || ad.sellerName || 'Vendeur';
+    const sellerAvatar = conversation.otherParticipant?.avatar || ad.sellerAvatar || null;
+    const ownerId = ad.ownerId || (conversation.ownerId ? String(conversation.ownerId) : null);
+    return {
+      id: String(adId),
+      title: ad.title || conversation.title || 'Annonce',
+      desc: ad.description || ad.desc || '',
+      price: Number(ad.price) || 0,
+      category: ad.category || 'Autres',
+      cat: ad.cat || ad.category || 'Autres',
+      condition: ad.condition || null,
+      state: ad.state || ad.condition || '—',
+      locationText: location,
+      city: ad.city || location,
+      date,
+      gallery,
+      img: primary,
+      attributes: ad.attributes || {},
+      chips: Array.isArray(ad.chips) ? ad.chips : [],
+      latlng: ad.latlng || null,
+      views: ad.views || 0,
+      likes: ad.likes || ad.favorites || 0,
+      favorites: ad.favorites || ad.likes || 0,
+      sellerName,
+      sellerAvatar,
+      sellerMemberSince: ad.sellerMemberSince || date,
+      sellerAnnouncements: ad.sellerAnnouncements || null,
+      ownerId,
+      sellerEmail: ad.sellerEmail || ''
+    };
+  }
+
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
@@ -82,6 +208,11 @@
     bindUiEvents();
     setupLayoutObserver();
     hydrateUser();
+    if (state.userId) {
+      startBackgroundSync();
+    } else {
+      updateUnreadBadge();
+    }
     renderConversations();
     renderEmptyMessages();
     renderComposerAttachments();
@@ -97,6 +228,7 @@
     dom.close = document.getElementById('messagesClose');
     dom.messagesLayout = document.getElementById('messagesLayout');
     dom.messagesUnreadBadge = document.getElementById('messagesUnreadBadge');
+    dom.navMessagesBadge = document.getElementById('messagesNavBadge');
     dom.searchInput = document.getElementById('messagesSearch');
     dom.searchClear = document.getElementById('messagesSearchClear');
     dom.sidebar = document.getElementById('messagesSidebar');
@@ -105,6 +237,7 @@
     dom.chatPanel = document.getElementById('chatPanel');
     dom.chatBack = document.getElementById('chatBack');
     dom.chatDelete = document.getElementById('chatDelete');
+    dom.chatAdThumb = document.getElementById('chatAdThumb');
     dom.chatTitle = document.getElementById('chatTitle');
     dom.chatSubtitle = document.getElementById('chatSubtitle');
     dom.chatBanner = document.getElementById('chatSecurityBanner');
@@ -134,6 +267,10 @@
     dom.chatAttachmentPreview = document.getElementById('chatAttachmentPreview');
     dom.chatAttachButton = document.getElementById('chatAttachBtn');
     dom.chatFileInput = document.getElementById('chatFileInput');
+    dom.chatVoiceBtn = document.getElementById('chatVoiceBtn');
+    dom.chatVoiceStatus = document.getElementById('chatVoiceStatus');
+    dom.chatVoiceTimer = document.getElementById('chatVoiceTimer');
+    dom.chatVoiceCancel = document.getElementById('chatVoiceCancel');
   }
 
   function bindUiEvents() {
@@ -152,6 +289,7 @@
     dom.searchClear?.addEventListener('click', handleSearchClear);
     dom.chatBack?.addEventListener('click', handleBackToList);
     dom.chatDelete?.addEventListener('click', handleHideConversation);
+    dom.chatAdThumb?.addEventListener('click', handleAdThumbClick);
     dom.chatBannerClose?.addEventListener('click', dismissSecurityBanner);
     dom.scrollToBottom?.addEventListener('click', () =>
       scrollMessagesToBottom({ smooth: true, force: true })
@@ -171,6 +309,7 @@
     dom.chatAttachButton?.addEventListener('click', handleAttachClick);
     dom.chatFileInput?.addEventListener('change', handleAttachmentSelection);
     dom.chatAttachmentPreview?.addEventListener('click', handleAttachmentRemove);
+    setupVoiceRecorderControls();
     dom.chatMessages?.addEventListener('click', handleMessageActionClick);
 
     dom.conversationsList?.addEventListener('click', (event) => {
@@ -238,13 +377,63 @@
     }
   }
 
+  function startBackgroundSync() {
+    if (!state.userId) return;
+    ensureSocket();
+    refreshUnreadCountFromServer();
+    if (!state.conversationsLoaded && !state.loadingConversations) {
+      loadConversations();
+    }
+  }
+
+  async function refreshUnreadCountFromServer() {
+    if (!state.userId) {
+      state.unreadTotal = 0;
+      updateUnreadBadge();
+      return;
+    }
+    if (unreadCountRequest) return unreadCountRequest;
+    unreadCountRequest = apiFetch('/chat/unread-count')
+      .then((payload) => {
+        if (!state.userId) {
+          return;
+        }
+        const rawCount =
+          typeof payload === 'number'
+            ? payload
+            : typeof payload?.count === 'number'
+              ? payload.count
+              : 0;
+        state.unreadTotal = Math.max(0, rawCount);
+        updateUnreadBadge();
+      })
+      .catch((error) => {
+        console.warn('[chat] Impossible de récupérer le compteur de conversations non lues', error);
+      })
+      .finally(() => {
+        unreadCountRequest = null;
+      });
+    return unreadCountRequest;
+  }
+
+  function disconnectSocket() {
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
+  }
+
   function handleAuthChange(event) {
     state.user = event?.detail ?? getCurrentUser();
     state.userId = state.user?._id ? String(state.user._id) : null;
     resetState();
     if (!state.userId) {
+      disconnectSocket();
       renderUnauthenticated();
-    } else if (dom.modal?.classList.contains('mm-open')) {
+      return;
+    }
+    startBackgroundSync();
+    if (dom.modal?.classList.contains('mm-open')) {
       loadConversations({ force: true });
     }
   }
@@ -272,6 +461,14 @@
     state.unreadTotal = 0;
     pendingRead.clear();
     pendingMessages.clear();
+    pendingAudioUrls.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (_error) {
+        // ignore
+      }
+    });
+    pendingAudioUrls.clear();
     pendingSelectConversationId = null;
     if (readFlushTimer) {
       clearTimeout(readFlushTimer);
@@ -282,6 +479,9 @@
     }
     updateSearchClearButton();
     clearComposerAttachments();
+    cancelVoiceRecording();
+    voiceState.uploading = false;
+    updateVoiceUi();
     updateUnreadBadge();
     renderConversations();
     renderEmptyMessages();
@@ -352,6 +552,7 @@
       dom.chatInputNote?.setAttribute('hidden', 'true');
     }
     clearComposerAttachments();
+    cancelVoiceRecording();
     document.body.style.overflow = '';
   }
 
@@ -424,10 +625,7 @@
       sortConversations(state.conversations);
       state.filteredConversations = [...state.conversations];
       state.conversationsLoaded = true;
-      state.unreadTotal = state.conversations.reduce(
-        (acc, conversation) => acc + (conversation.unreadCount || 0),
-        0
-      );
+      state.unreadTotal = countUnreadConversations(state.conversations);
       applySearch();
       updateUnreadBadge();
       if (!state.conversations.length) {
@@ -469,6 +667,9 @@
     if (!payload?.conversationId || !payload?.message) return;
     const conversationId = String(payload.conversationId);
     const message = enhanceMessage(payload.message);
+    if (!state.conversationsLoaded) {
+      refreshUnreadCountFromServer();
+    }
 
     let conversation = findConversation(conversationId);
     const alreadyKnown = Boolean(conversation);
@@ -589,7 +790,20 @@
               ? new Date(raw.lastMessageAt)
               : null,
           attachments: Array.isArray(lastMessageRaw.attachments) ? lastMessageRaw.attachments : [],
-          text: lastMessageRaw.text || ''
+          text: lastMessageRaw.text || '',
+          type: lastMessageRaw.type || (lastMessageRaw.audio ? 'audio' : 'text'),
+          audio:
+            (lastMessageRaw.type || (lastMessageRaw.audio ? 'audio' : 'text')) === 'audio'
+              ? lastMessageRaw.audio
+                ? {
+                    ...lastMessageRaw.audio,
+                    duration:
+                      typeof lastMessageRaw.audio.duration === 'number'
+                        ? lastMessageRaw.audio.duration
+                        : (lastMessageRaw.audioDuration ?? null)
+                  }
+                : { duration: lastMessageRaw.audioDuration ?? null }
+              : null
         }
       : null;
     const lastMessageAt = raw.lastMessageAt
@@ -633,6 +847,14 @@
       sender: raw.sender ? String(raw.sender) : null,
       recipient: raw.recipient ? String(raw.recipient) : null,
       text: raw.text || '',
+      type: raw.type || (raw.audio ? 'audio' : 'text'),
+      audio: raw.audio
+        ? {
+            ...raw.audio,
+            duration:
+              typeof raw.audio.duration === 'number' ? raw.audio.duration : raw.audioDuration
+          }
+        : null,
       attachments: Array.isArray(raw.attachments) ? raw.attachments : [],
       status: raw.status || 'sent',
       createdAt,
@@ -648,10 +870,18 @@
   function upsertConversation(conversation) {
     if (!conversation) return;
     const index = state.conversations.findIndex((c) => c.id === conversation.id);
+    const nextHasUnread = conversation.unreadCount > 0;
     if (index >= 0) {
+      const previousHasUnread = state.conversations[index].unreadCount > 0;
       state.conversations[index] = conversation;
+      if (state.conversationsLoaded && previousHasUnread !== nextHasUnread) {
+        state.unreadTotal = Math.max(0, state.unreadTotal + (nextHasUnread ? 1 : -1));
+      }
     } else {
       state.conversations.push(conversation);
+      if (state.conversationsLoaded && nextHasUnread) {
+        state.unreadTotal += 1;
+      }
     }
     sortConversations(state.conversations);
     state.filteredConversations = [...state.conversations];
@@ -1036,6 +1266,7 @@
     joinConversation(conversationId, { markAsRead: true });
     markConversationAsRead(conversationId);
     loadMessages(conversationId);
+    updateVoiceUi();
     pendingSelectConversationId = null;
   }
 
@@ -1071,7 +1302,40 @@
     dom.chatTitle.textContent = conversation.title || 'Conversation';
     const partner = getConversationContactName(conversation);
     const adTitle = conversation.ad?.title || '';
-    dom.chatSubtitle.textContent = adTitle ? `${partner} • ${adTitle}` : partner;
+    const city = conversation.ad?.city || conversation.ad?.locationText || '';
+    const priceLabel = formatPriceLabel(conversation.ad?.price);
+    const subtitleParts = [partner, city, priceLabel].filter(Boolean);
+    dom.chatSubtitle.textContent = subtitleParts.join(' • ') || partner || adTitle || '';
+
+    // Gérer la miniature de l'annonce
+    if (dom.chatAdThumb && conversation.ad) {
+      const adImage = getConversationAdPrimaryImage(conversation.ad);
+
+      dom.chatAdThumb.title = `Voir l'annonce : ${adTitle}`;
+      dom.chatAdThumb.setAttribute('aria-label', `Voir l'annonce : ${adTitle}`);
+      dom.chatAdThumb.innerHTML = '';
+
+      if (adImage) {
+        const img = document.createElement('img');
+        img.src = adImage;
+        img.alt = adTitle || 'Annonce';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        dom.chatAdThumb.appendChild(img);
+        dom.chatAdThumb.classList.remove('chat-panel__ad-thumb--placeholder');
+      } else {
+        dom.chatAdThumb.classList.add('chat-panel__ad-thumb--placeholder');
+        dom.chatAdThumb.innerHTML = `
+          <svg class="messages-icon" aria-hidden="true" focusable="false">
+            <use href="/icons/messages-icons.svg#icon-image"></use>
+          </svg>
+        `;
+      }
+      dom.chatAdThumb.hidden = false;
+    } else if (dom.chatAdThumb) {
+      dom.chatAdThumb.hidden = true;
+    }
+
     dom.chatDelete.hidden = false;
     dom.chatDelete.disabled = false;
     if (dom.chatBanner) {
@@ -1082,6 +1346,7 @@
       }
     }
     syncLayoutMode();
+    updateVoiceUi();
   }
 
   function hideChatPanel() {
@@ -1099,12 +1364,16 @@
     if (dom.chatSubtitle) {
       dom.chatSubtitle.textContent = 'Vos messages apparaîtront ici.';
     }
+    if (dom.chatAdThumb) {
+      dom.chatAdThumb.hidden = true;
+    }
     if (dom.chatDelete) {
       dom.chatDelete.hidden = true;
       dom.chatDelete.disabled = true;
     }
     dom.chatBanner?.setAttribute('hidden', 'true');
     syncLayoutMode();
+    updateVoiceUi();
   }
 
   function dismissSecurityBanner() {
@@ -1180,7 +1449,7 @@
 
     const content = document.createElement('div');
     content.className = 'message-bubble__content';
-    content.innerHTML = formatMessageText(message.text);
+    renderMessageContent(content, message);
     bubble.appendChild(content);
 
     if (Array.isArray(message.attachments) && message.attachments.length) {
@@ -1235,6 +1504,45 @@
     return row;
   }
 
+  function renderMessageContent(container, message) {
+    if (!container || !message) return;
+    const isAudio = (message.type || message.audio ? 'audio' : 'text') === 'audio' && message.audio;
+    container.classList.toggle('message-bubble__content--audio', Boolean(isAudio));
+    container.innerHTML = '';
+    if (isAudio) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message-audio';
+      const audioPlayer = document.createElement('audio');
+      audioPlayer.className = 'message-audio__player';
+      audioPlayer.controls = true;
+      audioPlayer.preload = 'none';
+      const source = resolveAudioSource(message.audio);
+      if (source) {
+        audioPlayer.src = source;
+      } else {
+        audioPlayer.controls = false;
+        audioPlayer.textContent = 'Message audio indisponible';
+      }
+      wrapper.appendChild(audioPlayer);
+      if (message.audio?.duration) {
+        const duration = document.createElement('span');
+        duration.className = 'message-audio__duration';
+        duration.textContent = formatDuration(message.audio.duration);
+        wrapper.appendChild(duration);
+      }
+      container.appendChild(wrapper);
+      return;
+    }
+    container.innerHTML = formatMessageText(message.text);
+  }
+
+  function resolveAudioSource(audio) {
+    if (!audio) return '';
+    if (audio.url) return audio.url;
+    if (audio.key) return `/uploads/chat/audio/${audio.key}`;
+    return '';
+  }
+
   function insertMessageIntoActive(message) {
     if (!dom.chatMessages) return;
     const existing = dom.chatMessages.querySelector(`[data-message-id="${message.id}"]`);
@@ -1246,6 +1554,11 @@
       const pending = dom.chatMessages.querySelector(`[data-client-id="${message.clientTempId}"]`);
       if (pending) {
         pendingMessages.delete(message.clientTempId);
+        const previewUrl = pendingAudioUrls.get(message.clientTempId);
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          pendingAudioUrls.delete(message.clientTempId);
+        }
         updateMessageElement(pending, message);
         pending.dataset.messageId = message.id;
         delete pending.dataset.clientId;
@@ -1309,7 +1622,7 @@
 
     const content = bubble.querySelector('.message-bubble__content');
     if (content) {
-      content.innerHTML = formatMessageText(message.text);
+      renderMessageContent(content, message);
     }
 
     const attachmentsWrapper = bubble.querySelector('.message-attachments');
@@ -1408,7 +1721,9 @@
       status: message.status || null,
       createdAt: message.createdAt,
       attachments: Array.isArray(message.attachments) ? message.attachments : [],
-      text: message.text || ''
+      text: message.text || '',
+      type: message.type || (message.audio ? 'audio' : 'text'),
+      audio: message.audio || null
     };
     conversation.lastMessagePreview = preview;
     conversation.lastMessageAt = message.createdAt;
@@ -1420,9 +1735,12 @@
     const shouldSync = options?.syncServer !== false;
     const hadUnread = conversation.unreadCount > 0;
     if (hadUnread) {
-      const previous = conversation.unreadCount;
       conversation.unreadCount = 0;
-      state.unreadTotal = Math.max(0, state.unreadTotal - previous);
+      if (state.conversationsLoaded) {
+        state.unreadTotal = Math.max(0, state.unreadTotal - 1);
+      } else {
+        refreshUnreadCountFromServer();
+      }
       updateUnreadBadge();
       renderConversations();
     }
@@ -1446,8 +1764,15 @@
   function incrementConversationUnread(conversationId) {
     const conversation = findConversation(conversationId);
     if (!conversation) return;
+    const wasUnread = conversation.unreadCount > 0;
     conversation.unreadCount += 1;
-    state.unreadTotal += 1;
+    if (!wasUnread) {
+      if (state.conversationsLoaded) {
+        state.unreadTotal += 1;
+      } else {
+        refreshUnreadCountFromServer();
+      }
+    }
     updateUnreadBadge();
     renderConversations();
   }
@@ -1457,6 +1782,26 @@
     if (index <= 0) return;
     const [conversation] = state.conversations.splice(index, 1);
     state.conversations.unshift(conversation);
+  }
+
+  function handleAdThumbClick() {
+    if (!activeConversationId) return;
+    const conversation = findConversation(activeConversationId);
+    if (!conversation?.ad) return;
+    const fallback = buildAdFallbackFromConversation(conversation);
+    const adIdRaw = conversation.ad.id || conversation.adId || fallback?.id;
+    const adId = adIdRaw ? String(adIdRaw) : null;
+
+    if (typeof window.openDetailsById === 'function' && adId) {
+      window.openDetailsById(adId, fallback);
+      return;
+    }
+
+    if (typeof window.openDetailsModal === 'function') {
+      window.openDetailsModal(fallback || conversation.ad);
+    } else {
+      console.warn("openDetailsModal n'est pas disponible");
+    }
   }
 
   function handleBackToList() {
@@ -1471,6 +1816,7 @@
   async function handleHideConversation() {
     if (!activeConversationId || !dom.chatDelete) return;
     dom.chatDelete.disabled = true;
+    const conversation = findConversation(activeConversationId);
     try {
       await apiFetch(`/chat/conversations/${activeConversationId}/hide`, { method: 'POST' });
       state.conversations = state.conversations.filter((c) => c.id !== activeConversationId);
@@ -1479,6 +1825,13 @@
       );
       state.messagesByConversation.delete(activeConversationId);
       state.messagesPagination.delete(activeConversationId);
+      if (conversation?.unreadCount > 0) {
+        if (state.conversationsLoaded) {
+          state.unreadTotal = Math.max(0, state.unreadTotal - 1);
+        } else {
+          refreshUnreadCountFromServer();
+        }
+      }
       activeConversationId = null;
       state.activeParticipantAvatar = null;
       hideChatPanel();
@@ -1742,6 +2095,326 @@
     updateSendButtonState();
   }
 
+  function setupVoiceRecorderControls() {
+    if (!dom.chatVoiceBtn) return;
+    state.voiceSupported = isVoiceRecordingSupported();
+    if (!state.voiceSupported) {
+      dom.chatVoiceBtn.disabled = true;
+      dom.chatVoiceBtn.title = 'Messages vocaux non supportés sur ce navigateur.';
+      dom.chatVoiceBtn.classList.add('chat-panel__voice--disabled');
+      return;
+    }
+    dom.chatVoiceBtn.addEventListener('click', handleVoiceButtonClick);
+    dom.chatVoiceCancel?.addEventListener('click', cancelVoiceRecording);
+    updateVoiceUi();
+  }
+
+  function isVoiceRecordingSupported() {
+    try {
+      return (
+        typeof window !== 'undefined' &&
+        typeof window.MediaRecorder === 'function' &&
+        navigator?.mediaDevices?.getUserMedia
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function handleVoiceButtonClick(event) {
+    event?.preventDefault();
+    if (voiceState.uploading) {
+      return;
+    }
+    if (voiceState.recording) {
+      stopVoiceRecording();
+      return;
+    }
+    if (!activeConversationId) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('Sélectionnez une conversation avant de démarrer un vocal.');
+      }
+      return;
+    }
+    await startVoiceRecording();
+  }
+
+  async function startVoiceRecording() {
+    if (!state.voiceSupported || voiceState.recording) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options = {};
+      const preferred = getPreferredAudioMimeType();
+      if (preferred) {
+        options.mimeType = preferred;
+      }
+      const recorder = new MediaRecorder(stream, options);
+      voiceState.stream = stream;
+      voiceState.recorder = recorder;
+      voiceState.chunks = [];
+      voiceState.conversationId = activeConversationId;
+      voiceState.startedAt = Date.now();
+      voiceState.mimeType = recorder.mimeType || preferred || '';
+      voiceState.discardNext = false;
+      voiceState.lastDuration = null;
+      recorder.addEventListener('dataavailable', (event) => {
+        if (event.data && event.data.size) {
+          voiceState.chunks.push(event.data);
+        }
+      });
+      recorder.addEventListener('stop', handleRecorderStop);
+      recorder.start();
+      voiceState.recording = true;
+      showVoiceStatus();
+      updateVoiceUi();
+      voiceState.timerId = window.setInterval(() => {
+        updateVoiceTimer();
+        if (getRecordingDuration() >= MAX_VOICE_DURATION) {
+          stopVoiceRecording();
+        }
+      }, 200);
+    } catch (error) {
+      console.error('[chat] Impossible de démarrer l’enregistrement vocal', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast("Le micro n'est pas accessible.");
+      }
+      cleanupVoiceRecorder();
+    }
+  }
+
+  function stopVoiceRecording({ discard = false } = {}) {
+    if (!voiceState.recorder) {
+      cleanupVoiceRecorder();
+      return;
+    }
+    voiceState.discardNext = discard;
+    voiceState.lastDuration = getRecordingDuration();
+    try {
+      if (voiceState.recorder.state !== 'inactive') {
+        voiceState.recorder.stop();
+      } else {
+        handleRecorderStop();
+      }
+    } catch (error) {
+      console.warn('[chat] Stop recorder error', error);
+      cleanupVoiceRecorder();
+    }
+  }
+
+  function cancelVoiceRecording(event) {
+    event?.preventDefault();
+    if (voiceState.recording) {
+      stopVoiceRecording({ discard: true });
+    }
+  }
+
+  async function handleRecorderStop() {
+    if (voiceState.timerId) {
+      window.clearInterval(voiceState.timerId);
+      voiceState.timerId = null;
+    }
+    const chunks = [...voiceState.chunks];
+    const duration = voiceState.lastDuration || getRecordingDuration();
+    const mimeType = voiceState.mimeType;
+    const discard = voiceState.discardNext;
+    const targetConversationId = voiceState.conversationId;
+    cleanupVoiceRecorder();
+    if (discard || !chunks.length) {
+      return;
+    }
+    const blob = new Blob(chunks, {
+      type: mimeType || (chunks[0] && chunks[0].type) || 'audio/webm'
+    });
+    await sendVoiceMessage(blob, duration, targetConversationId);
+  }
+
+  function cleanupVoiceRecorder() {
+    if (voiceState.timerId) {
+      window.clearInterval(voiceState.timerId);
+      voiceState.timerId = null;
+    }
+    if (voiceState.stream) {
+      voiceState.stream.getTracks().forEach((track) => track.stop());
+    }
+    if (voiceState.recorder) {
+      try {
+        voiceState.recorder.removeEventListener('stop', handleRecorderStop);
+      } catch (_error) {
+        // ignore
+      }
+    }
+    voiceState.recorder = null;
+    voiceState.stream = null;
+    voiceState.chunks = [];
+    voiceState.recording = false;
+    voiceState.startedAt = null;
+    voiceState.mimeType = null;
+    voiceState.discardNext = false;
+    voiceState.lastDuration = null;
+    voiceState.conversationId = null;
+    hideVoiceStatus();
+    updateVoiceUi();
+  }
+
+  function updateVoiceUi() {
+    if (!dom.chatVoiceBtn) return;
+    const disabled = !state.voiceSupported || voiceState.uploading || !activeConversationId;
+    dom.chatVoiceBtn.disabled = disabled;
+    dom.chatVoiceBtn.setAttribute('aria-pressed', voiceState.recording ? 'true' : 'false');
+    if (voiceState.recording) {
+      dom.chatVoiceBtn.classList.add('chat-panel__voice--recording');
+      dom.chatVoiceBtn.setAttribute('aria-label', 'Arrêter le message vocal');
+      showVoiceStatus();
+    } else {
+      dom.chatVoiceBtn.classList.remove('chat-panel__voice--recording');
+      dom.chatVoiceBtn.setAttribute('aria-label', 'Enregistrer un message vocal');
+    }
+    if (voiceState.uploading) {
+      dom.chatVoiceBtn.classList.add('chat-panel__voice--uploading');
+    } else {
+      dom.chatVoiceBtn.classList.remove('chat-panel__voice--uploading');
+    }
+  }
+
+  function showVoiceStatus() {
+    if (!dom.chatVoiceStatus) return;
+    dom.chatVoiceStatus.hidden = false;
+    updateVoiceTimer();
+  }
+
+  function hideVoiceStatus() {
+    if (!dom.chatVoiceStatus) return;
+    dom.chatVoiceStatus.hidden = true;
+    updateVoiceTimerDisplay('00:00');
+  }
+
+  function updateVoiceTimer() {
+    const duration = getRecordingDuration();
+    updateVoiceTimerDisplay(formatDuration(duration));
+  }
+
+  function updateVoiceTimerDisplay(value) {
+    if (dom.chatVoiceTimer) {
+      dom.chatVoiceTimer.textContent = value;
+    }
+  }
+
+  function getRecordingDuration() {
+    if (!voiceState.recording || !voiceState.startedAt) return 0;
+    return Math.max(0, (Date.now() - voiceState.startedAt) / 1000);
+  }
+
+  function getPreferredAudioMimeType() {
+    if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') {
+      return null;
+    }
+    return VOICE_MIME_CANDIDATES.find((candidate) => {
+      try {
+        return window.MediaRecorder.isTypeSupported(candidate);
+      } catch (_error) {
+        return false;
+      }
+    });
+  }
+
+  async function uploadVoiceBlob(blob, { duration } = {}) {
+    const formData = new FormData();
+    const filename = `voice-${Date.now()}.webm`;
+    formData.append('file', blob, filename);
+    if (typeof duration === 'number' && Number.isFinite(duration)) {
+      formData.append('duration', duration);
+    }
+    return apiFetch('/chat/audio', { method: 'POST', body: formData });
+  }
+
+  async function sendVoiceMessage(blob, durationSeconds, targetConversationId) {
+    const conversationId = targetConversationId || activeConversationId;
+    if (!conversationId) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('Conversation introuvable pour ce message vocal.');
+      }
+      return;
+    }
+    voiceState.uploading = true;
+    updateVoiceUi();
+    const clientTempId = `tmp-audio-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    const objectUrl =
+      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+        ? URL.createObjectURL(blob)
+        : null;
+    if (objectUrl) {
+      pendingAudioUrls.set(clientTempId, objectUrl);
+    }
+    const duration = Number.isFinite(durationSeconds)
+      ? Math.max(0, Math.round(durationSeconds * 10) / 10)
+      : null;
+    const pending = {
+      id: clientTempId,
+      clientTempId,
+      conversationId,
+      sender: state.userId,
+      recipient: null,
+      text: '',
+      type: 'audio',
+      audio: {
+        key: clientTempId,
+        url: objectUrl,
+        mime: blob.type || 'audio/webm',
+        size: blob.size,
+        duration
+      },
+      attachments: [],
+      status: 'sending',
+      createdAt: new Date()
+    };
+    appendPendingMessage(pending);
+    try {
+      const uploadResponse = await uploadVoiceBlob(blob, { duration });
+      const audioMeta = uploadResponse?.audio || uploadResponse;
+      pending.audio = audioMeta;
+      const data = await apiFetch(`/chat/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: {
+          type: 'audio',
+          audio: audioMeta,
+          text: '',
+          attachments: [],
+          clientTempId
+        }
+      });
+      const savedMessage = data?.message ? enhanceMessage(data.message) : null;
+      if (savedMessage) {
+        insertMessageIntoActive(savedMessage);
+        updateConversationPreview(conversationId, savedMessage);
+        moveConversationToTop(conversationId);
+        applySearch();
+      }
+    } catch (error) {
+      console.error('[chat] Envoi du vocal impossible', error);
+      pending.status = 'failed';
+      storeMessage(conversationId, pending);
+      if (conversationId === activeConversationId && dom.chatMessages) {
+        const element = pendingMessages.get(clientTempId);
+        if (element) {
+          updateMessageElement(element, pending);
+        }
+      }
+      updateConversationPreview(conversationId, pending);
+      renderConversations();
+      if (typeof window.showToast === 'function') {
+        window.showToast('Message vocal non envoyé.');
+      }
+    } finally {
+      voiceState.uploading = false;
+      updateVoiceUi();
+      const previewUrl = pendingAudioUrls.get(clientTempId);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        pendingAudioUrls.delete(clientTempId);
+      }
+    }
+  }
+
   function formatFileSize(bytes) {
     if (!Number.isFinite(bytes)) return '';
     if (bytes < 1024) return `${bytes} o`;
@@ -1749,6 +2422,23 @@
     if (kb < 1024) return `${kb.toFixed(1)} Ko`;
     const mb = kb / 1024;
     return `${mb.toFixed(1)} Mo`;
+  }
+
+  function appendPendingMessage(pending) {
+    if (!pending || !pending.conversationId) return;
+    storeMessage(pending.conversationId, pending);
+    let row = null;
+    if (dom.chatMessages && pending.conversationId === activeConversationId) {
+      row = createMessageElement(pending);
+      dom.chatMessages.appendChild(row);
+      scrollMessagesToBottom({ smooth: true });
+    }
+    if (row && pending.clientTempId) {
+      pendingMessages.set(pending.clientTempId, row);
+    }
+    updateConversationPreview(pending.conversationId, pending);
+    moveConversationToTop(pending.conversationId);
+    applySearch();
   }
 
   async function handleSendMessage() {
@@ -1776,24 +2466,19 @@
       clientTempId,
       conversationId: activeConversationId,
       sender: state.userId,
+      type: 'text',
+      audio: null,
       text,
       attachments: attachmentsPayload.map((attachment) => ({ ...attachment })),
       status: 'sending',
       createdAt: new Date()
     };
-    storeMessage(activeConversationId, pending);
-    const row = createMessageElement(pending);
-    dom.chatMessages?.appendChild(row);
-    pendingMessages.set(clientTempId, row);
-    updateConversationPreview(activeConversationId, pending);
-    moveConversationToTop(activeConversationId);
-    applySearch();
-    scrollMessagesToBottom({ smooth: true });
+    appendPendingMessage(pending);
 
     try {
       const data = await apiFetch(`/chat/conversations/${activeConversationId}/messages`, {
         method: 'POST',
-        body: { text, attachments: attachmentsPayload, clientTempId }
+        body: { text, attachments: attachmentsPayload, clientTempId, type: 'text' }
       });
       const savedMessage = data?.message ? enhanceMessage(data.message) : null;
       if (savedMessage) {
@@ -1831,8 +2516,12 @@
     const payload = {
       text: message.text,
       attachments: Array.isArray(message.attachments) ? message.attachments : [],
-      clientTempId: message.clientTempId || reference
+      clientTempId: message.clientTempId || reference,
+      type: message.type || 'text'
     };
+    if (payload.type === 'audio' && message.audio) {
+      payload.audio = message.audio;
+    }
     message.status = 'sending';
     storeMessage(conversationId, message);
     updateConversationPreview(conversationId, message);
@@ -2027,20 +2716,29 @@
   }
 
   function updateUnreadBadge() {
-    const total = state.conversations.reduce(
-      (acc, conversation) => acc + (conversation.unreadCount || 0),
-      0
-    );
+    const computed =
+      typeof state.unreadTotal === 'number' ? state.unreadTotal : countUnreadConversations();
+    const total = Math.max(0, computed);
+    const formatted = total > 99 ? '99+' : String(total);
     if (dom.messagesUnreadBadge) {
       if (total > 0) {
-        dom.messagesUnreadBadge.textContent = total > 99 ? '99+' : String(total);
+        dom.messagesUnreadBadge.textContent = formatted;
         dom.messagesUnreadBadge.style.display = 'inline-flex';
       } else {
         dom.messagesUnreadBadge.textContent = '';
         dom.messagesUnreadBadge.style.display = 'none';
       }
     }
-    const navMessages = document.getElementById('navMessages');
+    if (dom.navMessagesBadge) {
+      if (total > 0) {
+        dom.navMessagesBadge.textContent = formatted;
+        dom.navMessagesBadge.removeAttribute('hidden');
+      } else {
+        dom.navMessagesBadge.textContent = '';
+        dom.navMessagesBadge.setAttribute('hidden', 'true');
+      }
+    }
+    const navMessages = dom.openTop || document.getElementById('navMessages');
     if (navMessages) {
       if (total > 0) {
         navMessages.setAttribute('data-unread', 'true');
@@ -2048,6 +2746,10 @@
         navMessages.removeAttribute('data-unread');
       }
     }
+  }
+
+  function countUnreadConversations(list = state.conversations) {
+    return list.reduce((acc, conversation) => acc + (conversation.unreadCount > 0 ? 1 : 0), 0);
   }
 
   function formatMessageText(text) {
@@ -2058,6 +2760,10 @@
 
   function getMessagePreview(message) {
     if (!message) return '';
+    if ((message.type === 'audio' || message.audio) && message.audio) {
+      const duration = message.audio.duration;
+      return duration ? `Message vocal · ${formatDuration(duration)}` : 'Message vocal';
+    }
     const text = typeof message.text === 'string' ? message.text.trim() : '';
     if (text) return text;
     const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -2106,6 +2812,16 @@
 
   function formatTime(date) {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatDuration(seconds) {
+    if (!Number.isFinite(seconds)) return '00:00';
+    const total = Math.max(0, Math.round(seconds));
+    const minutes = Math.floor(total / 60);
+    const secs = total % 60;
+    const mm = minutes.toString().padStart(2, '0');
+    const ss = secs.toString().padStart(2, '0');
+    return `${mm}:${ss}`;
   }
 
   function formatRelativeTime(date) {
@@ -2207,11 +2923,23 @@
     connect: ensureSocket,
     joinConversation,
     leaveConversation: (conversationId) => socket?.emit('conversation:leave', { conversationId }),
-    sendMessage: ({ conversationId, text, attachments = [] }) =>
+    sendMessage: ({
+      conversationId,
+      text,
+      attachments = [],
+      type = 'text',
+      audio = null,
+      clientTempId = null
+    }) =>
       apiFetch(`/chat/conversations/${conversationId}/messages`, {
         method: 'POST',
-        body: { text, attachments }
+        body: { text, attachments, type, audio, clientTempId }
       }),
     notifyTyping
   };
 })();
+const PRICE_FORMATTER = new Intl.NumberFormat('fr-TN', {
+  style: 'currency',
+  currency: 'TND',
+  maximumFractionDigits: 0
+});

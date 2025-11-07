@@ -13,6 +13,15 @@ const attachmentSchema = Joi.object({
   originalName: Joi.string().optional()
 });
 
+const audioSchema = Joi.object({
+  key: Joi.string().required(),
+  url: Joi.string().uri({ allowRelative: true }).required(),
+  mime: Joi.string().required(),
+  size: Joi.number().min(1).required(),
+  duration: Joi.number().min(0).max(600).optional().allow(null),
+  waveform: Joi.array().items(Joi.number().min(0).max(1)).max(120).optional()
+});
+
 export const startConversationSchema = Joi.object({
   adId: objectId.required(),
   text: Joi.string().allow('').max(2000).optional()
@@ -21,12 +30,19 @@ export const startConversationSchema = Joi.object({
 export const sendMessageSchema = Joi.object({
   text: Joi.string().allow('').trim().max(2000).optional(),
   attachments: Joi.array().items(attachmentSchema).max(5).optional(),
-  clientTempId: Joi.string().max(100).allow(null)
+  clientTempId: Joi.string().max(100).allow(null),
+  type: Joi.string().valid('text', 'audio').default('text'),
+  audio: audioSchema.when('type', {
+    is: 'audio',
+    then: Joi.required(),
+    otherwise: Joi.forbidden().allow(null)
+  })
 })
   .custom((value, helpers) => {
+    const hasAudio = value.type === 'audio' && value.audio;
     const hasText = typeof value.text === 'string' && value.text.trim().length > 0;
     const hasAttachments = Array.isArray(value.attachments) && value.attachments.length > 0;
-    if (!hasText && !hasAttachments) {
+    if (!hasText && !hasAttachments && !hasAudio) {
       return helpers.error('any.custom');
     }
     if (hasAttachments) {
@@ -35,7 +51,7 @@ export const sendMessageSchema = Joi.object({
     return value;
   }, 'Message content validation')
   .messages({
-    'any.custom': 'Un message doit contenir du texte ou une pièce jointe.'
+    'any.custom': 'Un message doit contenir du texte, un audio ou une pièce jointe.'
   });
 
 export const getMessagesSchema = Joi.object({

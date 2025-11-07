@@ -54,7 +54,7 @@
         <a class="nav-link" href="#" id="navMessages"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-          </svg><span>Messages</span></a>
+          </svg><span>Messages</span><span class="nav-badge" id="messagesNavBadge" hidden>0</span></a>
         <button class="nav-link pill" type="button" id="openFavs"><svg width="20" height="20" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path
@@ -952,6 +952,11 @@
                   <use href="/icons/messages-icons.svg#icon-back"></use>
                 </svg>
               </button>
+              <button type="button" class="chat-panel__ad-thumb" id="chatAdThumb" hidden aria-label="Voir l'annonce">
+                <svg class="messages-icon" aria-hidden="true" focusable="false">
+                  <use href="/icons/messages-icons.svg#icon-image"></use>
+                </svg>
+              </button>
               <div class="chat-panel__info">
                 <h3 class="chat-panel__title" id="chatTitle">Sélectionnez une conversation</h3>
                 <p class="chat-panel__subtitle" id="chatSubtitle">En attente…</p>
@@ -983,10 +988,20 @@
             </div>
             <div class="chat-panel__input" id="chatInputArea">
               <div class="chat-panel__attachments" id="chatAttachmentPreview" hidden></div>
+              <div class="chat-panel__voice-status" id="chatVoiceStatus" hidden>
+                <span class="chat-panel__voice-dot" aria-hidden="true"></span>
+                <span class="chat-panel__voice-timer" id="chatVoiceTimer">00:00</span>
+                <button type="button" class="chat-panel__voice-cancel" id="chatVoiceCancel">Annuler</button>
+              </div>
               <div class="chat-panel__input-row">
                 <button type="button" class="chat-panel__attach" id="chatAttachBtn" aria-label="Ajouter une pièce jointe">
                   <svg class="messages-icon messages-icon--attach" aria-hidden="true" focusable="false">
                     <use href="/icons/messages-icons.svg#icon-attach"></use>
+                  </svg>
+                </button>
+                <button type="button" class="chat-panel__voice" id="chatVoiceBtn" aria-label="Enregistrer un message vocal" aria-pressed="false">
+                  <svg class="messages-icon messages-icon--mic" aria-hidden="true" focusable="false">
+                    <use href="/icons/messages-icons.svg#icon-mic"></use>
                   </svg>
                 </button>
                 <div class="chat-panel__input-field">

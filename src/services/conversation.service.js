@@ -30,8 +30,8 @@ async function startConversation(adId, userId, initialText) {
       ownerId: ad.owner,
       buyerId: userId,
       lastMessage: hasInitialMessage
-        ? { text: sanitizedText, sender: userId, timestamp: new Date() }
-        : { text: '', sender: null, timestamp: new Date() },
+        ? { text: sanitizedText, sender: userId, timestamp: new Date(), type: 'text' }
+        : { text: '', sender: null, timestamp: new Date(), type: 'text' },
       lastMessageAt: new Date()
     });
     created = true;
@@ -95,8 +95,14 @@ async function hideConversation(id, userId) {
 }
 
 async function getTotalUnreadCount(userId) {
-  const conversations = await Conversation.find({ participants: userId });
-  return conversations.reduce((acc, c) => acc + (c.getUnreadCount(userId) || 0), 0);
+  const conversations = await Conversation.find({
+    participants: userId,
+    hiddenFor: { $ne: userId }
+  }).select('unreadCount hiddenFor');
+  return conversations.reduce((acc, convo) => {
+    const unread = convo.getUnreadCount ? convo.getUnreadCount(userId) : 0;
+    return unread > 0 ? acc + 1 : acc;
+  }, 0);
 }
 
 export default {

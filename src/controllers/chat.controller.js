@@ -7,6 +7,7 @@ import { formatConversationForUser } from '../utils/chat.js';
 
 // (Pièces jointes & recherche: implémentations minimales ci-dessous)
 import { storeAttachment, deleteAttachmentForUser } from '../chat/attachments.service.js';
+import { storeVoiceMessage } from '../chat/audio.service.js';
 import { searchUserMessages } from '../chat/search.service.js';
 
 export const startConversation = asyncHandler(async (req, res) => {
@@ -55,10 +56,12 @@ export const getMessages = asyncHandler(async (req, res) => {
 export const sendMessage = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user._id;
-  const { text, attachments = [], clientTempId = null } = req.body;
+  const { text, attachments = [], clientTempId = null, type = 'text', audio = null } = req.body;
   const message = await messageService.createMessage(id, userId, text, {
     attachments,
-    clientTempId
+    clientTempId,
+    type,
+    audio
   });
   return sendSuccess(res, { statusCode: 201, message: 'Message envoyé', data: { message } });
 });
@@ -142,6 +145,41 @@ export const deleteAttachment = asyncHandler(async (req, res) => {
   if (!key) throw createError.badRequest('Clé de pièce jointe manquante.');
   await deleteAttachmentForUser(key, userId);
   return sendSuccess(res, { message: 'Pièce jointe supprimée', data: { removed: true } });
+});
+
+export const uploadAudioMessage = asyncHandler(async (req, res) => {
+  const file = req.file;
+  const userId = req.user._id.toString();
+  if (!file) throw createError.badRequest('Aucun fichier audio fourni.');
+  const duration = req.body?.duration;
+  let waveform = undefined;
+  const rawWaveform = req.body?.waveform;
+  if (Array.isArray(rawWaveform)) {
+    waveform = rawWaveform;
+  } else if (typeof rawWaveform === 'string' && rawWaveform.trim()) {
+    try {
+      const parsed = JSON.parse(rawWaveform);
+      if (Array.isArray(parsed)) {
+        waveform = parsed;
+      }
+    } catch {
+      waveform = undefined;
+    }
+  }
+  const audio = await storeVoiceMessage({
+    buffer: file.buffer,
+    mimetype: file.mimetype || 'audio/webm',
+    originalName: file.originalname || 'voice-message.webm',
+    size: file.size,
+    userId,
+    duration,
+    waveform
+  });
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Message audio enregistré',
+    data: { audio }
+  });
 });
 
 export const searchMessages = asyncHandler(async (req, res) => {

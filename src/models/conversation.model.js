@@ -32,6 +32,12 @@ const ConversationSchema = new Schema(
     },
     lastMessage: {
       text: { type: String, default: '' },
+      type: {
+        type: String,
+        enum: ['text', 'audio'],
+        default: 'text'
+      },
+      audioDuration: { type: Number, default: null },
       sender: { type: Schema.Types.ObjectId, ref: 'User' },
       timestamp: { type: Date, default: Date.now }
     },
