@@ -5822,9 +5822,6 @@
   const contactSendBtn = document.getElementById('cpSend');
   const contactCounter = document.getElementById('cpCounter');
   const contactError = document.getElementById('cpError');
-  const contactSuggestions = contactPopover
-    ? Array.from(contactPopover.querySelectorAll('.chip'))
-    : [];
   const detailsVisitBtn = document.getElementById('detailsVisit');
   const detailsActionsContainer = document.querySelector('.details-actions');
   const detailsTags = document.getElementById('detailsTags');
@@ -6674,7 +6671,6 @@
       contactCancelBtn?.setAttribute('disabled', '');
       contactCloseBtn?.setAttribute('disabled', '');
       contactMessage?.setAttribute('readonly', '');
-      contactSuggestions.forEach((btn) => btn.setAttribute('disabled', ''));
     } else {
       contactSending = false;
       contactSendBtn.classList.remove('is-loading');
@@ -6682,7 +6678,6 @@
       contactCancelBtn?.removeAttribute('disabled');
       contactCloseBtn?.removeAttribute('disabled');
       contactMessage?.removeAttribute('readonly');
-      contactSuggestions.forEach((btn) => btn.removeAttribute('disabled'));
     }
   }
 
@@ -7107,34 +7102,6 @@
     }
   });
 
-  contactSuggestions.forEach((chip) => {
-    chip.addEventListener('click', () => {
-      if (!contactMessage || chip.hasAttribute('disabled')) {
-        return;
-      }
-      const text = chip.textContent?.trim();
-      if (!text) {
-        return;
-      }
-      const needsSpace = contactMessage.value && !contactMessage.value.endsWith(' ');
-      contactMessage.value = contactMessage.value.trimEnd();
-      contactMessage.value = contactMessage.value
-        ? `${contactMessage.value}${needsSpace ? ' ' : ''}${text}`
-        : text;
-      if (contactMessage.value.length > CONTACT_MAX_LENGTH) {
-        contactMessage.value = contactMessage.value.slice(0, CONTACT_MAX_LENGTH);
-      }
-      updateContactCounter();
-      autoSizeContactMessage();
-      clearContactError();
-      contactMessage.focus({ preventScroll: true });
-      requestAnimationFrame(() => {
-        const len = contactMessage.value.length;
-        contactMessage.setSelectionRange(len, len);
-      });
-    });
-  });
-
   async function sendContactMessage() {
     if (!contactPopover || contactPopover.hasAttribute('hidden')) {
       return;
@@ -7175,7 +7142,6 @@
           conversationId: response.conversation.id,
           created: response.created
         });
-        window.ChatUI?.open(response.conversation.id);
       }
       resetContactForm();
       closeContactPopover({ restoreFocus: true });

@@ -21,8 +21,7 @@ async function startConversation(adId, userId, initialText) {
   }
   let conversation = await Conversation.findOne({ adId, buyerId: userId, ownerId: ad.owner });
   let created = false;
-  const sanitizedText =
-    typeof initialText === 'string' ? initialText.trim().slice(0, 2000) : '';
+  const sanitizedText = typeof initialText === 'string' ? initialText.trim().slice(0, 2000) : '';
   const hasInitialMessage = sanitizedText.length > 0;
   if (!conversation) {
     conversation = await Conversation.create({

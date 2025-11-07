@@ -1604,36 +1604,6 @@ main.container {
   cursor: wait;
 }
 
-.cp-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.cp-suggestions .chip {
-  border: none;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  background: rgba(var(--color-info-500-rgb), .12);
-  cursor: pointer;
-  transition: transform .16s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
-}
-
-.cp-suggestions .chip:hover {
-  transform: translateY(-1px);
-  background: rgba(var(--color-info-500-rgb), .18);
-  box-shadow: 0 8px 18px rgba(var(--color-info-rgb), .18);
-}
-
-.cp-suggestions .chip:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--color-info-rgb), .28);
-}
-
 .cp-error {
   margin: 0;
   font-size: 12px;
@@ -1685,8 +1655,7 @@ main.container {
     transform: none;
   }
 
-  .icon-btn,
-  .cp-suggestions .chip {
+  .icon-btn {
     transition: none;
   }
 }
@@ -2348,4 +2317,3 @@ main.container {
     align-items: center;
   }
 }
-

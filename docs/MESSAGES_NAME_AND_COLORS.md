@@ -14,12 +14,17 @@ Afficher le nom réel de l'autre participant dans la liste des conversations et 
 2. Frontend
    - `messages.js`: aucune modification nécessaire (utilisait déjà `getConversationContactName(conversation)` qui détecte maintenant `otherParticipant.name`).
 
-3. Styles
-   - `public/css/modules/messages.css`: variables remplacées pour pointer vers les tokens globaux (`--color-background`, `--color-surface`, `--color-brand-*`).
+3. Styles (Bulles & Zone de saisie)
    - Bulles:
-     - Bulles reçues: `var(--messages-bg-bubble)` → `var(--color-surface)`.
-     - Bulles envoyées: `var(--messages-bg-bubble-own)` → `var(--color-brand-50)` (couleur plus douce, texte en `var(--messages-accent-strong)`).
-     - Ajout d'un léger `border` pour différencier visuellement sans agressivité.
+     - Reçues: fond `var(--color-surface)` pour neutralité.
+     - Envoyées: fond `var(--color-brand-50)` + texte `var(--messages-accent-strong)` -> cohérence palette & contraste.
+     - Légère bordure et ombre adoucies.
+   - Zone de saisie (`.chat-panel__input-row`):
+     - Fond dégradé subtil (surface → surface cloud) + focus avec tint brand.
+     - Bouton envoyer: gradient `var(--color-brand-100 → var(--color-brand-500)` + hover/active states améliorés.
+     - Bouton pièce jointe: radial gradient doux + ombres unifiées.
+     - Textarea: fond ghost, focus avec halo et border brand pour accessibilité.
+     - États disabled: atténuation + accessibilité visuelle (contraste conservé du pictogramme).
 
 ## Effet Utilisateur
 - Le nom affiché dans le footer de la conversation montre maintenant le nom de l'autre personne au lieu du titre de l'annonce (ex: "Moteur Clio 5" devient le nom réel du vendeur/acheteur).
@@ -29,9 +34,10 @@ Afficher le nom réel de l'autre participant dans la liste des conversations et 
 - Test temps réel `chatRealtime.test.js` exécuté avec succès après modifications (population + format). Aucun échec lié aux changements.
 
 ## Suivi / Idées Futures
-- Ajouter `ownerName` dans l'objet `ad` pour affichages spécifiques (si besoin d'un fallback supplémentaire).
-- Option de thème sombre: prévoir variantes des variables `--messages-*`.
-- Accessibilité: vérifier contraste WCAG des textes sur `--color-brand-50`.
+ - Ajouter `ownerName` dans l'objet `ad` pour fallback supplémentaire.
+ - Mode sombre: décliner `--messages-*` + variantes input row.
+ - Accessibilité: audit contraste (bulles + gradient send) et aria-live pour note limite.
+ - Auto-resize progressive du textarea (hauteur dynamique) pour UX améliorée.
 
 ## Régression Potentielle
 Aucune rupture attendue: champ additionnel uniquement. Si ancien cache frontend, vider avant vérification.
