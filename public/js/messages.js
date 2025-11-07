@@ -74,6 +74,8 @@
     dom.messagesWrapper = document.querySelector('.chat-panel__messages-wrapper');
     dom.chatMessages = document.getElementById('chatMessages');
     dom.typingIndicator = document.getElementById('typingIndicator');
+    dom.typingIndicatorText = dom.typingIndicator?.querySelector('.mm-typing__text') || null;
+    dom.typingIndicatorAvatar = dom.typingIndicator?.querySelector('.mm-typing__avatar') || null;
     dom.scrollToBottom = document.getElementById('scrollToBottom');
     dom.chatTextarea = document.getElementById('chatTextarea');
     dom.chatSend = document.getElementById('chatSend');
@@ -440,11 +442,39 @@
   function enhanceConversation(raw) {
     if (!raw) return null;
     const id = String(raw.id || raw._id);
-    const lastMessageAt = raw.lastMessageAt ? new Date(raw.lastMessageAt) : null;
     const createdAt = raw.createdAt ? new Date(raw.createdAt) : null;
     const other = raw.otherParticipant || null;
     const ad = raw.ad || null;
+    const lastMessageRaw =
+      raw.lastMessage && typeof raw.lastMessage === 'object' ? raw.lastMessage : null;
+    const lastMessage = lastMessageRaw
+      ? {
+          ...lastMessageRaw,
+          id: lastMessageRaw.id
+            ? String(lastMessageRaw.id)
+            : lastMessageRaw._id
+              ? String(lastMessageRaw._id)
+              : undefined,
+          sender: lastMessageRaw.sender ? String(lastMessageRaw.sender) : lastMessageRaw.sender,
+          recipient: lastMessageRaw.recipient
+            ? String(lastMessageRaw.recipient)
+            : lastMessageRaw.recipient,
+          status: lastMessageRaw.status || lastMessageRaw.deliveryStatus || null,
+          createdAt: lastMessageRaw.createdAt
+            ? new Date(lastMessageRaw.createdAt)
+            : raw.lastMessageAt
+              ? new Date(raw.lastMessageAt)
+              : null,
+          attachments: Array.isArray(lastMessageRaw.attachments) ? lastMessageRaw.attachments : [],
+          text: lastMessageRaw.text || ''
+        }
+      : null;
+    const lastMessageAt = raw.lastMessageAt
+      ? new Date(raw.lastMessageAt)
+      : lastMessage?.createdAt || null;
     const title = ad?.title || raw.lastMessagePreview || 'Conversation';
+    const lastMessagePreview =
+      raw.lastMessagePreview || (lastMessage ? getMessagePreview(lastMessage) : '');
     return {
       id,
       ad,
@@ -457,8 +487,8 @@
             avatar: other.avatar || null
           }
         : null,
-      lastMessage: raw.lastMessage || null,
-      lastMessagePreview: raw.lastMessagePreview || '',
+      lastMessage,
+      lastMessagePreview,
       lastMessageAt,
       createdAt,
       unreadCount: raw.unreadCount || 0,
@@ -564,20 +594,21 @@
         button.classList.add('has-unread');
       }
 
-      const avatar = document.createElement('span');
-      avatar.className = 'conversation-item__avatar';
-      avatar.innerHTML = buildAvatar(conversation);
+      const cover = document.createElement('span');
+      cover.className = 'conversation-item__cover';
+      cover.innerHTML = buildConversationCover(conversation);
+      button.appendChild(cover);
 
-      const body = document.createElement('span');
-      body.className = 'conversation-item__body';
+      const main = document.createElement('span');
+      main.className = 'conversation-item__main';
 
-      const topLine = document.createElement('div');
-      topLine.className = 'conversation-item__top';
+      const header = document.createElement('div');
+      header.className = 'conversation-item__header';
 
       const title = document.createElement('span');
       title.className = 'conversation-item__title';
       title.textContent = conversation.title || 'Conversation';
-      topLine.appendChild(title);
+      header.appendChild(title);
 
       const time = document.createElement('time');
       time.className = 'conversation-item__time';
@@ -585,26 +616,51 @@
         time.dateTime = conversation.lastMessageAt.toISOString();
         time.textContent = formatRelativeTime(conversation.lastMessageAt);
       }
-      topLine.appendChild(time);
+      header.appendChild(time);
 
-      const bottomLine = document.createElement('div');
-      bottomLine.className = 'conversation-item__bottom';
-
-      const partner = document.createElement('span');
-      partner.className = 'conversation-item__partner';
-      partner.textContent = conversation.otherParticipant?.name || 'Contact';
-      bottomLine.appendChild(partner);
-
-      const preview = document.createElement('span');
+      const preview = document.createElement('p');
       preview.className = 'conversation-item__preview';
-      preview.textContent = conversation.lastMessagePreview || 'Nouvelle conversation';
-      bottomLine.appendChild(preview);
+      const previewText = (conversation.lastMessagePreview || '').trim();
+      preview.textContent = previewText || 'Commencez la discussion';
 
-      body.appendChild(topLine);
-      body.appendChild(bottomLine);
+      const footer = document.createElement('div');
+      footer.className = 'conversation-item__footer';
 
-      button.appendChild(avatar);
-      button.appendChild(body);
+      const contact = document.createElement('span');
+      contact.className = 'conversation-item__contact';
+      const contactAvatar = document.createElement('span');
+      contactAvatar.className = 'conversation-item__contact-avatar';
+      contactAvatar.innerHTML = buildContactAvatar(conversation);
+      contact.appendChild(contactAvatar);
+      const contactName = document.createElement('span');
+      contactName.className = 'conversation-item__contact-name';
+      contactName.textContent = conversation.otherParticipant?.name || 'Contact';
+      contact.appendChild(contactName);
+      footer.appendChild(contact);
+
+      const lastMessage = conversation.lastMessage || null;
+      const fromMe = lastMessage?.sender === state.userId;
+      const lastStatus = lastMessage?.status || lastMessage?.deliveryStatus || null;
+
+      if (conversation.unreadCount > 0) {
+        const pill = document.createElement('span');
+        pill.className = 'conversation-item__pill';
+        pill.textContent =
+          conversation.unreadCount > 1 ? `${conversation.unreadCount} non lus` : 'Nouveau';
+        footer.appendChild(pill);
+      } else if (fromMe && lastStatus) {
+        const status = document.createElement('span');
+        status.className = 'conversation-item__status';
+        status.dataset.status = lastStatus;
+        status.textContent = formatStatus(lastStatus);
+        footer.appendChild(status);
+      }
+
+      main.appendChild(header);
+      main.appendChild(preview);
+      main.appendChild(footer);
+
+      button.appendChild(main);
 
       if (conversation.unreadCount > 0) {
         const badge = document.createElement('span');
@@ -620,16 +676,67 @@
     dom.conversationsList.appendChild(fragment);
   }
 
-  function buildAvatar(conversation) {
-    const image = conversation.otherParticipant?.avatar || conversation.ad?.thumbnail || null;
+  function buildConversationCover(conversation) {
+    const ad = conversation.ad || {};
+    const candidates = [
+      ad.thumbnail,
+      ad.cover,
+      ad.coverUrl,
+      ad.preview,
+      ad.previewUrl,
+      ad.image,
+      ad.media,
+      ad.picture
+    ];
+    if (Array.isArray(ad.thumbnails)) {
+      candidates.push(ad.thumbnails[0]);
+    }
+    if (Array.isArray(ad.photos)) {
+      candidates.push(ad.photos[0]);
+    }
+    if (Array.isArray(ad.images)) {
+      candidates.push(ad.images[0]);
+    }
+    if (Array.isArray(ad.previews)) {
+      candidates.push(ad.previews[0]);
+    }
+    if (Array.isArray(ad.pictures)) {
+      candidates.push(ad.pictures[0]);
+    }
+
+    const source = candidates.find((value) => {
+      if (typeof value === 'string' && value.trim().length > 0) return true;
+      if (value && typeof value === 'object' && typeof value.url === 'string' && value.url.trim()) {
+        return true;
+      }
+      return false;
+    });
+
+    let image = null;
+    if (typeof source === 'string') {
+      image = source.trim();
+    } else if (source && typeof source === 'object' && typeof source.url === 'string') {
+      image = source.url.trim();
+    }
+
     if (image) {
-      return `<span class="conversation-item__avatar-img" style="background-image:url('${encodeURI(
+      return `<span class="conversation-item__cover-img" style="background-image:url('${encodeURI(
+        image
+      )}')"></span>`;
+    }
+    return '<span class="conversation-item__cover-fallback" aria-hidden="true">📷</span>';
+  }
+
+  function buildContactAvatar(conversation) {
+    const image = conversation.otherParticipant?.avatar || null;
+    if (image) {
+      return `<span class="conversation-item__contact-avatar-img" style="background-image:url('${encodeURI(
         image
       )}')"></span>`;
     }
     const name = conversation.otherParticipant?.name || conversation.title || '';
     const letter = name.charAt(0).toUpperCase() || '?';
-    return `<span class="conversation-item__avatar-fallback">${letter}</span>`;
+    return `<span class="conversation-item__contact-avatar-fallback">${letter}</span>`;
   }
 
   function showConversationsSkeleton() {
@@ -640,8 +747,11 @@
       const skeleton = document.createElement('div');
       skeleton.className = 'conversation-item conversation-item--skeleton';
       skeleton.innerHTML = `
-        <span class="conversation-item__avatar"><span class="skeleton-circle"></span></span>
-        <span class="conversation-item__body">
+        <span class="conversation-item__cover">
+          <span class="skeleton-rect skeleton-rect--cover"></span>
+        </span>
+        <span class="conversation-item__main">
+          <span class="skeleton-line skeleton-line--lg"></span>
           <span class="skeleton-line skeleton-line--md"></span>
           <span class="skeleton-line skeleton-line--sm"></span>
         </span>
@@ -709,6 +819,7 @@
     highlightSelectedConversation(conversationId);
     showChatPanel(conversation);
     clearComposerAttachments();
+    hideTypingIndicator();
     joinConversation(conversationId, { markAsRead: true });
     markConversationAsRead(conversationId);
     loadMessages(conversationId);
@@ -863,7 +974,9 @@
     if (isMine) {
       const status = document.createElement('span');
       status.className = 'message-bubble__status';
-      status.textContent = formatStatus(message.status);
+      const statusValue = message.status || 'sent';
+      status.dataset.status = statusValue;
+      status.textContent = formatStatus(statusValue);
       meta.appendChild(status);
     }
 
@@ -960,9 +1073,21 @@
       bubble.appendChild(wrapper);
     }
 
-    const status = bubble.querySelector('.message-bubble__status');
-    if (status && message.sender === state.userId) {
-      status.textContent = formatStatus(message.status);
+    const metaBlock = bubble.querySelector('.message-bubble__meta');
+    let status = bubble.querySelector('.message-bubble__status');
+    if (message.sender === state.userId) {
+      if (!status && metaBlock) {
+        status = document.createElement('span');
+        status.className = 'message-bubble__status';
+        metaBlock.appendChild(status);
+      }
+      if (status) {
+        const statusValue = message.status || 'sent';
+        status.dataset.status = statusValue;
+        status.textContent = formatStatus(statusValue);
+      }
+    } else if (status) {
+      status.remove();
     }
     const time = bubble.querySelector('.message-bubble__time');
     if (time) {
@@ -977,7 +1102,9 @@
     if (!element) return;
     const meta = element.querySelector('.message-bubble__status');
     if (meta) {
-      meta.textContent = formatStatus(status);
+      const statusValue = status || 'sent';
+      meta.dataset.status = statusValue;
+      meta.textContent = formatStatus(statusValue);
     }
     if (at) {
       const timeElement = element.querySelector('.message-bubble__time');
@@ -990,12 +1117,16 @@
   function updateConversationPreview(conversationId, message) {
     const conversation = findConversation(conversationId);
     if (!conversation) return;
+    const preview = getMessagePreview(message);
     conversation.lastMessage = {
-      text: message.text,
+      id: message.id,
       sender: message.sender,
-      timestamp: message.createdAt
+      status: message.status || null,
+      createdAt: message.createdAt,
+      attachments: Array.isArray(message.attachments) ? message.attachments : [],
+      text: message.text || ''
     };
-    conversation.lastMessagePreview = message.text || '[Pièce jointe]';
+    conversation.lastMessagePreview = preview;
     conversation.lastMessageAt = message.createdAt;
   }
 
@@ -1033,6 +1164,7 @@
     hideChatPanel();
     activeConversationId = null;
     state.activeParticipantAvatar = null;
+    hideTypingIndicator();
     clearComposerAttachments();
   }
 
@@ -1372,14 +1504,44 @@
     }, 2200);
   }
 
-  function showTypingIndicator() {
+  function showTypingIndicator(conversationId) {
     if (!dom.typingIndicator) return;
+    if (conversationId) {
+      const conversation = findConversation(conversationId);
+      const name = conversation?.otherParticipant?.name || 'Votre interlocuteur';
+      if (dom.typingIndicatorText) {
+        dom.typingIndicatorText.textContent = `${name} est en train d'écrire…`;
+      }
+      if (dom.typingIndicatorAvatar) {
+        const image =
+          conversation?.otherParticipant?.avatar || state.activeParticipantAvatar || null;
+        dom.typingIndicatorAvatar.style.removeProperty('background-image');
+        dom.typingIndicatorAvatar.classList.remove('has-image');
+        dom.typingIndicatorAvatar.textContent = '';
+        if (image) {
+          dom.typingIndicatorAvatar.style.backgroundImage = `url('${encodeURI(image)}')`;
+          dom.typingIndicatorAvatar.classList.add('has-image');
+        } else {
+          const initial = (name || '').trim().charAt(0).toUpperCase() || '•';
+          dom.typingIndicatorAvatar.textContent = initial;
+        }
+      }
+    } else if (dom.typingIndicatorText) {
+      dom.typingIndicatorText.textContent = "Votre interlocuteur est en train d'écrire…";
+    }
+    dom.typingIndicator.classList.add('is-visible');
     dom.typingIndicator.removeAttribute('hidden');
   }
 
   function hideTypingIndicator() {
     if (!dom.typingIndicator) return;
+    dom.typingIndicator.classList.remove('is-visible');
     dom.typingIndicator.setAttribute('hidden', 'true');
+    if (dom.typingIndicatorAvatar) {
+      dom.typingIndicatorAvatar.style.removeProperty('background-image');
+      dom.typingIndicatorAvatar.classList.remove('has-image');
+      dom.typingIndicatorAvatar.textContent = '';
+    }
   }
 
   function handleSearchInput(event) {
@@ -1440,6 +1602,21 @@
     return escaped.replace(/\n/g, '<br>');
   }
 
+  function getMessagePreview(message) {
+    if (!message) return '';
+    const text = typeof message.text === 'string' ? message.text.trim() : '';
+    if (text) return text;
+    const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+    if (attachments.length === 0) {
+      return 'Nouveau message';
+    }
+    if (attachments.length === 1) {
+      const name = attachments[0]?.originalName?.trim();
+      return name ? `📎 ${name}` : '📎 Pièce jointe';
+    }
+    return `📎 ${attachments.length} pièces jointes`;
+  }
+
   function formatStatus(status) {
     switch (status) {
       case 'read':
@@ -1448,6 +1625,8 @@
         return 'Reçu';
       case 'sending':
         return 'Envoi…';
+      case 'failed':
+        return 'Échec';
       case 'sent':
       default:
         return 'Envoyé';

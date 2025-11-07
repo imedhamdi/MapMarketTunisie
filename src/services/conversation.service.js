@@ -3,6 +3,9 @@ import Ad from '../models/ad.model.js';
 import { createError } from '../utils/asyncHandler.js';
 import { formatConversationForUser } from '../utils/chat.js';
 
+const AD_SUMMARY_FIELDS =
+  'title price thumbnails previews images photos pictures media cover coverUrl previewUrl';
+
 function normalizeId(id) {
   return typeof id === 'object' && id !== null ? id.toString() : id;
 }
@@ -30,6 +33,7 @@ async function startConversation(adId, userId, initialText) {
     });
     created = true;
   }
+  await conversation.populate({ path: 'adId', select: AD_SUMMARY_FIELDS });
   return { conversation: formatConversationForUser(conversation, userId), created };
 }
 
@@ -41,12 +45,16 @@ async function getUserConversations(userId, { limit = 20, skip = 0 } = {}) {
   const conversations = await Conversation.find(query)
     .sort({ lastMessageAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS });
   return conversations.map((c) => formatConversationForUser(c, userId));
 }
 
 async function getConversationById(id, userId) {
-  const convo = await Conversation.findById(id);
+  const convo = await Conversation.findById(id).populate({
+    path: 'adId',
+    select: AD_SUMMARY_FIELDS
+  });
   if (!convo) throw createError.notFound('Conversation introuvable');
   if (!convo.isParticipant(userId)) throw createError.forbidden('Accès à la conversation refusé');
   return convo;

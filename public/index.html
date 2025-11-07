@@ -909,10 +909,6 @@
         <h2 class="mm-title" id="messagesTitle">Messages <span class="messages-header__badge" id="messagesUnreadBadge"></span></h2>
         <button type="button" class="mm-icon messages-header__close" id="messagesClose" aria-label="Fermer">✕</button>
       </div>
-      <div class="messages-status" id="messagesStatus" data-connected="false" aria-live="polite">
-        <span class="messages-status__dot" aria-hidden="true"></span>
-        <span class="messages-status__text">Déconnecté</span>
-      </div>
     </header>
     <div class="messages-drawer__content">
       <div class="messages-drawer__body">
@@ -947,7 +943,17 @@
             </div>
             <div class="chat-panel__messages-wrapper">
               <div class="chat-panel__messages" id="chatMessages" tabindex="0" aria-label="Historique des messages"></div>
-              <div class="mm-typing" id="typingIndicator" hidden>Votre interlocuteur est en train d'écrire…</div>
+              <div class="mm-typing" id="typingIndicator" hidden role="status" aria-live="polite">
+                <span class="mm-typing__avatar" aria-hidden="true"></span>
+                <div class="mm-typing__bubble">
+                  <span class="mm-typing__dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                  <span class="mm-typing__text">Votre interlocuteur est en train d'écrire…</span>
+                </div>
+              </div>
               <button type="button" class="mm-scroll-bottom" id="scrollToBottom" aria-hidden="true">Bas ↓</button>
             </div>
             <div class="chat-panel__input" id="chatInputArea">
