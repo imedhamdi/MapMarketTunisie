@@ -2,12 +2,7 @@ export function formatConversationForUser(conversation, userId) {
   if (!conversation) return null;
   const obj = conversation.toObject ? conversation.toObject() : conversation;
   const unread = conversation.getUnreadCount ? conversation.getUnreadCount(userId) : 0;
-  const adDoc =
-    obj.adId && obj.adId._id
-      ? obj.adId
-      : obj.ad && obj.ad._id
-        ? obj.ad
-        : null;
+  const adDoc = obj.adId && obj.adId._id ? obj.adId : obj.ad && obj.ad._id ? obj.ad : null;
   let ad = null;
   if (adDoc) {
     const thumbnails = Array.isArray(adDoc.thumbnails) ? adDoc.thumbnails : [];
@@ -49,8 +44,7 @@ export function formatConversationForUser(conversation, userId) {
     };
   }
   const adIdValue =
-    adDoc?._id?.toString?.() ??
-    (typeof obj.adId === 'string' ? obj.adId : obj.adId?.toString?.());
+    adDoc?._id?.toString?.() ?? (typeof obj.adId === 'string' ? obj.adId : obj.adId?.toString?.());
 
   return {
     id: obj._id?.toString?.() ?? obj.id,
