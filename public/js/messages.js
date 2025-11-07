@@ -295,7 +295,9 @@
     });
 
     dom.imageViewerClose?.addEventListener('click', closeImageViewer);
-    dom.imageViewer?.querySelector('.image-viewer__overlay')?.addEventListener('click', closeImageViewer);
+    dom.imageViewer
+      ?.querySelector('.image-viewer__overlay')
+      ?.addEventListener('click', closeImageViewer);
 
     dom.searchInput?.addEventListener('input', handleSearchInput);
     dom.searchClear?.addEventListener('click', handleSearchClear);
@@ -524,12 +526,12 @@
         window.showToast('Connectez-vous pour ouvrir la messagerie.');
       }
       return; // On stop ici, pas d'ouverture d'overlay ni du modal
-    } else {
-      ensureSocket();
-      if (!state.conversationsLoaded && !state.loadingConversations) {
-        loadConversations();
-      }
     }
+    ensureSocket();
+    if (!state.conversationsLoaded && !state.loadingConversations) {
+      loadConversations();
+    }
+
     if (conversationId) {
       pendingSelectConversationId = conversationId;
       if (state.conversationsLoaded) {
@@ -1238,7 +1240,7 @@
     if (content?.title && title) title.textContent = content.title;
     if (content?.text && text) text.textContent = content.text;
     dom.conversationsEmpty.hidden = false;
-    
+
     // Cacher chatPanel et messagesSidebar quand il n'y a pas de conversations
     if (dom.chatPanel) {
       dom.chatPanel.style.display = 'none';
@@ -1252,7 +1254,7 @@
     if (dom.conversationsEmpty) {
       dom.conversationsEmpty.hidden = true;
     }
-    
+
     // Réafficher chatPanel et messagesSidebar quand il y a des conversations
     if (dom.chatPanel) {
       dom.chatPanel.style.display = '';
@@ -1498,7 +1500,7 @@
       message.attachments.forEach((attachment) => {
         const isImage = attachment.thumbnailUrl || attachment.mime?.startsWith('image/');
         const href = attachment.url || (attachment.key ? `/uploads/chat/${attachment.key}` : null);
-        
+
         if (isImage) {
           // Pour les images, créer un élément cliquable qui ouvre la visionneuse
           const item = document.createElement('button');
@@ -1885,7 +1887,7 @@
       message.attachments.forEach((attachment) => {
         const isImage = attachment.thumbnailUrl || attachment.mime?.startsWith('image/');
         const href = attachment.url || (attachment.key ? `/uploads/chat/${attachment.key}` : null);
-        
+
         if (isImage) {
           // Pour les images, créer un élément cliquable qui ouvre la visionneuse
           const item = document.createElement('button');
