@@ -33,7 +33,9 @@ async function startConversation(adId, userId, initialText) {
     });
     created = true;
   }
+  // Populate ad + participants so the frontend can display the other participant name & avatar
   await conversation.populate({ path: 'adId', select: AD_SUMMARY_FIELDS });
+  await conversation.populate({ path: 'participants', select: 'name avatar avatarUrl' });
   return { conversation: formatConversationForUser(conversation, userId), created };
 }
 
@@ -46,15 +48,15 @@ async function getUserConversations(userId, { limit = 20, skip = 0 } = {}) {
     .sort({ lastMessageAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS });
+    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS })
+    .populate({ path: 'participants', select: 'name avatar avatarUrl' });
   return conversations.map((c) => formatConversationForUser(c, userId));
 }
 
 async function getConversationById(id, userId) {
-  const convo = await Conversation.findById(id).populate({
-    path: 'adId',
-    select: AD_SUMMARY_FIELDS
-  });
+  const convo = await Conversation.findById(id)
+    .populate({ path: 'adId', select: AD_SUMMARY_FIELDS })
+    .populate({ path: 'participants', select: 'name avatar avatarUrl' });
   if (!convo) throw createError.notFound('Conversation introuvable');
   if (!convo.isParticipant(userId)) throw createError.forbidden('Accès à la conversation refusé');
   return convo;

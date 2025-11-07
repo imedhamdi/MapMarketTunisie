@@ -916,9 +916,19 @@
           <!-- Sidebar conversations -->
           <aside class="messages-sidebar" id="messagesSidebar">
             <div class="messages-sidebar__header">
-              <h3 class="messages-sidebar__title">Conversations</h3>
-              <p class="messages-sidebar__hint">Sélectionnez une conversation pour commencer</p>
-              <div class="messages-search"><input id="messagesSearch" type="search" placeholder="Recherche…" autocomplete="off"></div>
+              <div class="messages-sidebar__intro">
+                <h3 class="messages-sidebar__title">Conversations</h3>
+                <p class="messages-sidebar__hint">Restez en contact avec les vendeurs et acheteurs.</p>
+              </div>
+              <div class="messages-search">
+                <input id="messagesSearch" type="search" placeholder="Recherche…" autocomplete="off">
+                <button type="button" class="messages-search__clear" id="messagesSearchClear" aria-label="Effacer la recherche" hidden>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                    <line x1="6" y1="18" x2="18" y2="6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="conversations-list" id="conversationsList" aria-live="polite"></div>
             <div class="conversations-list__empty" id="conversationsEmpty" hidden>
@@ -960,13 +970,23 @@
               <div class="chat-panel__attachments" id="chatAttachmentPreview" hidden></div>
               <div class="chat-panel__input-row">
                 <button type="button" class="chat-panel__attach" id="chatAttachBtn" aria-label="Ajouter une pièce jointe">
-                  <span aria-hidden="true">📎</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M21.44 11.05 12 20.5a5 5 0 0 1-7.07-7.07l11-11a3.5 3.5 0 0 1 4.95 4.95l-11 11a2 2 0 0 1-2.83-2.83l9.19-9.18" />
+                  </svg>
                 </button>
                 <div class="chat-panel__input-field">
-                  <textarea id="chatTextarea" rows="2" maxlength="2000" placeholder="Écrire un message…" aria-label="Écrire un message"></textarea>
+                  <textarea id="chatTextarea" rows="2" maxlength="2000" placeholder="Écrivez votre message…" aria-label="Écrire un message"></textarea>
                   <p class="chat-panel__input-note" id="chatInputNote" hidden>Limite atteinte</p>
                 </div>
-                <button type="button" class="chat-panel__send" id="chatSend" disabled>Envoyer</button>
+                <button type="button" class="chat-panel__send" id="chatSend" aria-label="Envoyer" disabled>
+                  <span class="chat-panel__send-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m3 3 18 9-18 9 4.5-9z" />
+                      <path d="M3 3l4.5 9L21 12" />
+                    </svg>
+                  </span>
+                  <span class="sr-only">Envoyer</span>
+                </button>
               </div>
               <input type="file" id="chatFileInput" class="chat-panel__file-input" accept="image/jpeg,image/png,image/webp" multiple hidden>
             </div>

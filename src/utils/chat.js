@@ -46,11 +46,29 @@ export function formatConversationForUser(conversation, userId) {
   const adIdValue =
     adDoc?._id?.toString?.() ?? (typeof obj.adId === 'string' ? obj.adId : obj.adId?.toString?.());
 
+  // Build otherParticipant object (the user opposite of current userId)
+  let otherParticipant = null;
+  if (Array.isArray(obj.participants)) {
+    const rawOther = obj.participants.find((p) => {
+      const pid = p && (p._id?.toString?.() ?? p.toString?.() ?? p.id);
+      return pid && pid.toString() !== userId.toString();
+    });
+    if (rawOther) {
+      const pid = rawOther._id?.toString?.() ?? rawOther.id?.toString?.() ?? rawOther.toString?.();
+      otherParticipant = {
+        id: pid,
+        name: rawOther.name || null,
+        avatar: rawOther.avatarUrl || rawOther.avatar || null
+      };
+    }
+  }
+
   return {
     id: obj._id?.toString?.() ?? obj.id,
     adId: adIdValue,
     ad,
     participants: obj.participants,
+    otherParticipant,
     ownerId: obj.ownerId,
     buyerId: obj.buyerId,
     lastMessage: obj.lastMessage,

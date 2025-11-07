@@ -6,19 +6,21 @@
   const CONVERSATION_LIMIT = 60;
   const MESSAGE_LIMIT = 80;
   const MAX_ATTACHMENTS = 5;
+  const LAYOUT_BREAKPOINT = 960;
   const ATTACHMENT_PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2399A4B5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10'/%3E%3Crect x='3' y='13' width='18' height='8' rx='2'/%3E%3Ccircle cx='12' cy='17' r='1.5'/%3E%3C/svg%3E";
 
   let socket = null;
-  let isConnected = false;
   let activeConversationId = null;
   let readFlushTimer = null;
   let typingTimer = null;
   let pendingSelectConversationId = null;
   let composerAttachments = [];
+  let compactLayoutQuery = null;
 
   const pendingRead = new Set();
   const pendingMessages = new Map();
+  const pendingRemoteRead = new Set();
 
   const state = {
     conversations: [],
@@ -42,12 +44,13 @@
   function init() {
     cacheDom();
     bindUiEvents();
+    setupLayoutObserver();
     hydrateUser();
     renderConversations();
     renderEmptyMessages();
     renderComposerAttachments();
     updateSendButtonState();
-    updateStatusIndicator();
+    updateSearchClearButton();
   }
 
   function cacheDom() {
@@ -57,10 +60,9 @@
     dom.openBottom = document.querySelector('.bn-btn[data-action="messages"]');
     dom.close = document.getElementById('messagesClose');
     dom.messagesLayout = document.getElementById('messagesLayout');
-    dom.messagesStatus = document.getElementById('messagesStatus');
-    dom.messagesStatusText = dom.messagesStatus?.querySelector('.messages-status__text');
     dom.messagesUnreadBadge = document.getElementById('messagesUnreadBadge');
     dom.searchInput = document.getElementById('messagesSearch');
+    dom.searchClear = document.getElementById('messagesSearchClear');
     dom.sidebar = document.getElementById('messagesSidebar');
     dom.conversationsList = document.getElementById('conversationsList');
     dom.conversationsEmpty = document.getElementById('conversationsEmpty');
@@ -98,6 +100,7 @@
     });
 
     dom.searchInput?.addEventListener('input', handleSearchInput);
+    dom.searchClear?.addEventListener('click', handleSearchClear);
     dom.chatBack?.addEventListener('click', handleBackToList);
     dom.chatDelete?.addEventListener('click', handleHideConversation);
     dom.chatBannerClose?.addEventListener('click', dismissSecurityBanner);
@@ -131,6 +134,49 @@
 
     document.addEventListener('auth:change', handleAuthChange);
     document.addEventListener('chat:conversation-started', handleConversationStartedEvent);
+  }
+
+  function setupLayoutObserver() {
+    if (typeof window.matchMedia !== 'function') {
+      return;
+    }
+    compactLayoutQuery = window.matchMedia(`(max-width: ${LAYOUT_BREAKPOINT}px)`);
+    const applyLayout = () => {
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(syncLayoutMode);
+      } else {
+        syncLayoutMode();
+      }
+    };
+    if (typeof compactLayoutQuery.addEventListener === 'function') {
+      compactLayoutQuery.addEventListener('change', applyLayout);
+    } else if (typeof compactLayoutQuery.addListener === 'function') {
+      compactLayoutQuery.addListener(applyLayout);
+    }
+    syncLayoutMode();
+  }
+
+  function isCompactLayout() {
+    if (compactLayoutQuery) {
+      return compactLayoutQuery.matches;
+    }
+    return window.innerWidth <= LAYOUT_BREAKPOINT;
+  }
+
+  function syncLayoutMode() {
+    if (!dom.chatPanel || !dom.messagesLayout) return;
+    if (isCompactLayout()) {
+      if (activeConversationId) {
+        dom.chatPanel.classList.remove('chat-panel--hidden');
+        dom.messagesLayout.classList.add('messages-layout--detail');
+      } else {
+        dom.chatPanel.classList.add('chat-panel--hidden');
+        dom.messagesLayout.classList.remove('messages-layout--detail');
+      }
+    } else {
+      dom.chatPanel.classList.remove('chat-panel--hidden');
+      dom.messagesLayout.classList.remove('messages-layout--detail');
+    }
   }
 
   function hydrateUser() {
@@ -181,6 +227,10 @@
       clearTimeout(readFlushTimer);
       readFlushTimer = null;
     }
+    if (dom.searchInput) {
+      dom.searchInput.value = '';
+    }
+    updateSearchClearButton();
     clearComposerAttachments();
     updateUnreadBadge();
     renderConversations();
@@ -231,6 +281,7 @@
     dom.modal.classList.add('mm-open');
     dom.modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    syncLayoutMode();
   }
 
   function closeModal() {
@@ -276,8 +327,6 @@
   function bindSocketEvents() {
     if (!socket) return;
     socket.on('connect', () => {
-      isConnected = true;
-      updateStatusIndicator();
       if (activeConversationId) {
         socket.emit('conversation:join', {
           conversationId: activeConversationId,
@@ -285,16 +334,8 @@
         });
       }
     });
-    socket.on('disconnect', (reason) => {
-      isConnected = false;
-      updateStatusIndicator(reason || null);
-    });
-    socket.on('reconnect_attempt', () => {
-      updateStatusIndicator('Reconnexion…');
-    });
     socket.on('error', (payload) => {
       console.warn('[chat:error]', payload);
-      updateStatusIndicator(payload?.message || 'Erreur');
     });
     socket.on('message:new', async (payload) => {
       await handleIncomingMessage(payload);
@@ -634,7 +675,7 @@
       contact.appendChild(contactAvatar);
       const contactName = document.createElement('span');
       contactName.className = 'conversation-item__contact-name';
-      contactName.textContent = conversation.otherParticipant?.name || 'Contact';
+      contactName.textContent = getConversationContactName(conversation);
       contact.appendChild(contactName);
       footer.appendChild(contact);
 
@@ -737,6 +778,20 @@
     const name = conversation.otherParticipant?.name || conversation.title || '';
     const letter = name.charAt(0).toUpperCase() || '?';
     return `<span class="conversation-item__contact-avatar-fallback">${letter}</span>`;
+  }
+
+  function getConversationContactName(conversation) {
+    if (!conversation) return 'Contact';
+    const participant = conversation.otherParticipant || {};
+    return (
+      participant.name ||
+      participant.displayName ||
+      participant.fullName ||
+      participant.username ||
+      conversation.ad?.ownerName ||
+      conversation.title ||
+      'Contact'
+    );
   }
 
   function showConversationsSkeleton() {
@@ -850,9 +905,13 @@
   function showChatPanel(conversation) {
     if (!dom.chatPanel) return;
     dom.chatPanel.classList.remove('chat-panel--hidden');
-    dom.messagesLayout?.classList.add('messages-layout--detail');
+    if (isCompactLayout()) {
+      dom.messagesLayout?.classList.add('messages-layout--detail');
+    } else {
+      dom.messagesLayout?.classList.remove('messages-layout--detail');
+    }
     dom.chatTitle.textContent = conversation.title || 'Conversation';
-    const partner = conversation.otherParticipant?.name || 'Contact';
+    const partner = getConversationContactName(conversation);
     const adTitle = conversation.ad?.title || '';
     dom.chatSubtitle.textContent = adTitle ? `${partner} • ${adTitle}` : partner;
     dom.chatDelete.hidden = false;
@@ -864,13 +923,30 @@
         dom.chatBanner.removeAttribute('hidden');
       }
     }
+    syncLayoutMode();
   }
 
   function hideChatPanel() {
-    dom.chatPanel?.classList.add('chat-panel--hidden');
-    dom.messagesLayout?.classList.remove('messages-layout--detail');
     renderEmptyMessages();
-    dom.chatDelete && (dom.chatDelete.hidden = true);
+    if (!dom.chatPanel) return;
+    if (isCompactLayout()) {
+      dom.chatPanel.classList.add('chat-panel--hidden');
+    } else {
+      dom.chatPanel.classList.remove('chat-panel--hidden');
+    }
+    dom.messagesLayout?.classList.remove('messages-layout--detail');
+    if (dom.chatTitle) {
+      dom.chatTitle.textContent = 'Sélectionnez une conversation';
+    }
+    if (dom.chatSubtitle) {
+      dom.chatSubtitle.textContent = 'Vos messages apparaîtront ici.';
+    }
+    if (dom.chatDelete) {
+      dom.chatDelete.hidden = true;
+      dom.chatDelete.disabled = true;
+    }
+    dom.chatBanner?.setAttribute('hidden', 'true');
+    syncLayoutMode();
   }
 
   function dismissSecurityBanner() {
@@ -1130,15 +1206,32 @@
     conversation.lastMessageAt = message.createdAt;
   }
 
-  function markConversationAsRead(conversationId) {
+  function markConversationAsRead(conversationId, options = {}) {
     const conversation = findConversation(conversationId);
     if (!conversation) return;
-    if (conversation.unreadCount > 0) {
+    const shouldSync = options?.syncServer !== false;
+    const hadUnread = conversation.unreadCount > 0;
+    if (hadUnread) {
       const previous = conversation.unreadCount;
       conversation.unreadCount = 0;
       state.unreadTotal = Math.max(0, state.unreadTotal - previous);
       updateUnreadBadge();
       renderConversations();
+    }
+    if (shouldSync && hadUnread) {
+      syncConversationRead(conversationId);
+    }
+  }
+
+  async function syncConversationRead(conversationId) {
+    if (!conversationId || pendingRemoteRead.has(conversationId)) return;
+    pendingRemoteRead.add(conversationId);
+    try {
+      await apiFetch(`/chat/conversations/${conversationId}/read`, { method: 'POST' });
+    } catch (error) {
+      console.warn('[chat] sync read failed', error);
+    } finally {
+      pendingRemoteRead.delete(conversationId);
     }
   }
 
@@ -1159,13 +1252,12 @@
   }
 
   function handleBackToList() {
-    dom.messagesLayout?.classList.remove('messages-layout--detail');
-    highlightSelectedConversation('');
-    hideChatPanel();
     activeConversationId = null;
     state.activeParticipantAvatar = null;
+    highlightSelectedConversation('');
     hideTypingIndicator();
     clearComposerAttachments();
+    hideChatPanel();
   }
 
   async function handleHideConversation() {
@@ -1546,7 +1638,27 @@
 
   function handleSearchInput(event) {
     state.searchTerm = event.target.value || '';
+    updateSearchClearButton();
     applySearch();
+  }
+
+  function handleSearchClear() {
+    if (!dom.searchInput) return;
+    dom.searchInput.value = '';
+    state.searchTerm = '';
+    updateSearchClearButton();
+    applySearch();
+    dom.searchInput.focus();
+  }
+
+  function updateSearchClearButton() {
+    if (!dom.searchClear) return;
+    const hasValue = Boolean(state.searchTerm && state.searchTerm.trim().length);
+    if (hasValue) {
+      dom.searchClear.removeAttribute('hidden');
+    } else {
+      dom.searchClear.setAttribute('hidden', 'true');
+    }
   }
 
   function scrollMessagesToBottom({ smooth = true, force = false } = {}) {
@@ -1559,17 +1671,6 @@
       top: dom.chatMessages.scrollHeight,
       behavior: smooth ? 'smooth' : 'auto'
     });
-  }
-
-  function updateStatusIndicator(extra) {
-    if (!dom.messagesStatus) return;
-    dom.messagesStatus.dataset.connected = String(isConnected);
-    if (dom.messagesStatusText) {
-      dom.messagesStatusText.textContent = isConnected ? 'Connecté' : 'Déconnecté';
-      if (extra) {
-        dom.messagesStatusText.textContent += ` (${extra})`;
-      }
-    }
   }
 
   function updateUnreadBadge() {
