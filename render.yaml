@@ -2,29 +2,88 @@ services:
   - type: web
     name: mapmarket-tunisie
     env: node
-    region: frankfurt # Plus proche de la Tunisie
+    runtime: node  # explicite si nécessaire
+    region: frankfurt       # proche de la Tunisie / Europe
     plan: free
-    buildCommand: npm install && npm run build
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /health  # route réelle définie dans health.routes.js
     envVars:
+      # --- Environnement général ---
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 4000
-      - key: MONGODB_URI
-        sync: false # À configurer manuellement dans Render Dashboard
-      - key: REDIS_URL
-        sync: false # À configurer manuellement
-      - key: JWT_SECRET
-        sync: false # À configurer manuellement
+      - key: CLIENT_ORIGIN
+        value: https://mapmarket-tunisie.onrender.com
+      - key: RESET_BASE_URL
+        value: https://mapmarket-tunisie.onrender.com/reset-password
+
+      # --- MongoDB --- (MONGO_URI obligatoire en prod selon env.js)
+      - key: MONGO_URI
+        sync: false   # À saisir dans le dashboard (Atlas connection string)
+      - key: MONGO_DB_NAME
+        value: mapmarket
+
+      # --- JWT & Auth ---
+      - key: JWT_ACCESS_SECRET
+        sync: false   # Secret fort (>=32 chars)
       - key: JWT_REFRESH_SECRET
+        sync: false   # Secret fort (distinct du access)
+      - key: JWT_ACCESS_EXPIRES
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES
+        value: 30d
+      - key: COOKIE_SAME_SITE
+        value: lax
+
+      # --- Monitoring / Sécurité ---
+      - key: MONITORING_TOKEN
+        sync: false   # Token non dev-*
+      - key: MONITORING_TOKEN_REQUIRED
+        value: true
+      - key: MONITORING_ALLOWED_IPS
+        value: 127.0.0.1,::1
+
+      # --- Redis (optionnel, active le cache) ---
+      - key: REDIS_ENABLED
+        value: true
+      - key: REDIS_URL
+        sync: false   # Upstash / autre provider
+      - key: REDIS_PASSWORD
+        sync: false   # si requis par votre provider
+
+      # --- SMTP / Email ---
+      - key: MAIL_FROM
+        value: MapMarket <no-reply@mapmarket.tn>
+      - key: SMTP_HOST
+        sync: false   # ex: smtp.sendgrid.net / smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
         sync: false
-      - key: MAILER_HOST
+      - key: SMTP_PASS
         sync: false
-      - key: MAILER_PORT
-        sync: false
-      - key: MAILER_USER
-        sync: false
-      - key: MAILER_PASS
-        sync: false
+
+      # --- Socket.IO ---
+      - key: SOCKET_IO_ENABLED
+        value: true
+      - key: SOCKET_IO_PATH
+        value: /ws/chat
+      - key: SOCKET_IO_CORS_ORIGINS
+        value: https://mapmarket-tunisie.onrender.com
+
+      # --- Chat limits ---
+      - key: CHAT_MESSAGES_PER_MINUTE
+        value: 60
+      - key: CHAT_TYPING_EVENTS_PER_10S
+        value: 20
+      - key: CHAT_TYPING_DEBOUNCE_MS
+        value: 3000
+
+      # --- Logs / Optionnels ---
+      - key: ENABLE_FILE_LOGS
+        value: false
+
+      # Vous pouvez ajouter d'autres variables si nécessaires plus tard.
