@@ -43,6 +43,11 @@
       this.durationInterval = null;
       this.ringtoneAudio = null;
       this.notificationAudio = null;
+      this._pendingOffer = null;
+      this._pendingIncomingOffer = null; // Stocker l'offre entrante jusqu'à answerCall
+      this._audioContext = null;
+      this._oscillator = null;
+      this._ringtoneInterval = null;
 
       // Callbacks
       this.onStateChange = null;
@@ -222,21 +227,39 @@
      * Gérer un appel entrant
      */
     handleIncomingCall(data) {
+      console.log('[VoiceCall] handleIncomingCall - État actuel:', {
+        isInitiator: this.isInitiator,
+        hasPendingOffer: !!this._pendingOffer,
+        hasCurrentCall: !!this.currentCall,
+        callState: this.callState
+      });
+      
       const wasInitiatorWaitingOffer = this.isInitiator && this._pendingOffer && !this.currentCall;
       this.currentCall = data;
       this.conversationId = data.conversationId;
 
       if (wasInitiatorWaitingOffer) {
         // L'initiateur reçoit aussi call:incoming, nous pouvons maintenant envoyer l'offre
+        console.log('[VoiceCall] Initiateur envoie offre avec callId:', data.callId);
         this.socket.emit('call:offer', {
           callId: data.callId,
           conversationId: data.conversationId,
           offer: this.peerConnection?.localDescription
         });
+        this._pendingOffer = null; // Nettoyage après envoi
       } else {
-        // Côté destinataire (non initiateur) => sonnerie
+        // Côté destinataire (non initiateur) => rejoindre room + sonnerie
+        console.log('[VoiceCall] Destinataire reçoit appel entrant, callId:', data.callId);
         this.isInitiator = false;
         this.remoteUserId = data.initiatorId;
+        
+        // Rejoindre la room conversation pour recevoir les événements WebRTC
+        this.socket.emit('conversation:join', {
+          conversationId: data.conversationId,
+          markAsRead: false
+        });
+        console.log('[VoiceCall] Destinataire rejoint conversation room:', data.conversationId);
+        
         this.updateCallState(CALL_STATES.RINGING);
         this.playRingtone();
       }
@@ -257,11 +280,14 @@
      * Répondre à un appel entrant
      */
     async answerCall() {
+      console.log('[VoiceCall] answerCall appelé, arrêt sonnerie...');
       try {
         this.stopRingtone();
+        console.log('[VoiceCall] Sonnerie arrêtée, changement état vers CONNECTING');
         this.updateCallState(CALL_STATES.CONNECTING);
 
         // Demander l'accès au microphone
+        console.log('[VoiceCall] Demande accès microphone pour répondre...');
         this.localStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -271,6 +297,7 @@
           video: false
         });
 
+        console.log('[VoiceCall] Microphone obtenu, création peerConnection...');
         // Créer la connexion peer
         this.createPeerConnection();
 
@@ -278,6 +305,14 @@
         this.localStream.getTracks().forEach((track) => {
           this.peerConnection.addTrack(track, this.localStream);
         });
+        console.log('[VoiceCall] Pistes audio ajoutées');
+        
+        // Si une offre était en attente, la traiter maintenant
+        if (this._pendingIncomingOffer) {
+          console.log('[VoiceCall] Traitement offre en attente...');
+          await this.processIncomingOffer(this._pendingIncomingOffer);
+          this._pendingIncomingOffer = null;
+        }
       } catch (error) {
         console.error("Erreur lors de la réponse à l'appel:", error);
         this.handleError("Impossible d'accéder au microphone");
@@ -286,29 +321,52 @@
     }
 
     /**
-     * Gérer l'offre WebRTC
+     * Traiter une offre WebRTC entrante
      */
-    async handleOffer(data) {
+    async processIncomingOffer(data) {
       try {
-        if (!this.peerConnection) {
-          await this.answerCall();
-        }
-
+        console.log('[VoiceCall] processIncomingOffer - setRemoteDescription');
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
 
+        console.log('[VoiceCall] Création de la réponse WebRTC...');
         const answer = await this.peerConnection.createAnswer();
         await this.peerConnection.setLocalDescription(answer);
 
         // Attendre les candidats ICE
         await this.waitForIceCandidates();
 
+        console.log('[VoiceCall] Envoi de la réponse au serveur');
         this.socket.emit('call:answer', {
           callId: this.currentCall.callId,
           conversationId: this.conversationId,
           answer: this.peerConnection.localDescription
         });
       } catch (error) {
-        console.error("Erreur lors du traitement de l'offre:", error);
+        console.error("[VoiceCall] Erreur lors du traitement de l'offre:", error);
+        this.handleError('Erreur de connexion');
+        this.endCall('error');
+      }
+    }
+
+    /**
+     * Gérer l'offre WebRTC
+     */
+    async handleOffer(data) {
+      console.log('[VoiceCall] handleOffer reçu, peerConnection existe:', !!this.peerConnection);
+      
+      try {
+        // Si pas de peerConnection, c'est que l'utilisateur n'a pas encore répondu
+        // Stocker l'offre et attendre answerCall()
+        if (!this.peerConnection) {
+          console.log('[VoiceCall] Offre mise en attente, en attente de answerCall()');
+          this._pendingIncomingOffer = data;
+          return;
+        }
+
+        // Si peerConnection existe, traiter l'offre immédiatement
+        await this.processIncomingOffer(data);
+      } catch (error) {
+        console.error("Erreur lors de la gestion de l'offre:", error);
         this.handleError('Erreur de connexion');
         this.endCall('error');
       }
@@ -334,9 +392,17 @@
      */
     async handleIceCandidate(data) {
       try {
-        if (this.peerConnection && data.candidate) {
-          await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        if (!this.peerConnection || !data.candidate) {
+          return;
         }
+        
+        // Attendre que remoteDescription soit définie avant d'ajouter les candidats ICE
+        if (!this.peerConnection.remoteDescription) {
+          console.warn('[VoiceCall] Candidat ICE reçu avant remoteDescription, en attente...');
+          return;
+        }
+        
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (error) {
         console.error("Erreur lors de l'ajout du candidat ICE:", error);
       }
@@ -389,11 +455,17 @@
      */
     waitForIceCandidates() {
       return new Promise((resolve) => {
+        if (!this.peerConnection) {
+          console.warn('[VoiceCall] peerConnection null dans waitForIceCandidates');
+          resolve();
+          return;
+        }
+        
         if (this.peerConnection.iceGatheringState === 'complete') {
           resolve();
         } else {
           const checkState = () => {
-            if (this.peerConnection.iceGatheringState === 'complete') {
+            if (this.peerConnection && this.peerConnection.iceGatheringState === 'complete') {
               this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
               resolve();
             }
@@ -402,7 +474,9 @@
 
           // Timeout après 3 secondes
           setTimeout(() => {
-            this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
+            if (this.peerConnection) {
+              this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
+            }
             resolve();
           }, 3000);
         }
@@ -552,34 +626,59 @@
      * Jouer la sonnerie
      */
     playRingtone() {
-      // Utiliser un son de base (beep)
-      if (this.ringtoneAudio) {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+      // Arrêter toute sonnerie existante d'abord
+      this.stopRingtone();
+      
+      console.log('[VoiceCall] playRingtone démarrage...');
+      
+      try {
+        this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Reprendre le contexte si suspendu (autoplay policy)
+        if (this._audioContext.state === 'suspended') {
+          this._audioContext.resume().catch(e => {
+            console.warn('[VoiceCall] Impossible de reprendre AudioContext:', e);
+          });
+        }
+        
+        const playBeep = () => {
+          if (!this._audioContext || this._audioContext.state === 'closed') {
+            console.warn('[VoiceCall] AudioContext fermé, arrêt beep');
+            return;
+          }
+          
+          const oscillator = this._audioContext.createOscillator();
+          const gainNode = this._audioContext.createGain();
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+          oscillator.connect(gainNode);
+          gainNode.connect(this._audioContext.destination);
 
-        oscillator.frequency.value = 440;
-        gainNode.gain.value = 0.1;
+          oscillator.frequency.value = 440;
+          gainNode.gain.value = 0.1;
+          oscillator.type = 'sine';
 
-        oscillator.start();
+          oscillator.start();
+          setTimeout(() => {
+            try {
+              oscillator.stop();
+              oscillator.disconnect();
+            } catch (e) {
+              // Ignore si déjà arrêté
+            }
+          }, 800);
+        };
 
-        setTimeout(() => {
-          oscillator.stop();
-        }, 1000);
-
-        this.ringtoneInterval = setInterval(() => {
-          const osc = audioContext.createOscillator();
-          const gain = audioContext.createGain();
-          osc.connect(gain);
-          gain.connect(audioContext.destination);
-          osc.frequency.value = 440;
-          gain.gain.value = 0.1;
-          osc.start();
-          setTimeout(() => osc.stop(), 1000);
+        // Premier beep
+        playBeep();
+        
+        // Répéter toutes les 2 secondes
+        this._ringtoneInterval = setInterval(() => {
+          playBeep();
         }, 2000);
+        
+        console.log('[VoiceCall] Sonnerie démarrée');
+      } catch (error) {
+        console.warn('[VoiceCall] Erreur lors de la lecture de la sonnerie:', error);
       }
     }
 
@@ -587,14 +686,33 @@
      * Arrêter la sonnerie
      */
     stopRingtone() {
-      if (this.ringtoneInterval) {
-        clearInterval(this.ringtoneInterval);
-        this.ringtoneInterval = null;
+      console.log('[VoiceCall] stopRingtone appelé, nettoyage...', {
+        hasInterval: !!this._ringtoneInterval,
+        hasContext: !!this._audioContext
+      });
+      
+      if (this._ringtoneInterval) {
+        clearInterval(this._ringtoneInterval);
+        this._ringtoneInterval = null;
+        console.log('[VoiceCall] Interval sonnerie nettoyé');
       }
+      
+      if (this._audioContext) {
+        try {
+          this._audioContext.close();
+          console.log('[VoiceCall] AudioContext fermé');
+        } catch (e) {
+          console.warn('[VoiceCall] Erreur fermeture AudioContext:', e);
+        }
+        this._audioContext = null;
+      }
+      
       if (this.ringtoneAudio) {
         this.ringtoneAudio.pause();
         this.ringtoneAudio.currentTime = 0;
       }
+      
+      console.log('[VoiceCall] stopRingtone terminé');
     }
 
     /**

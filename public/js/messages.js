@@ -3320,6 +3320,13 @@
       '[Messages] handleCallButtonClick appelé, activeConversationId:',
       activeConversationId
     );
+    
+    // Empêcher double clic / appel en cours
+    if (voiceCallManager && voiceCallManager.isInCall()) {
+      console.warn('[Messages] Appel déjà en cours, ignorer');
+      return;
+    }
+    
     if (!activeConversationId) {
       console.warn('[Messages] Pas de conversation active');
       return;

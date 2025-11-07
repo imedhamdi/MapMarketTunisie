@@ -392,6 +392,10 @@ export async function initChatSocket(httpServer) {
           return socket.emit('error', { code: 'NOT_PARTICIPANT', message: 'Non autorisé' });
         }
 
+        // Faire rejoindre la room conversation pour recevoir les événements WebRTC
+        socket.join(`conversation:${conversationId}`);
+        logger.info('Initiateur a rejoint conversation room', { conversationId, userId });
+
         // Créer l'enregistrement de l'appel
         const call = await callService.createCall({
           conversationId,
@@ -404,14 +408,19 @@ export async function initChatSocket(httpServer) {
           .find((p) => p.toString() !== userId.toString())
           .toString();
 
-        // Envoyer la notification d'appel entrant à l'utilisateur spécifique
-        io.to(`user:${otherParticipantId}`).emit('call:incoming', {
+        const callData = {
           callId: call._id.toString(),
           conversationId,
           initiatorId: userId,
           type,
           timestamp: call.createdAt
-        });
+        };
+
+        // Envoyer call:incoming à l'appelant aussi (pour obtenir callId)
+        socket.emit('call:incoming', callData);
+
+        // Envoyer la notification d'appel entrant au destinataire
+        io.to(`user:${otherParticipantId}`).emit('call:incoming', callData);
 
         logger.info('Appel initié', {
           callId: call._id,
