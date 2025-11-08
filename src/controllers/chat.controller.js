@@ -4,6 +4,7 @@ import messageService from '../services/message.service.js';
 import { sendSuccess } from '../utils/responses.js';
 import logger from '../config/logger.js';
 import { formatConversationForUser } from '../utils/chat.js';
+import { getIO } from '../server.js';
 
 // (Pièces jointes & recherche: implémentations minimales ci-dessous)
 import { storeAttachment, deleteAttachmentForUser } from '../chat/attachments.service.js';
@@ -63,6 +64,21 @@ export const sendMessage = asyncHandler(async (req, res) => {
     type,
     audio
   });
+  
+  // Émettre l'événement Socket.IO pour la livraison en temps réel
+  const io = getIO();
+  if (io) {
+    const serializedMessage = message.toObject ? message.toObject() : message;
+    logger.info(`[HTTP -> Socket] Émission message:new à room conversation:${id}`, {
+      messageId: serializedMessage._id,
+      conversationId: id
+    });
+    io.to(`conversation:${id}`).emit('message:new', {
+      conversationId: id,
+      message: serializedMessage
+    });
+  }
+  
   return sendSuccess(res, { statusCode: 201, message: 'Message envoyé', data: { message } });
 });
 

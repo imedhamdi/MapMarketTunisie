@@ -221,6 +221,10 @@ export async function initChatSocket(httpServer) {
         if (!convo) throw createError.notFound('Conversation introuvable');
         if (!convo.isParticipant(userId)) throw createError.forbidden('Non participant');
         socket.join(`conversation:${conversationId}`);
+        logger.info(`[Socket] User ${userId} joined room conversation:${conversationId}`, {
+          socketId: socket.id,
+          conversationId
+        });
         if (markAsRead) {
           const unread = await Message.find({
             conversationId,
@@ -294,7 +298,17 @@ export async function initChatSocket(httpServer) {
         convo.lastMessageAt = new Date();
         convo.incrementUnread(recipient);
         await convo.save();
-        io.to(`conversation:${conversationId}`).emit('message:new', { conversationId, message });
+        
+        // Sérialiser le message avant émission
+        const serializedMessage = message.toObject ? message.toObject() : message;
+        logger.info(`[Socket] Émission message:new à room conversation:${conversationId}`, {
+          messageId: serializedMessage._id,
+          conversationId
+        });
+        io.to(`conversation:${conversationId}`).emit('message:new', { 
+          conversationId, 
+          message: serializedMessage 
+        });
       } catch (e) {
         socket.emit('error', { code: e.code || 'SEND_FAILED', message: e.message });
       }

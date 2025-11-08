@@ -14,6 +14,11 @@ const server = http.createServer(app);
 let io = null; // Socket.IO instance
 const port = env.port;
 
+// Getter pour accéder à l'instance Socket.IO depuis d'autres modules
+export function getIO() {
+  return io;
+}
+
 async function start() {
   try {
     // Créer les répertoires nécessaires

@@ -484,25 +484,6 @@
   line-height: 1.4;
 }
 
-.conversation-item__preview-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: var(--messages-text-tertiary);
-  flex-shrink: 0;
-}
-
-.conversation-item__preview-status[data-status='failed'] {
-  color: #dc2626;
-}
-
-.conversation-item__preview-icon {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2; /* Amélioration: Uniformisation */
-}
-
 .conversation-item__preview-text {
   overflow: hidden;
   text-overflow: ellipsis;

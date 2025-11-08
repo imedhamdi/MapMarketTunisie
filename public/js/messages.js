@@ -659,18 +659,28 @@
 
   function bindSocketEvents() {
     if (!socket) return;
-    socket.on('connect', () => {
-      if (activeConversationId) {
+
+    // Helper pour rejoindre la conversation active
+    const rejoinActiveConversation = () => {
+      console.log('[DEBUG] rejoinActiveConversation, activeConversationId:', activeConversationId);
+      if (activeConversationId && socket?.connected) {
+        console.log('[DEBUG] Émission conversation:join pour:', activeConversationId);
         socket.emit('conversation:join', {
           conversationId: activeConversationId,
           markAsRead: true
         });
       }
+    };
+
+    socket.on('connect', () => {
+      console.log('[DEBUG] Socket connecté, activeConversationId:', activeConversationId);
+      rejoinActiveConversation();
     });
     socket.on('error', (payload) => {
       console.warn('[chat:error]', payload);
     });
     socket.on('message:new', async (payload) => {
+      console.log('[DEBUG] Événement message:new reçu du serveur');
       await handleIncomingMessage(payload);
     });
     socket.on('message:delivered', (payload) => {
@@ -746,9 +756,30 @@
   }
 
   async function handleIncomingMessage(payload) {
-    if (!payload?.conversationId || !payload?.message) return;
+    console.log('[DEBUG] message:new reçu:', {
+      hasPayload: !!payload,
+      conversationId: payload?.conversationId,
+      messageId: payload?.message?.id,
+      messageSender: payload?.message?.sender,
+      activeConversationId,
+      match: payload?.conversationId === activeConversationId,
+      userId: state.userId
+    });
+
+    if (!payload?.conversationId || !payload?.message) {
+      console.warn('[DEBUG] Payload invalide, abandon');
+      return;
+    }
+
     const conversationId = String(payload.conversationId);
     const message = enhanceMessage(payload.message);
+
+    console.log('[DEBUG] Message traité:', {
+      conversationId,
+      messageId: message.id,
+      isActiveConv: conversationId === activeConversationId
+    });
+
     if (!state.conversationsLoaded) {
       refreshUnreadCountFromServer();
     }
@@ -766,6 +797,7 @@
     storeMessage(conversationId, message);
 
     if (conversationId === activeConversationId) {
+      console.log('[DEBUG] Insertion du message dans la conv active');
       insertMessageIntoActive(message);
       if (message.sender !== state.userId) {
         socket?.emit('message:received', { conversationId, messageId: message.id });
@@ -774,6 +806,7 @@
       }
       markConversationAsRead(conversationId);
     } else if (message.sender !== state.userId) {
+      console.log('[DEBUG] Message pour une autre conv, incrémentation unread');
       incrementConversationUnread(conversationId);
     }
 
@@ -1115,26 +1148,6 @@
     if (!element) return;
     element.innerHTML = '';
     const previewText = (conversation.lastMessagePreview || '').trim() || 'Commencez la discussion';
-    const lastMessage = conversation.lastMessage || null;
-    const fromMe = lastMessage?.sender === state.userId;
-
-    if (fromMe && lastMessage?.status) {
-      const badge = document.createElement('span');
-      badge.className = 'conversation-item__preview-status';
-      badge.dataset.status = lastMessage.status;
-      const display = getStatusDisplay(lastMessage.status);
-      if (display.icon) {
-        const icon = createIconElement(display.icon, 'conversation-item__preview-icon');
-        if (display.spinner) {
-          icon.classList.add('is-spinning');
-        }
-        badge.appendChild(icon);
-      }
-      const label = document.createElement('span');
-      label.textContent = display.label;
-      badge.appendChild(label);
-      element.appendChild(badge);
-    }
 
     const textSpan = document.createElement('span');
     textSpan.className = 'conversation-item__preview-text';
@@ -2901,8 +2914,18 @@
   }
 
   function joinConversation(conversationId, { markAsRead = false } = {}) {
+    console.log('[DEBUG] joinConversation appelé:', {
+      conversationId,
+      markAsRead,
+      socketConnected: socket?.connected
+    });
     ensureSocket();
-    socket?.emit('conversation:join', { conversationId, markAsRead });
+    if (socket?.connected) {
+      console.log('[DEBUG] Émission conversation:join');
+      socket.emit('conversation:join', { conversationId, markAsRead });
+    } else {
+      console.warn('[DEBUG] Socket non connecté, impossible de join');
+    }
   }
 
   function scheduleMarkRead(messageId) {
