@@ -3413,7 +3413,7 @@
     // Initier l'appel
     console.log('[Messages] Appel de voiceCallManager.initiateCall()');
     voiceCallManager.initiateCall(activeConversationId, remoteUserId, remoteUsername);
-    
+
     // Forcer la lecture après action utilisateur
     safePlay();
   }
@@ -3562,7 +3562,7 @@
               console.warn('[Messages][DEBUG] setSinkId échoué:', e);
             });
           }
-          
+
           // Démarrer la lecture
           audioEl
             .play()
