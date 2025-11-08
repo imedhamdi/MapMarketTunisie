@@ -298,16 +298,16 @@ export async function initChatSocket(httpServer) {
         convo.lastMessageAt = new Date();
         convo.incrementUnread(recipient);
         await convo.save();
-        
+
         // Sérialiser le message avant émission
         const serializedMessage = message.toObject ? message.toObject() : message;
         logger.info(`[Socket] Émission message:new à room conversation:${conversationId}`, {
           messageId: serializedMessage._id,
           conversationId
         });
-        io.to(`conversation:${conversationId}`).emit('message:new', { 
-          conversationId, 
-          message: serializedMessage 
+        io.to(`conversation:${conversationId}`).emit('message:new', {
+          conversationId,
+          message: serializedMessage
         });
       } catch (e) {
         socket.emit('error', { code: e.code || 'SEND_FAILED', message: e.message });

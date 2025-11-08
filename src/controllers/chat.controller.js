@@ -64,7 +64,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     type,
     audio
   });
-  
+
   // Émettre l'événement Socket.IO pour la livraison en temps réel
   const io = getIO();
   if (io) {
@@ -78,7 +78,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
       message: serializedMessage
     });
   }
-  
+
   return sendSuccess(res, { statusCode: 201, message: 'Message envoyé', data: { message } });
 });
 
