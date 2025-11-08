@@ -3271,6 +3271,18 @@
     console.log("[Messages] Création d'une nouvelle instance VoiceCallManager");
     voiceCallManager = new window.VoiceCallManager();
 
+    // Référence à l'élément audio distant
+    const remoteEl = voiceCallModals.remoteAudio || document.getElementById('voiceCallRemoteAudio');
+
+    // Fonction safePlay pour forcer la lecture après action utilisateur
+    const safePlay = () => {
+      if (remoteEl?.srcObject) {
+        remoteEl.play().catch((e) => {
+          console.warn('[Messages] safePlay: erreur lecture', e);
+        });
+      }
+    };
+
     // Configurer les callbacks
     voiceCallManager.onStateChange = handleCallStateChange;
     voiceCallManager.onError = handleCallError;
@@ -3280,6 +3292,7 @@
     if (voiceCallModals.answerBtn) {
       voiceCallModals.answerBtn.addEventListener('click', () => {
         voiceCallManager.answerCall();
+        safePlay(); // Forcer la lecture après action utilisateur
       });
     }
 
@@ -3400,6 +3413,9 @@
     // Initier l'appel
     console.log('[Messages] Appel de voiceCallManager.initiateCall()');
     voiceCallManager.initiateCall(activeConversationId, remoteUserId, remoteUsername);
+    
+    // Forcer la lecture après action utilisateur
+    safePlay();
   }
 
   // Attente utilitaire de connexion socket (résout true/false)
@@ -3516,7 +3532,49 @@
 
         // Connecter le flux audio distant
         if (remoteStream && voiceCallModals.remoteAudio) {
-          voiceCallModals.remoteAudio.srcObject = remoteStream;
+          const audioEl = voiceCallModals.remoteAudio;
+
+          // S'assurer que les attributs sont corrects
+          audioEl.autoplay = true;
+          audioEl.playsInline = true;
+          audioEl.muted = false;
+          audioEl.volume = 1.0;
+
+          // Attacher le flux
+          audioEl.srcObject = remoteStream;
+
+          // Log détaillé
+          const tracks = remoteStream.getAudioTracks();
+          console.log('[Messages][DEBUG] Attachement audio distant:', {
+            hasAudioElement: !!audioEl,
+            hasSrcObject: !!audioEl.srcObject,
+            audioTracks: tracks.length,
+            trackEnabled: tracks[0]?.enabled,
+            trackMuted: tracks[0]?.muted,
+            trackReadyState: tracks[0]?.readyState,
+            elementVolume: audioEl.volume,
+            elementMuted: audioEl.muted
+          });
+
+          // Configurer la sortie audio si disponible
+          if (audioEl && 'setSinkId' in audioEl) {
+            audioEl.setSinkId('default').catch((e) => {
+              console.warn('[Messages][DEBUG] setSinkId échoué:', e);
+            });
+          }
+          
+          // Démarrer la lecture
+          audioEl
+            .play()
+            .then(() => {
+              console.log('[Messages][DEBUG] Lecture audio distante démarrée avec succès');
+            })
+            .catch((e) => {
+              console.warn(
+                '[Messages][DEBUG] Impossible de démarrer la lecture audio distante:',
+                e
+              );
+            });
         }
         break;
 

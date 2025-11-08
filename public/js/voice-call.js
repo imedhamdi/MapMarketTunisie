@@ -9,7 +9,27 @@
   const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
+    // Metered TURN (gratuit, fiable) - multiple transports pour meilleure compatibilité
+    {
+      urls: 'turn:a.relay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:a.relay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turns:a.relay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
   ];
 
   const RTC_CONFIG = {
@@ -41,6 +61,7 @@
       this.remoteUsername = null;
       this.callStartTime = null;
       this.durationInterval = null;
+      this.statsInterval = null;
       this.ringtoneAudio = null;
       this.notificationAudio = null;
       this._pendingOffer = null;
@@ -170,12 +191,45 @@
         });
 
         console.log('[VoiceCall] Microphone obtenu, création de la connexion peer');
+
+        // S'assurer que la piste audio locale est activée
+        const [audioTrack] = this.localStream.getAudioTracks();
+        if (audioTrack) {
+          audioTrack.enabled = true; // garantir qu'elle n'est pas coupée par défaut
+          console.log('[VoiceCall][LOCAL]', {
+            enabled: audioTrack.enabled,
+            readyState: audioTrack.readyState,
+            settings: audioTrack.getSettings ? audioTrack.getSettings() : undefined
+          });
+        }
+
         // Créer la connexion peer
         this.createPeerConnection();
 
         // Ajouter les pistes audio locales
         this.localStream.getTracks().forEach((track) => {
           this.peerConnection.addTrack(track, this.localStream);
+        });
+
+        // Log des senders audio après ajout à la PeerConnection
+        const audioSenders = this.peerConnection
+          .getSenders()
+          .filter((s) => s.track && s.track.kind === 'audio');
+        console.log('[VoiceCall][DEBUG] audioSenders après addTrack:', audioSenders);
+        audioSenders.forEach((sender, i) => {
+          const t = sender.track;
+          if (t) {
+            console.log(
+              `[VoiceCall][DEBUG] sender[${i}] track id:`,
+              t.id,
+              'enabled:',
+              t.enabled,
+              'muted:',
+              t.muted,
+              'readyState:',
+              t.readyState
+            );
+          }
         });
 
         // Émettre l'événement d'initialisation
@@ -296,6 +350,17 @@
           },
           video: false
         });
+
+        // S'assurer que la piste audio locale est activée
+        const [audioTrack] = this.localStream.getAudioTracks();
+        if (audioTrack) {
+          audioTrack.enabled = true;
+          console.log('[VoiceCall][LOCAL]', {
+            enabled: audioTrack.enabled,
+            readyState: audioTrack.readyState,
+            settings: audioTrack.getSettings ? audioTrack.getSettings() : undefined
+          });
+        }
 
         console.log('[VoiceCall] Microphone obtenu, création peerConnection...');
         // Créer la connexion peer
@@ -428,6 +493,38 @@
       // Gérer le flux distant
       this.peerConnection.ontrack = (event) => {
         this.remoteStream = event.streams[0];
+        const track = event.track;
+
+        // Handler onunmute: relancer onStateChange quand la piste devient active
+        track.onunmute = () => {
+          console.log('[VoiceCall] Piste distante dé-mutée, relance onStateChange');
+          if (this.onStateChange) {
+            this.onStateChange({
+              state: this.callState,
+              remoteStream: this.remoteStream
+            });
+          }
+        };
+
+        // Log des pistes audio distantes
+        if (this.remoteStream) {
+          const remoteAudioTracks = this.remoteStream.getAudioTracks();
+          console.log('[VoiceCall][DEBUG] remoteStream audioTracks:', remoteAudioTracks);
+          if (remoteAudioTracks.length === 0) {
+            console.warn('[VoiceCall][DEBUG] Aucun flux audio reçu dans remoteStream !');
+          } else {
+            remoteAudioTracks.forEach((track, i) => {
+              console.log(
+                `[VoiceCall][DEBUG] remoteStream track[${i}] enabled:`,
+                track.enabled,
+                'muted:',
+                track.muted,
+                'id:',
+                track.id
+              );
+            });
+          }
+        }
         if (this.onStateChange) {
           this.onStateChange({
             state: this.callState,
@@ -444,6 +541,7 @@
         if (state === 'connected') {
           this.updateCallState(CALL_STATES.CONNECTED);
           this.startCallTimer();
+          this.startStatsMonitoring();
         } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
           this.endCall(state === 'failed' ? 'network' : 'completed');
         }
@@ -623,6 +721,47 @@
     }
 
     /**
+     * Démarrer le monitoring des statistiques WebRTC
+     */
+    startStatsMonitoring() {
+      if (this.statsInterval) return;
+
+      this.statsInterval = setInterval(async () => {
+        if (!this.peerConnection) {
+          this.stopStatsMonitoring();
+          return;
+        }
+
+        try {
+          const stats = await this.peerConnection.getStats();
+          stats.forEach((report) => {
+            if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+              console.log('[WebRTC Stats] Inbound Audio:', {
+                bytesReceived: report.bytesReceived,
+                packetsReceived: report.packetsReceived,
+                packetsLost: report.packetsLost,
+                jitter: report.jitter,
+                timestamp: new Date(report.timestamp).toLocaleTimeString()
+              });
+            }
+          });
+        } catch (error) {
+          console.warn('[WebRTC Stats] Erreur lors de la récupération des stats:', error);
+        }
+      }, 3000);
+    }
+
+    /**
+     * Arrêter le monitoring des statistiques
+     */
+    stopStatsMonitoring() {
+      if (this.statsInterval) {
+        clearInterval(this.statsInterval);
+        this.statsInterval = null;
+      }
+    }
+
+    /**
      * Jouer la sonnerie
      */
     playRingtone() {
@@ -719,6 +858,9 @@
      * Nettoyer les ressources
      */
     cleanup() {
+      // Arrêter le monitoring des stats
+      this.stopStatsMonitoring();
+
       // Arrêter les flux
       if (this.localStream) {
         this.localStream.getTracks().forEach((track) => track.stop());
