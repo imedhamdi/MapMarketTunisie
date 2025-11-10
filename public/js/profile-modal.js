@@ -1,1079 +1,898 @@
-// ========== PROFILE MODAL (Drawer Style) ==========
+// ========================================
+// PROFILE DRAWER - Module ES
+// ========================================
 
-function initProfileModal() {
-  const logger = window.__APP_LOGGER__ || console;
-  const overlay = document.getElementById('profileOverlay');
-  const modal = document.getElementById('profileModal');
-  const closeBtn = document.getElementById('profileClose');
+const logger = window.__APP_LOGGER__ || console;
 
-  if (!modal) {
-    logger.warn('Profile modal not found in DOM');
-    return;
+// === State ===
+const drawerState = {
+  isOpen: false,
+  activeTab: 'overview',
+  data: null,
+  previousFocus: null
+};
+
+// === DOM Elements ===
+const drawer = document.getElementById('profileDrawer');
+const overlay = drawer?.querySelector('.profile-overlay');
+const closeBtn = drawer?.querySelector('.profile-close');
+const tabs = drawer?.querySelectorAll('[role="tab"]');
+const panels = {
+  overview: document.getElementById('profilePanelOverview'),
+  analytics: document.getElementById('profilePanelAnalytics'),
+  settings: document.getElementById('profilePanelSettings')
+};
+
+// Avatar
+const avatarBtn = document.getElementById('profileAvatarBtn');
+const avatarImg = document.getElementById('profileAvatarImg');
+const avatarInput = document.getElementById('profileAvatarInput');
+
+// Header identity
+const nameEl = document.getElementById('profileTitle');
+const emailEl = document.getElementById('profileEmail');
+const memberSinceEl = document.getElementById('profileMemberSince');
+
+// Overview panel
+const roleChip = document.getElementById('profileRoleChip');
+const locationChip = document.getElementById('profileLocationChip');
+const radiusChip = document.getElementById('profileRadiusChip');
+const statusChip = document.getElementById('profileStatusChip');
+const createAdBtn = document.getElementById('profileCreateAdBtn');
+const metricsEls = {
+  activeAds: document.getElementById('metricActiveAds'),
+  draftAds: document.getElementById('metricDraftAds'),
+  archivedAds: document.getElementById('metricArchivedAds'),
+  totalViews: document.getElementById('metricTotalViews'),
+  totalFavorites: document.getElementById('metricTotalFavorites'),
+  inventoryValue: document.getElementById('metricInventoryValue'),
+  averagePrice: document.getElementById('metricAveragePrice'),
+  averageViews: document.getElementById('metricAverageViews')
+};
+const insightsContainer = document.getElementById('profileInsights');
+const activityContainer = document.getElementById('profileActivity');
+
+// Analytics panel
+const kpisEls = {
+  totalViews: document.getElementById('kpiTotalViews'),
+  totalFavorites: document.getElementById('kpiTotalFavorites'),
+  averageViews: document.getElementById('kpiAverageViews'),
+  inventoryValue: document.getElementById('kpiInventoryValue')
+};
+const categoryChart = document.getElementById('analyticsCategoryChart');
+const statusChart = document.getElementById('analyticsStatusChart');
+const priceChart = document.getElementById('analyticsPriceChart');
+const topAds = document.getElementById('analyticsTopAds');
+const geoList = document.getElementById('analyticsGeoList');
+
+// Settings panel
+const infoForm = document.getElementById('profileInfoForm');
+const infoFeedback = document.getElementById('profileInfoFeedback');
+const infoSubmit = document.getElementById('profileInfoSubmit');
+const nameInput = document.getElementById('profileNameInput');
+const emailInput = document.getElementById('profileEmailInput');
+
+const locationForm = document.getElementById('profileLocationForm');
+const locationFeedback = document.getElementById('profileLocationFeedback');
+const locationSubmit = document.getElementById('profileLocationSubmit');
+const cityInput = document.getElementById('profileCityInput');
+const radiusInput = document.getElementById('profileRadiusInput');
+
+const passwordForm = document.getElementById('profilePasswordForm');
+const passwordFeedback = document.getElementById('profilePasswordFeedback');
+const passwordSubmit = document.getElementById('profilePasswordSubmit');
+const currentPasswordError = document.getElementById('currentPasswordError');
+const newPasswordError = document.getElementById('newPasswordError');
+const confirmPasswordError = document.getElementById('confirmPasswordError');
+
+const deleteBtn = document.getElementById('profileDeleteBtn');
+
+// === Formatters ===
+const numberFormatter = new Intl.NumberFormat('fr-FR');
+const currencyFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0
+});
+const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
+  year: 'numeric',
+  month: 'long'
+});
+
+const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
+
+// === Helpers ===
+function resolveAvatarSrc(rawValue) {
+  if (typeof window.getAvatarUrl === 'function') {
+    return window.getAvatarUrl(rawValue);
   }
+  if (!rawValue) return DEFAULT_AVATAR;
+  if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) return rawValue;
+  if (rawValue.startsWith('/')) return rawValue;
+  return `/uploads/avatars/${rawValue}`;
+}
 
-  if (window.__profileModalInitialized) {
-    return;
-  }
-  window.__profileModalInitialized = true;
+function formatRelativeTime(isoDate) {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
 
-  const tabs = Array.from(modal.querySelectorAll('.profile-tab'));
-  const panels = {
-    overview: modal.querySelector('#tab-overview'),
-    analytics: modal.querySelector('#tab-analytics'),
-    ads: modal.querySelector('#tab-ads'),
-    settings: modal.querySelector('#tab-settings')
-  };
+  if (diffSec < 60) return `Il y a ${diffSec}s`;
+  if (diffMin < 60) return `Il y a ${diffMin}m`;
+  if (diffHour < 24) return `Il y a ${diffHour}h`;
+  if (diffDay < 7) return `Il y a ${diffDay}j`;
+  return dateFormatter.format(date);
+}
 
-  const metricGrid = modal.querySelector('#profileMetricGrid');
-  const insightsContainer = modal.querySelector('#profileInsights');
-  const activityContainer = modal.querySelector('#profileActivity');
+function showFeedback(el, message, type) {
+  if (!el) return;
+  el.textContent = message;
+  el.className = `profile-form-feedback ${type}`;
+  setTimeout(() => {
+    el.className = 'profile-form-feedback';
+  }, 5000);
+}
 
-  const analyticsOverview = modal.querySelector('#analyticsOverview');
-  const analyticsCategory = modal.querySelector('#analyticsCategory');
-  const analyticsStatus = modal.querySelector('#analyticsStatus');
-  const analyticsPrices = modal.querySelector('#analyticsPrices');
-  const analyticsTopAds = modal.querySelector('#analyticsTopAds');
-  const analyticsLocations = modal.querySelector('#analyticsLocations');
+function showError(el, message) {
+  if (!el) return;
+  el.textContent = message;
+  el.classList.add('visible');
+}
 
-  const adsGrid = modal.querySelector('#profileAdsGrid');
-  const adsEmpty = modal.querySelector('#profileAdsEmpty');
-  const adsFilters = modal.querySelector('#profileAdsFilters');
-  const newAdBtn = modal.querySelector('#profileNewAd');
-  const emptyCreateBtn = modal.querySelector('#profileEmptyCreate');
-  const summaryCreateBtn = modal.querySelector('#profileOpenNewAd');
-
-  const avatarImg = modal.querySelector('#profileAvatar');
-  const avatarMini = modal.querySelector('#profileAvatarMini');
-  const avatarTrigger = modal.querySelector('#profileAvatarTrigger');
-  const avatarInput = modal.querySelector('#profileAvatarInput');
-  const memberSinceLabel = modal.querySelector('#profileMemberSince');
-  const emailLabel = modal.querySelector('#profileEmail');
-  const emailHeader = modal.querySelector('#profileEmailHeader');
-  const nameLabel = modal.querySelector('#profileUserName');
-  const locationChip = modal.querySelector('#profileLocationChip');
-  const statusChip = modal.querySelector('#profileStatusChip');
-
-  const infoForm = modal.querySelector('#profileInfoForm');
-  const infoFeedback = modal.querySelector('#profileInfoFeedback');
-  const infoSubmit = modal.querySelector('#profileInfoSubmit');
-  const nameInput = modal.querySelector('#profileName');
-  const emailInput = modal.querySelector('#profileEmailInput');
-
-  const locationForm = modal.querySelector('#profileLocationForm');
-  const locationFeedback = modal.querySelector('#profileLocationFeedback');
-  const locationSubmit = modal.querySelector('#profileLocationSubmit');
-  const cityInput = modal.querySelector('#profileCity');
-  const radiusInput = modal.querySelector('#profileRadius');
-
-  const passwordForm = modal.querySelector('#profilePasswordForm');
-  const passwordFeedback = modal.querySelector('#profilePasswordFeedback');
-  const passwordSubmit = modal.querySelector('#profilePasswordSubmit');
-  const currentPasswordError = modal.querySelector('#currentPasswordError');
-  const newPasswordError = modal.querySelector('#newPasswordError');
-  const confirmPasswordError = modal.querySelector('#confirmPasswordError');
-
-  const state = {
-    activeTab: 'overview',
-    filter: 'all',
-    stats: null,
-    analytics: null,
-    ads: []
-  };
-
-  const numberFormatter = new Intl.NumberFormat('fr-FR');
-  const currencyFormatter = new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR'
+function clearErrors() {
+  [currentPasswordError, newPasswordError, confirmPasswordError].forEach((el) => {
+    if (el) {
+      el.textContent = '';
+      el.classList.remove('visible');
+    }
   });
-  const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+}
+
+// === Focus Management ===
+const focusableSelectors =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function trapFocus(e) {
+  if (!drawerState.isOpen) return;
+  const focusables = Array.from(drawer.querySelectorAll(focusableSelectors));
+  const firstFocusable = focusables[0];
+  const lastFocusable = focusables[focusables.length - 1];
+
+  if (e.key === 'Tab') {
+    if (e.shiftKey && document.activeElement === firstFocusable) {
+      e.preventDefault();
+      lastFocusable?.focus();
+    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+      e.preventDefault();
+      firstFocusable?.focus();
+    }
+  }
+}
+
+function handleEscape(e) {
+  if (e.key === 'Escape' && drawerState.isOpen) {
+    closeProfileDrawer();
+  }
+}
+
+// === Tab Management ===
+function setActiveTab(tabName) {
+  drawerState.activeTab = tabName;
+  localStorage.setItem('profileActiveTab', tabName);
+
+  tabs.forEach((tab) => {
+    const isActive = tab.dataset.tab === tabName;
+    tab.setAttribute('aria-selected', isActive);
   });
-  const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
 
-  function resolveAvatarSrc(rawValue) {
-    if (typeof window.getAvatarUrl === 'function') {
-      return window.getAvatarUrl(rawValue);
+  Object.entries(panels).forEach(([key, panel]) => {
+    if (panel) {
+      panel.hidden = key !== tabName;
     }
-    if (!rawValue) {
-      return DEFAULT_AVATAR;
-    }
-    if (/^https?:\/\//i.test(rawValue) || rawValue.startsWith('/')) {
-      return rawValue;
-    }
-    return `/uploads/avatars/${rawValue}`;
+  });
+}
+
+function onTabClick(e) {
+  const tab = e.currentTarget;
+  const tabName = tab.dataset.tab;
+  if (tabName) {
+    setActiveTab(tabName);
   }
+}
 
-  function setAvatarSource(image, rawValue) {
-    if (!image) {
-      return;
-    }
-    const resolved = resolveAvatarSrc(rawValue);
-    if (image.dataset.fallbackApplied) {
-      delete image.dataset.fallbackApplied;
-    }
-    image.src = resolved;
+function onTabKeydown(e) {
+  const currentTab = e.currentTarget;
+  const tabsArray = Array.from(tabs);
+  const currentIndex = tabsArray.indexOf(currentTab);
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    const nextIndex = (currentIndex + 1) % tabsArray.length;
+    tabsArray[nextIndex].focus();
+    setActiveTab(tabsArray[nextIndex].dataset.tab);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const prevIndex = (currentIndex - 1 + tabsArray.length) % tabsArray.length;
+    tabsArray[prevIndex].focus();
+    setActiveTab(tabsArray[prevIndex].dataset.tab);
   }
+}
 
-  function applyAvatarFallback(image) {
-    if (!image) {
-      return;
-    }
-    image.addEventListener('error', () => {
-      if (image.dataset.fallbackApplied === 'true') {
-        return;
-      }
-      image.dataset.fallbackApplied = 'true';
-      image.src = DEFAULT_AVATAR;
-    });
+// === Render Functions ===
+function renderHeader(user) {
+  if (!user) return;
+
+  if (avatarImg) avatarImg.src = resolveAvatarSrc(user.avatarUrl);
+  if (nameEl) nameEl.textContent = user.name || 'Utilisateur';
+  if (emailEl) emailEl.textContent = user.email || '';
+  if (memberSinceEl && user.memberSince) {
+    const date = new Date(user.memberSince);
+    memberSinceEl.textContent = `Membre depuis ${dateFormatter.format(date)}`;
   }
+}
 
-  applyAvatarFallback(avatarImg);
-  applyAvatarFallback(avatarMini);
+function renderOverview(data) {
+  const { user, stats } = data;
 
-  const getApi = () =>
-    window.api || {
-      async request(url, options = {}) {
-        const response = await fetch(url, {
-          credentials: 'include',
-          ...options
-        });
-        const contentType = response.headers.get('content-type') || '';
-        const isJson = contentType.includes('application/json');
-        const payload = isJson ? await response.json() : await response.text();
-        if (!response.ok) {
-          const message =
-            (typeof payload === 'object' && payload?.message) ||
-            response.statusText ||
-            'Erreur réseau';
-          const error = new Error(message);
-          error.status = response.status;
-          error.payload = payload;
-          throw error;
-        }
-        return payload;
-      },
-      async get(url) {
-        return this.request(url);
-      },
-      async post(url, data, options = {}) {
-        const resolvedBody = options.body ?? data;
-        const isFormData = resolvedBody instanceof FormData;
-        const headers =
-          options.headers || (isFormData ? undefined : { 'Content-Type': 'application/json' });
-        const body =
-          resolvedBody === undefined
-            ? undefined
-            : isFormData
-              ? resolvedBody
-              : JSON.stringify(resolvedBody);
-        return this.request(url, {
-          method: 'POST',
-          headers,
-          body
-        });
-      },
-      async patch(url, data, options = {}) {
-        const resolvedBody = options.body ?? data;
-        const isFormData = resolvedBody instanceof FormData;
-        const headers =
-          options.headers || (isFormData ? undefined : { 'Content-Type': 'application/json' });
-        const body =
-          resolvedBody === undefined
-            ? undefined
-            : isFormData
-              ? resolvedBody
-              : JSON.stringify(resolvedBody);
-        return this.request(url, {
-          method: 'PATCH',
-          headers,
-          body
-        });
-      },
-      async delete(url, options = {}) {
-        const resolvedBody = options.body ?? options.data;
-        const isFormData = resolvedBody instanceof FormData;
-        const headers =
-          options.headers ||
-          (isFormData
-            ? undefined
-            : resolvedBody !== undefined
-              ? { 'Content-Type': 'application/json' }
-              : undefined);
-        const body =
-          resolvedBody === undefined
-            ? undefined
-            : isFormData
-              ? resolvedBody
-              : JSON.stringify(resolvedBody);
-        return this.request(url, {
-          method: 'DELETE',
-          headers,
-          body
-        });
-      }
-    };
-
-  // Drawer-style open/close (like Favorites modal)
-  function openModal() {
-    overlay.classList.add('active');
-    modal.classList.add('mm-open');
-    modal.setAttribute('aria-hidden', 'false');
-
-    // Obscure map if exists
-    const map = document.getElementById('map');
-    if (map) {
-      map.classList.add('is-obscured');
-    }
-
-    fetchProfileData();
+  // Chips
+  if (roleChip) roleChip.textContent = user.role === 'admin' ? 'Admin' : 'Utilisateur';
+  if (locationChip) {
+    locationChip.textContent = user.location?.city ? `📍 ${user.location.city}` : '📍 —';
   }
+  if (radiusChip) {
+    radiusChip.textContent = user.location?.radiusKm
+      ? `🔘 ${user.location.radiusKm} km`
+      : '🔘 — km';
+  }
+  if (statusChip) statusChip.textContent = user.isActive ? '✓ Actif' : '⊗ Inactif';
 
-  function closeModal() {
-    overlay.classList.remove('active');
-    modal.classList.remove('mm-open');
-    modal.setAttribute('aria-hidden', 'true');
-
-    // Remove map obscure
-    const map = document.getElementById('map');
-    if (map) {
-      map.classList.remove('is-obscured');
+  // Metrics
+  if (stats?.summary) {
+    const s = stats.summary;
+    if (metricsEls.activeAds) {
+      metricsEls.activeAds.textContent = numberFormatter.format(s.activeAds || 0);
+    }
+    if (metricsEls.draftAds) {
+      metricsEls.draftAds.textContent = numberFormatter.format(s.draftAds || 0);
+    }
+    if (metricsEls.archivedAds) {
+      metricsEls.archivedAds.textContent = numberFormatter.format(s.archivedAds || 0);
+    }
+    if (metricsEls.totalViews) {
+      metricsEls.totalViews.textContent = numberFormatter.format(s.totalViews || 0);
+    }
+    if (metricsEls.totalFavorites) {
+      metricsEls.totalFavorites.textContent = numberFormatter.format(s.totalFavorites || 0);
+    }
+    if (metricsEls.inventoryValue) {
+      metricsEls.inventoryValue.textContent = currencyFormatter.format(s.inventoryValue || 0);
+    }
+    if (metricsEls.averagePrice) {
+      metricsEls.averagePrice.textContent = currencyFormatter.format(s.averagePrice || 0);
+    }
+    if (metricsEls.averageViews) {
+      metricsEls.averageViews.textContent = numberFormatter.format(s.averageViews || 0);
     }
   }
 
-  function formatNumber(value) {
-    return numberFormatter.format(Number(value || 0));
-  }
-
-  function formatCurrency(value) {
-    return currencyFormatter.format(Number(value || 0));
-  }
-
-  function formatDate(value) {
-    if (!value) {
-      return '—';
-    }
-    try {
-      return dateFormatter.format(new Date(value));
-    } catch (error) {
-      return '—';
-    }
-  }
-
-  function timeAgo(value) {
-    if (!value) {
-      return '';
-    }
-    const date = new Date(value);
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (seconds < 60) {
-      return "à l'instant";
-    }
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) {
-      return `il y a ${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-      return `il y a ${hours} h`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 7) {
-      return `il y a ${days} j`;
-    }
-    const weeks = Math.floor(days / 7);
-    if (weeks < 4) {
-      return `il y a ${weeks} sem.`;
-    }
-    return dateFormatter.format(date);
-  }
-
-  function computeRatio(value, total) {
-    const numericValue = Number(value) || 0;
-    const numericTotal = Number(total) || 0;
-    if (numericValue <= 0) {
-      return 0;
-    }
-    if (numericTotal <= 0) {
-      return 1;
-    }
-    return Math.min(numericValue / numericTotal, 1);
-  }
-
-  function switchTab(tabName) {
-    if (!tabName || !panels[tabName]) {
-      return;
-    }
-    state.activeTab = tabName;
-    tabs.forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tab === tabName);
-      btn.setAttribute('aria-selected', btn.dataset.tab === tabName ? 'true' : 'false');
-    });
-    Object.entries(panels).forEach(([key, panel]) => {
-      panel?.classList.toggle('active', key === tabName);
-    });
-  }
-
-  function setLoading() {
-    if (insightsContainer) {
-      insightsContainer.innerHTML = '';
-    }
-    if (activityContainer) {
-      activityContainer.innerHTML = '<p class="profile-empty__text">Chargement…</p>';
-    }
-    if (analyticsOverview) {
-      analyticsOverview.innerHTML = '<div class="analytics-pill">Chargement…</div>';
-    }
-    if (analyticsCategory) {
-      analyticsCategory.innerHTML = '';
-    }
-    if (analyticsStatus) {
-      analyticsStatus.innerHTML = '';
-    }
-    if (analyticsPrices) {
-      analyticsPrices.innerHTML = '';
-    }
-    analyticsTopAds.innerHTML = '';
-    analyticsLocations.innerHTML = '';
-  }
-
-  async function loadDashboard() {
-    const api = getApi();
-    const user = window.authStore?.get();
-    if (!user?._id) {
-      return;
-    }
-
-    setLoading();
-
-    try {
-      const [statsRes, analyticsRes, adsRes] = await Promise.all([
-        api.get('/api/users/me/stats'),
-        api.get('/api/users/me/analytics'),
-        api.get(`/api/ads?owner=${user._id}&status=all&limit=120&sort=-createdAt`)
-      ]);
-
-      state.stats = statsRes?.data?.stats || null;
-      state.analytics = analyticsRes?.data?.analytics || null;
-      state.ads = adsRes?.data?.items || [];
-
-      renderSummary(user);
-      renderMetrics();
-      renderInsights();
-      renderActivity();
-      renderAnalytics();
-      renderAds();
-    } catch (error) {
-      logger.error('Error loading profile dashboard', error);
-      insightsContainer.innerHTML =
-        '<p class="profile-empty__text">Impossible de charger les données.</p>';
-    }
-  }
-
-  function renderSummary(user) {
-    if (!user) {
-      return;
-    }
-    nameLabel.textContent = user.name || 'Utilisateur';
-    emailLabel.textContent = user.email || '—';
-    if (memberSinceLabel) {
-      memberSinceLabel.textContent = user.memberSince
-        ? `Membre depuis ${formatDate(user.memberSince)}`
-        : 'Membre depuis —';
-    }
-
-    if (nameInput) {
-      nameInput.value = user.name || '';
-    }
-    if (emailInput) {
-      emailInput.value = user.email || '';
-    }
-    if (cityInput) {
-      cityInput.value = user.location?.city || '';
-    }
-    if (radiusInput) {
-      radiusInput.value = user.location?.radiusKm || 10;
-    }
-
-    const locationText = user.location?.city || 'Localisation non renseignée';
-    if (locationChip) {
-      locationChip.textContent = locationText;
-    }
-
-    const activeAds = state.stats?.summary?.activeAds ?? 0;
-    if (statusChip) {
-      statusChip.textContent = `${formatNumber(activeAds)} annonces actives`;
-    }
-
-    const avatarValue = user.avatarUrl || user.avatar;
-    setAvatarSource(avatarImg, avatarValue);
-  }
-
-  function renderMetrics() {
-    const summary = state.stats?.summary;
-    const engagement = state.stats?.engagement;
-    if (!summary) {
-      metricGrid.innerHTML = '';
-      return;
-    }
-
-    const metrics = [
-      { label: 'Annonces actives', value: summary.activeAds, accent: true },
-      { label: 'Brouillons', value: summary.draftAds },
-      { label: 'Archivées', value: summary.archivedAds },
-      { label: 'Vues totales', value: summary.totalViews },
-      { label: 'Favoris totaux', value: summary.totalFavorites },
-      { label: 'Valeur du catalogue', value: formatCurrency(summary.inventoryValue) },
-      { label: 'Prix moyen', value: formatCurrency(summary.averagePrice) },
-      { label: 'Vues moy./annonce', value: engagement ? engagement.averageViews : 0 }
+  // Insights (placeholder logic)
+  if (insightsContainer) {
+    const insights = [
+      'Vos annonces en Mobilier performent bien cette semaine',
+      `${stats?.summary?.totalViews || 0} vues au total ce mois`,
+      'Pensez à actualiser vos prix régulièrement'
     ];
-
-    metricGrid.innerHTML = metrics
-      .map((metric) => {
-        const display =
-          typeof metric.value === 'string' ? metric.value : formatNumber(metric.value);
-        return `
-          <div class="profile-metric${metric.accent ? ' accent' : ''}">
-            <span class="profile-metric__label">${metric.label}</span>
-            <span class="profile-metric__value">${display}</span>
-          </div>
-        `;
-      })
-      .join('');
+    insightsContainer.innerHTML = insights.map((text) => `<li>${text}</li>`).join('');
   }
 
-  // Gestion du bouton de suppression de compte (présent uniquement dans l'onglet aperçu)
-  const deleteAccountBtn = modal.querySelector('#deleteAccountBtn');
-  const deleteAccountFeedback = modal.querySelector('#deleteAccountFeedback');
-
-  deleteAccountBtn?.addEventListener('click', async () => {
-    const user = window.authStore?.get();
-    if (!user?._id) {
-      window.showToast?.('Vous devez être connecté pour cette action', 'danger');
-      return;
-    }
-
-    let confirmed = true;
-    if (typeof window.showConfirmDialog === 'function') {
-      confirmed = await window.showConfirmDialog({
-        title: '🗑️ Supprimer votre compte ?',
-        message:
-          'Êtes-vous sûr de vouloir supprimer votre compte ?\nCette action est irréversible.',
-        confirmLabel: 'Supprimer',
-        cancelLabel: 'Annuler'
-      });
+  // Activity
+  if (activityContainer && stats?.recentActivity) {
+    if (stats.recentActivity.length === 0) {
+      activityContainer.innerHTML = '<li>Aucune activité récente</li>';
     } else {
-      confirmed = window.confirm(
-        'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.'
-      );
-    }
-    if (!confirmed) {
-      return;
-    }
-
-    deleteAccountBtn.disabled = true;
-    if (deleteAccountFeedback) {
-      deleteAccountFeedback.style.display = 'block';
-      deleteAccountFeedback.textContent = 'Suppression en cours…';
-    }
-
-    try {
-      const api = getApi();
-      await api.delete('/api/users/me');
-      if (deleteAccountFeedback) {
-        deleteAccountFeedback.textContent = 'Votre compte est désactivé. Déconnexion en cours…';
-      }
-      window.authStore?.set(null);
-      if (typeof window.updateAuthUI === 'function') {
-        window.updateAuthUI();
-      }
-      window.showToast?.('Compte supprimé ✅');
-      closeProfileModal();
-      setTimeout(() => {
-        window.location.reload();
-      }, 1600);
-    } catch (error) {
-      const payloadMessage =
-        typeof error?.payload === 'string' ? error.payload : error?.payload?.message;
-      const message =
-        payloadMessage || error?.message || 'Erreur lors de la suppression du compte.';
-      if (deleteAccountFeedback) {
-        deleteAccountFeedback.textContent = message;
-      } else {
-        window.showToast?.(message, 'danger');
-      }
-    } finally {
-      deleteAccountBtn.disabled = false;
-    }
-  });
-
-  function renderInsights() {
-    const insights = state.analytics?.insights || [];
-    if (!insights.length) {
-      insightsContainer.innerHTML = '';
-      return;
-    }
-
-    insightsContainer.innerHTML = insights
-      .map(
-        (text) => `
-        <div class="profile-insights__card">
-          <span>✨</span>
-          <div>${text}</div>
-        </div>
+      activityContainer.innerHTML = stats.recentActivity
+        .map(
+          (activity) => `
+        <li>
+          <div class="profile-activity-info">
+            <div class="profile-activity-type">${activity.type || 'Événement'}</div>
+            <div class="profile-activity-title">${activity.title || '—'}</div>
+            <div class="profile-activity-date">${formatRelativeTime(activity.date)}</div>
+          </div>
+          ${activity.price ? `<div class="profile-activity-price">${currencyFormatter.format(activity.price)}</div>` : ''}
+        </li>
       `
-      )
-      .join('');
+        )
+        .join('');
+    }
+  }
+}
+
+function renderAnalytics(analytics) {
+  if (!analytics) return;
+
+  // KPIs
+  const overview = analytics.overview || {};
+  if (kpisEls.totalViews) {
+    kpisEls.totalViews.textContent = numberFormatter.format(overview.totalViews || 0);
+  }
+  if (kpisEls.totalFavorites) {
+    kpisEls.totalFavorites.textContent = numberFormatter.format(overview.totalFavorites || 0);
+  }
+  if (kpisEls.averageViews) {
+    kpisEls.averageViews.textContent = numberFormatter.format(overview.averageViews || 0);
+  }
+  if (kpisEls.inventoryValue) {
+    kpisEls.inventoryValue.textContent = currencyFormatter.format(overview.inventoryValue || 0);
   }
 
-  function renderActivity() {
-    const activity = state.stats?.recentActivity || [];
-    if (!activity.length) {
-      activityContainer.innerHTML = '<p class="profile-empty__text">Aucune activité récente.</p>';
-      return;
-    }
-
-    activityContainer.innerHTML = activity
+  // Category performance
+  if (categoryChart && analytics.categoryPerformance) {
+    const maxValue = Math.max(...analytics.categoryPerformance.map((c) => c.value), 1);
+    categoryChart.innerHTML = analytics.categoryPerformance
       .map((item) => {
-        const statusIcon = item.status === 'active' ? '✅' : item.status === 'draft' ? '📝' : '📦';
+        const percent = (item.value / maxValue) * 100;
         return `
-          <div class="profile-activity-item">
-            <div class="profile-activity-item__icon">${statusIcon}</div>
-            <div>
-              <p class="profile-activity-item__title">${item.title || 'Sans titre'}</p>
-              <p class="profile-activity-item__meta">${timeAgo(item.updatedAt || item.createdAt)} • ${formatNumber(item.views)} vues</p>
+        <div class="profile-chart-bar">
+          <div class="profile-chart-label">${item.category}</div>
+          <div class="profile-chart-track">
+            <div class="profile-chart-fill" style="width: ${percent}%">
+              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
             </div>
-            <div class="profile-activity-item__meta">${formatCurrency(item.price)}</div>
           </div>
-        `;
+        </div>
+      `;
       })
       .join('');
   }
 
-  function renderAnalytics() {
-    const analytics = state.analytics;
-    if (!analytics) {
-      analyticsOverview.innerHTML = '<p class="profile-empty__text">Aucune donnée à afficher.</p>';
-      analyticsCategory.innerHTML = '';
-      analyticsStatus.innerHTML = '';
-      analyticsPrices.innerHTML = '';
-      analyticsTopAds.innerHTML = '';
-      analyticsLocations.innerHTML = '';
-      return;
-    }
+  // Status breakdown
+  if (statusChart && analytics.statusBreakdown) {
+    const maxValue = Math.max(...analytics.statusBreakdown.map((s) => s.value), 1);
+    statusChart.innerHTML = analytics.statusBreakdown
+      .map((item) => {
+        const percent = (item.value / maxValue) * 100;
+        const label =
+          item.status === 'active'
+            ? 'Actives'
+            : item.status === 'draft'
+              ? 'Brouillons'
+              : 'Archivées';
+        return `
+        <div class="profile-chart-bar">
+          <div class="profile-chart-label">${label}</div>
+          <div class="profile-chart-track">
+            <div class="profile-chart-fill" style="width: ${percent}%">
+              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      })
+      .join('');
+  }
 
-    const totalViews = Number(analytics.overview?.totalViews) || 0;
-    const totalAds = Number(state.stats?.summary?.totalAds) || 0;
+  // Price distribution
+  if (priceChart && analytics.priceDistribution) {
+    const maxValue = Math.max(...analytics.priceDistribution.map((p) => p.value), 1);
+    priceChart.innerHTML = analytics.priceDistribution
+      .map((item) => {
+        const percent = (item.value / maxValue) * 100;
+        return `
+        <div class="profile-chart-bar">
+          <div class="profile-chart-label">${item.bucket}</div>
+          <div class="profile-chart-track">
+            <div class="profile-chart-fill" style="width: ${percent}%">
+              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      })
+      .join('');
+  }
 
-    analyticsOverview.innerHTML = [
-      '<div class="analytics-pill">',
-      '  <h4>Vues totales</h4>',
-      `  <strong>${formatNumber(analytics.overview?.totalViews ?? 0)}</strong>`,
-      '</div>',
-      '<div class="analytics-pill">',
-      '  <h4>Favoris totaux</h4>',
-      `  <strong>${formatNumber(analytics.overview?.totalFavorites ?? 0)}</strong>`,
-      '</div>',
-      '<div class="analytics-pill">',
-      '  <h4>Vues moy./annonce</h4>',
-      `  <strong>${formatNumber(analytics.overview?.averageViews ?? 0)}</strong>`,
-      '</div>',
-      '<div class="analytics-pill">',
-      '  <h4>Favoris moy./annonce</h4>',
-      `  <strong>${formatNumber(analytics.overview?.averageFavorites ?? 0)}</strong>`,
-      '</div>',
-      '<div class="analytics-pill">',
-      '  <h4>Valeur catalogue</h4>',
-      `  <strong>${formatCurrency(analytics.overview?.inventoryValue ?? 0)}</strong>`,
-      '</div>'
-    ].join('\n');
-
-    if (Array.isArray(analytics.categoryPerformance) && analytics.categoryPerformance.length) {
-      const markup = analytics.categoryPerformance
-        .map((entry) => {
-          const fill = computeRatio(entry.views, totalViews);
-          return [
-            '<div class="analytics-bar">',
-            `  <div class="analytics-bar__label">${entry.category}</div>`,
-            '  <div class="analytics-bar__meter">',
-            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
-            '  </div>',
-            `  <div class="analytics-badge">${formatNumber(entry.views)} vues</div>`,
-            '</div>'
-          ].join('\n');
-        })
-        .join('\n');
-      analyticsCategory.innerHTML = markup;
+  // Top ads
+  if (topAds && analytics.topPerformingAds) {
+    if (analytics.topPerformingAds.length === 0) {
+      topAds.innerHTML = '<li>Aucune donnée</li>';
     } else {
-      analyticsCategory.innerHTML =
-        '<p class="profile-empty__text">Aucune donnée par catégorie.</p>';
-    }
-
-    if (Array.isArray(analytics.statusBreakdown) && analytics.statusBreakdown.length) {
-      const markup = analytics.statusBreakdown
-        .map((item) => {
-          const fill = computeRatio(item.count, totalAds);
-          return [
-            '<div class="analytics-bar">',
-            `  <div class="analytics-bar__label" style="text-transform: capitalize;">${item.status}</div>`,
-            '  <div class="analytics-bar__meter">',
-            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
-            '  </div>',
-            `  <div class="analytics-badge">${formatNumber(item.count)}</div>`,
-            '</div>'
-          ].join('\n');
-        })
-        .join('\n');
-      analyticsStatus.innerHTML = markup;
-    } else {
-      analyticsStatus.innerHTML = '<p class="profile-empty__text">Aucune donnée de statut.</p>';
-    }
-
-    if (Array.isArray(analytics.priceDistribution) && analytics.priceDistribution.length) {
-      const markup = analytics.priceDistribution
-        .map((item) => {
-          const fill = computeRatio(item.count, totalAds);
-          return [
-            '<div class="analytics-bar">',
-            `  <div class="analytics-bar__label">${item.label}</div>`,
-            '  <div class="analytics-bar__meter">',
-            `    <div class="analytics-bar__fill" style="transform: scaleX(${fill});"></div>`,
-            '  </div>',
-            `  <div class="analytics-badge">${formatNumber(item.count)}</div>`,
-            '</div>'
-          ].join('\n');
-        })
-        .join('\n');
-      analyticsPrices.innerHTML = markup;
-    } else {
-      analyticsPrices.innerHTML = '<p class="profile-empty__text">Aucune donnée de prix.</p>';
-    }
-
-    if (Array.isArray(analytics.topPerformingAds) && analytics.topPerformingAds.length) {
-      const markup = analytics.topPerformingAds
-        .map((ad) => {
-          return [
-            '<div class="analytics-list-item">',
-            '  <div class="analytics-list-info">',
-            `    <div class="analytics-list-title">${ad.title || 'Sans titre'}</div>`,
-            `    <div class="analytics-list-meta">${ad.category || 'Autres'} • ${formatCurrency(ad.price)}</div>`,
-            '  </div>',
-            '  <div class="analytics-list-stats">',
-            `    <span>👁️ ${formatNumber(ad.views)}</span>`,
-            `    <span>❤️ ${formatNumber(ad.favorites)}</span>`,
-            '  </div>',
-            '</div>'
-          ].join('\n');
-        })
-        .join('\n');
-      analyticsTopAds.innerHTML = markup;
-    } else {
-      analyticsTopAds.innerHTML =
-        '<p class="profile-empty__text">Aucune annonce performante pour le moment.</p>';
-    }
-
-    if (Array.isArray(analytics.locationDistribution) && analytics.locationDistribution.length) {
-      const markup = analytics.locationDistribution
-        .map((entry) => `<span>${entry.city} • ${formatNumber(entry.count)}</span>`)
+      topAds.innerHTML = analytics.topPerformingAds
+        .map(
+          (ad) => `
+        <li>
+          <span class="profile-top-ad-title">${ad.title}</span>
+          <div class="profile-top-ad-stats">
+            <span>👁️ ${numberFormatter.format(ad.views)}</span>
+            <span>❤️ ${numberFormatter.format(ad.favorites)}</span>
+          </div>
+        </li>
+      `
+        )
         .join('');
-      analyticsLocations.innerHTML = markup;
-    } else {
-      analyticsLocations.innerHTML =
-        '<p class="profile-empty__text">Aucune donnée géographique.</p>';
     }
   }
 
-  function renderAds() {
-    const ads = Array.isArray(state.ads) ? state.ads : [];
-    const totals = {
-      all: ads.length,
-      active: 0,
-      draft: 0,
-      archived: 0
-    };
+  // Geo distribution
+  if (geoList && analytics.locationDistribution) {
+    if (analytics.locationDistribution.length === 0) {
+      geoList.innerHTML = '<li>Aucune donnée</li>';
+    } else {
+      geoList.innerHTML = analytics.locationDistribution
+        .map(
+          (loc) => `
+        <li>${loc.city} (${numberFormatter.format(loc.value)})</li>
+      `
+        )
+        .join('');
+    }
+  }
+}
 
-    ads.forEach((ad) => {
-      totals[ad.status] = (totals[ad.status] || 0) + 1;
+function renderSettings(user) {
+  if (!user) return;
+  if (nameInput) nameInput.value = user.name || '';
+  if (emailInput) emailInput.value = user.email || '';
+  if (cityInput) cityInput.value = user.location?.city || '';
+  if (radiusInput) radiusInput.value = user.location?.radiusKm || '';
+}
+
+// === Form Handlers ===
+async function onSaveInfo(e) {
+  e.preventDefault();
+  if (!infoSubmit) return;
+
+  infoSubmit.disabled = true;
+  infoSubmit.textContent = 'Enregistrement...';
+
+  try {
+    const formData = new FormData(infoForm);
+    const response = await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: formData.get('name'),
+        email: formData.get('email')
+      })
     });
 
-    modal.querySelector('#filterAllCount').textContent = formatNumber(totals.all);
-    modal.querySelector('#filterActiveCount').textContent = formatNumber(totals.active || 0);
-    modal.querySelector('#filterDraftCount').textContent = formatNumber(totals.draft || 0);
-    modal.querySelector('#filterArchivedCount').textContent = formatNumber(totals.archived || 0);
+    const result = await response.json();
 
-    const filtered = state.filter === 'all' ? ads : ads.filter((ad) => ad.status === state.filter);
-
-    if (!filtered.length) {
-      adsGrid.innerHTML = '';
-      adsEmpty.hidden = false;
-      return;
+    if (response.ok) {
+      showFeedback(infoFeedback, 'Informations mises à jour', 'success');
+      // Update local state
+      if (drawerState.data?.user) {
+        drawerState.data.user.name = result.user?.name || formData.get('name');
+        drawerState.data.user.email = result.user?.email || formData.get('email');
+        renderHeader(drawerState.data.user);
+      }
+    } else {
+      showFeedback(infoFeedback, result.message || 'Erreur lors de la mise à jour', 'error');
     }
+  } catch (err) {
+    logger.error('Error saving info:', err);
+    showFeedback(infoFeedback, 'Erreur réseau', 'error');
+  } finally {
+    infoSubmit.disabled = false;
+    infoSubmit.textContent = 'Enregistrer';
+  }
+}
 
-    adsEmpty.hidden = true;
-    adsGrid.innerHTML = filtered
-      .map((ad) => {
-        const thumb =
-          (ad.previews && ad.previews[0]) ||
-          (ad.thumbnails && ad.thumbnails[0]) ||
-          (ad.images && ad.images[0]);
-        const price = Number(ad.price) || 0;
-        const views = Number(ad.views) || 0;
-        const favorites = Number(ad.favoritesCount) || 0;
-        const statusLabel =
-          ad.status === 'active' ? 'Active' : ad.status === 'draft' ? 'Brouillon' : 'Archivée';
-        return `
-          <article class="profile-ad-card" data-ad-id="${ad._id}">
-            <div class="profile-ad-card__media">
-              ${thumb ? `<img src="${thumb}" alt="${ad.title || ''}" loading="lazy" decoding="async">` : '<div class="profile-ad-card__placeholder">📷</div>'}
-              <span class="profile-ad-card__status status-${ad.status}">${statusLabel}</span>
-            </div>
-            <div class="profile-ad-card__body">
-              <h4>${ad.title || 'Sans titre'}</h4>
-              <p>${formatCurrency(price)} • ${formatNumber(views)} vues • ${formatNumber(favorites)} favoris</p>
-            </div>
-            <div class="profile-ad-card__actions">
-              <button type="button" class="profile-ad-btn" data-action="view">Voir</button>
-              <button type="button" class="profile-ad-btn" data-action="edit">Modifier</button>
-            </div>
-          </article>
-        `;
+async function onSaveLocation(e) {
+  e.preventDefault();
+  if (!locationSubmit) return;
+
+  locationSubmit.disabled = true;
+  locationSubmit.textContent = 'Enregistrement...';
+
+  try {
+    const formData = new FormData(locationForm);
+    const response = await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        'location.city': formData.get('city'),
+        'location.radiusKm': parseInt(formData.get('radiusKm'), 10) || 0
       })
-      .join('');
-  }
+    });
 
-  function updateFilter(newFilter) {
-    state.filter = newFilter;
-    renderAds();
-  }
+    const result = await response.json();
 
-  function setButtonLoading(button, loading) {
-    if (!button) {
-      return;
+    if (response.ok) {
+      showFeedback(locationFeedback, 'Localisation mise à jour', 'success');
+      // Update local state
+      if (drawerState.data?.user) {
+        drawerState.data.user.location = drawerState.data.user.location || {};
+        drawerState.data.user.location.city = formData.get('city');
+        drawerState.data.user.location.radiusKm = parseInt(formData.get('radiusKm'), 10);
+        renderOverview(drawerState.data);
+      }
+    } else {
+      showFeedback(locationFeedback, result.message || 'Erreur lors de la mise à jour', 'error');
     }
-    button.disabled = loading;
-    button.classList.toggle('is-loading', loading);
+  } catch (err) {
+    logger.error('Error saving location:', err);
+    showFeedback(locationFeedback, 'Erreur réseau', 'error');
+  } finally {
+    locationSubmit.disabled = false;
+    locationSubmit.textContent = 'Enregistrer';
+  }
+}
+
+async function onChangePassword(e) {
+  e.preventDefault();
+  clearErrors();
+  if (!passwordSubmit) return;
+
+  const currentPassword = document.getElementById('profileCurrentPassword')?.value;
+  const newPassword = document.getElementById('profileNewPassword')?.value;
+  const confirmPassword = document.getElementById('profileConfirmPassword')?.value;
+
+  // Client-side validation
+  if (!currentPassword) {
+    showError(currentPasswordError, 'Champ requis');
+    return;
+  }
+  if (!newPassword || newPassword.length < 8) {
+    showError(newPasswordError, 'Minimum 8 caractères');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    showError(confirmPasswordError, 'Les mots de passe ne correspondent pas');
+    return;
   }
 
-  async function handleAvatarChange(file) {
-    if (!file) {
-      return;
+  passwordSubmit.disabled = true;
+  passwordSubmit.textContent = 'Changement...';
+
+  try {
+    const response = await fetch('/api/users/me/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showFeedback(passwordFeedback, 'Mot de passe changé avec succès', 'success');
+      passwordForm.reset();
+    } else {
+      if (result.message?.includes('actuel')) {
+        showError(currentPasswordError, result.message);
+      } else {
+        showFeedback(passwordFeedback, result.message || 'Erreur lors du changement', 'error');
+      }
     }
-    setButtonLoading(avatarTrigger, true);
+  } catch (err) {
+    logger.error('Error changing password:', err);
+    showFeedback(passwordFeedback, 'Erreur réseau', 'error');
+  } finally {
+    passwordSubmit.disabled = false;
+    passwordSubmit.textContent = 'Changer le mot de passe';
+  }
+}
+
+async function onUploadAvatar(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    logger.warn('Invalid file type');
+    return;
+  }
+
+  try {
     const formData = new FormData();
     formData.append('avatar', file);
 
-    try {
-      const response = await fetch('/api/users/me/avatar', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      }).then((r) => r.json());
-
-      if (response?.data?.sizes?.standard) {
-        const auth = window.authStore?.get() || {};
-        const updated = {
-          ...auth,
-          avatar: response.data.sizes.standard,
-          avatarUrl: response.data.sizes.standard
-        };
-        window.authStore?.set(updated);
-        window.updateAuthUI?.();
-        setAvatarSource(avatarImg, response.data.sizes.standard);
-        setAvatarSource(avatarMini, response.data.sizes.standard);
-        window.updateAllAvatars?.(response.data.sizes.standard);
-        if (typeof window.showToast === 'function') {
-          window.showToast('Avatar mis à jour ✅');
-        }
-      } else {
-        throw new Error(response?.message || "Impossible d'actualiser l'avatar");
-      }
-    } catch (error) {
-      logger.error('Error uploading avatar', error);
-      if (typeof window.showToast === 'function') {
-        window.showToast("Impossible de mettre à jour l'avatar", 'danger');
-      }
-    } finally {
-      setButtonLoading(avatarTrigger, false);
-    }
-  }
-
-  async function handleProfileUpdate(event) {
-    event.preventDefault();
-    const api = getApi();
-    setButtonLoading(infoSubmit, true);
-    infoFeedback.textContent = 'Enregistrement en cours…';
-
-    try {
-      const payload = {
-        name: nameInput.value.trim(),
-        email: emailInput.value.trim()
-      };
-      const response = await api.patch('/api/users/me', payload);
-      const updatedUser = response?.data?.user;
-      if (updatedUser) {
-        window.authStore?.set(updatedUser);
-        window.updateAuthUI?.();
-        renderSummary(updatedUser);
-        infoFeedback.textContent = 'Profil mis à jour ✅';
-        if (typeof window.showToast === 'function') {
-          window.showToast('Profil mis à jour ✅');
-        }
-      } else {
-        throw new Error(response?.message || 'Modification impossible');
-      }
-    } catch (error) {
-      logger.error('Error updating profile', error);
-      infoFeedback.textContent = 'Erreur lors de la mise à jour du profil.';
-    } finally {
-      setButtonLoading(infoSubmit, false);
-      setTimeout(() => {
-        infoFeedback.textContent = '';
-      }, 2500);
-    }
-  }
-
-  async function handleLocationUpdate(event) {
-    event.preventDefault();
-    const api = getApi();
-    setButtonLoading(locationSubmit, true);
-    locationFeedback.textContent = 'Enregistrement en cours…';
-
-    try {
-      const payload = {
-        location: {
-          city: cityInput.value.trim(),
-          radiusKm: Number(radiusInput.value) || 10
-        }
-      };
-      const response = await api.patch('/api/users/me', payload);
-      const updatedUser = response?.data?.user;
-      if (updatedUser) {
-        window.authStore?.set(updatedUser);
-        renderSummary(updatedUser);
-        locationFeedback.textContent = 'Localisation mise à jour ✅';
-        if (typeof window.showToast === 'function') {
-          window.showToast('Localisation mise à jour ✅');
-        }
-      } else {
-        throw new Error(response?.message || 'Mise à jour impossible');
-      }
-    } catch (error) {
-      logger.error('Error updating location', error);
-      locationFeedback.textContent = 'Erreur lors de la mise à jour.';
-    } finally {
-      setButtonLoading(locationSubmit, false);
-      setTimeout(() => {
-        locationFeedback.textContent = '';
-      }, 2500);
-    }
-  }
-
-  async function handlePasswordUpdate(event) {
-    event.preventDefault();
-    const api = getApi();
-    const formData = new FormData(passwordForm);
-    const currentPassword = String(formData.get('currentPassword') || '').trim();
-    const newPassword = String(formData.get('newPassword') || '').trim();
-    const confirmPassword = String(formData.get('confirmPassword') || '').trim();
-
-    currentPasswordError.textContent = '';
-    newPasswordError.textContent = '';
-    confirmPasswordError.textContent = '';
-    currentPasswordError.classList.remove('visible');
-    newPasswordError.classList.remove('visible');
-    confirmPasswordError.classList.remove('visible');
-
-    if (!currentPassword) {
-      currentPasswordError.textContent = 'Veuillez saisir votre mot de passe actuel.';
-      currentPasswordError.classList.add('visible');
-      return;
-    }
-
-    if (!newPassword || newPassword.length < 8) {
-      newPasswordError.textContent = 'Le nouveau mot de passe doit contenir au moins 8 caractères.';
-      newPasswordError.classList.add('visible');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      confirmPasswordError.textContent = 'Les mots de passe ne correspondent pas.';
-      confirmPasswordError.classList.add('visible');
-      return;
-    }
-
-    passwordFeedback.textContent = 'Mise à jour en cours…';
-    setButtonLoading(passwordSubmit, true);
-
-    try {
-      const response = await api.post('/api/users/me/change-password', {
-        currentPassword,
-        newPassword
-      });
-
-      if (response?.status === 'success') {
-        passwordFeedback.textContent = 'Mot de passe modifié ✅';
-        passwordForm.reset();
-        if (typeof window.showToast === 'function') {
-          window.showToast('Mot de passe modifié ✅');
-        }
-        return;
-      }
-      const message = response?.message || 'Modification impossible';
-      if (response?.code === 'INVALID_PASSWORD') {
-        currentPasswordError.textContent = message;
-        currentPasswordError.classList.add('visible');
-      } else {
-        passwordFeedback.textContent = message;
-      }
-      return;
-    } catch (error) {
-      logger.error('Error changing password', error);
-      passwordFeedback.textContent = 'Erreur lors de la modification du mot de passe.';
-    } finally {
-      setButtonLoading(passwordSubmit, false);
-      setTimeout(() => {
-        passwordFeedback.textContent = '';
-      }, 2500);
-    }
-  }
-
-  function handleAdsAction(event) {
-    const button = event.target.closest('button[data-action]');
-    if (!button) {
-      return;
-    }
-    const card = button.closest('.profile-ad-card');
-    if (!card) {
-      return;
-    }
-    const adId = card.dataset.adId;
-    const ad = state.ads.find((item) => String(item._id) === String(adId));
-
-    switch (button.dataset.action) {
-      case 'edit':
-        closeProfileModal();
-        if (typeof window.openPostModal === 'function') {
-          window.openPostModal({ adId: ad?._id, adData: ad });
-        } else if (typeof window.showToast === 'function') {
-          window.showToast('Impossible d’ouvrir le formulaire de modification', 'danger');
-        }
-        break;
-      case 'view':
-        if (typeof window.openDetailsById === 'function') {
-          window.openDetailsById(ad?._id, ad);
-          closeProfileModal();
-        }
-        break;
-      default:
-        break;
-    }
-  }
-
-  function openProfileModal() {
-    const user = window.authStore?.get();
-    if (!user) {
-      if (typeof window.openAuthModal === 'function') {
-        window.openAuthModal();
-      }
-      return;
-    }
-
-    populateUser(user);
-    loadDashboard();
-    openModal();
-  }
-
-  function closeProfileModal() {
-    closeModal();
-  }
-
-  function populateUser(user) {
-    renderSummary(user);
-
-    // Update header mini avatar and email
-    const avatarValue = user?.avatarUrl || user?.avatar;
-    setAvatarSource(avatarMini, avatarValue);
-    if (emailHeader) {
-      emailHeader.textContent = user?.email || '';
-    }
-  }
-
-  overlay?.addEventListener('click', (event) => {
-    if (event.target === overlay) {
-      closeProfileModal();
-    }
-  });
-
-  closeBtn?.addEventListener('click', closeProfileModal);
-
-  tabs.forEach((tabButton) => {
-    tabButton.addEventListener('click', () => {
-      if (!tabButton.classList.contains('active')) {
-        switchTab(tabButton.dataset.tab);
-      }
+    const response = await fetch('/api/users/me/avatar', {
+      method: 'POST',
+      body: formData
     });
-  });
 
-  modal.querySelectorAll('[data-open-tab]').forEach((trigger) => {
-    trigger.addEventListener('click', (event) => {
-      event.preventDefault();
-      switchTab(trigger.dataset.openTab);
-    });
-  });
+    const result = await response.json();
 
-  adsFilters?.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-filter]');
-    if (!button) {
-      return;
+    if (response.ok && result.avatarUrl) {
+      if (avatarImg) avatarImg.src = resolveAvatarSrc(result.avatarUrl);
+      if (drawerState.data?.user) {
+        drawerState.data.user.avatarUrl = result.avatarUrl;
+      }
+      logger.info('Avatar uploaded successfully');
+    } else {
+      logger.error('Avatar upload failed:', result.message);
     }
-    adsFilters.querySelectorAll('button').forEach((btn) => btn.classList.remove('active'));
-    button.classList.add('active');
-    updateFilter(button.dataset.filter);
-  });
-
-  adsGrid?.addEventListener('click', handleAdsAction);
-  newAdBtn?.addEventListener('click', () => {
-    closeProfileModal();
-    if (typeof window.openPostModal === 'function') {
-      window.openPostModal({});
-    }
-  });
-  emptyCreateBtn?.addEventListener('click', () => {
-    closeProfileModal();
-    if (typeof window.openPostModal === 'function') {
-      window.openPostModal({});
-    }
-  });
-  summaryCreateBtn?.addEventListener('click', () => {
-    closeProfileModal();
-    if (typeof window.openPostModal === 'function') {
-      window.openPostModal({});
-    }
-  });
-
-  avatarTrigger?.addEventListener('click', () => avatarInput?.click());
-  avatarInput?.addEventListener('change', (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleAvatarChange(file);
-    }
-  });
-
-  infoForm?.addEventListener('submit', handleProfileUpdate);
-  locationForm?.addEventListener('submit', handleLocationUpdate);
-  passwordForm?.addEventListener('submit', handlePasswordUpdate);
-
-  document.addEventListener('auth:change', (event) => {
-    populateUser(event.detail || window.authStore?.get());
-  });
-
-  window.openProfileModal = openProfileModal;
-  window.closeProfileModal = closeProfileModal;
+  } catch (err) {
+    logger.error('Error uploading avatar:', err);
+  }
 }
 
+async function onDeleteAccount() {
+  const confirmation = window.confirm(
+    'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible. Toutes vos données seront perdues.'
+  );
+  if (!confirmation) return;
+
+  const doubleConfirm = window.prompt('Tapez "SUPPRIMER" pour confirmer :');
+  if (doubleConfirm !== 'SUPPRIMER') {
+    alert('Suppression annulée');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/users/me', {
+      method: 'DELETE'
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      alert('Compte supprimé. Vous allez être déconnecté.');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/';
+    } else {
+      alert(result.message || 'Erreur lors de la suppression');
+    }
+  } catch (err) {
+    logger.error('Error deleting account:', err);
+    alert('Erreur réseau');
+  }
+}
+
+// === Fetch Profile Data ===
+async function fetchProfileData() {
+  try {
+    // Try to get user from authStore first (local data)
+    const authUser = window.authStore?.get();
+    
+    if (authUser) {
+      logger.info('Using authStore user data');
+      
+      // Build user object from authStore
+      const user = {
+        id: authUser._id || authUser.id || '',
+        name: authUser.name || authUser.username || 'Utilisateur',
+        email: authUser.email || '',
+        role: authUser.role || 'user',
+        isActive: authUser.isActive !== false,
+        memberSince: authUser.createdAt || authUser.memberSince || new Date().toISOString(),
+        avatarUrl: authUser.avatar || authUser.avatarUrl || '',
+        location: {
+          city: authUser.location?.city || authUser.city || '',
+          radiusKm: authUser.location?.radiusKm || authUser.radiusKm || 0
+        }
+      };
+
+      // Try to fetch stats and analytics (optional)
+      const [statsRes, analyticsRes] = await Promise.allSettled([
+        fetch('/api/users/me/stats').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/users/me/analytics').then(r => r.ok ? r.json() : null).catch(() => null)
+      ]);
+
+      const stats = statsRes.status === 'fulfilled' && statsRes.value ? statsRes.value : {
+        summary: {
+          activeAds: 0,
+          draftAds: 0,
+          archivedAds: 0,
+          totalViews: 0,
+          totalFavorites: 0,
+          inventoryValue: 0,
+          averagePrice: 0,
+          totalAds: 0,
+          averageViews: 0
+        },
+        recentActivity: []
+      };
+
+      const analytics = analyticsRes.status === 'fulfilled' && analyticsRes.value ? analyticsRes.value : {
+        overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+        categoryPerformance: [],
+        statusBreakdown: [],
+        priceDistribution: [],
+        topPerformingAds: [],
+        locationDistribution: []
+      };
+
+      return { user, stats, analytics };
+    }
+
+    // Fallback: try API if no authStore
+    logger.warn('No authStore data, trying API');
+    const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
+      fetch('/api/users/me').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/users/me/stats').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/users/me/analytics').then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+
+    const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
+
+    return {
+      user: apiUser?.user || {
+        id: '',
+        name: 'Utilisateur',
+        email: '',
+        role: 'user',
+        isActive: true,
+        memberSince: new Date().toISOString(),
+        avatarUrl: '',
+        location: { city: '', radiusKm: 0 }
+      },
+      stats: statsRes.status === 'fulfilled' && statsRes.value ? statsRes.value : {
+        summary: {
+          activeAds: 0,
+          draftAds: 0,
+          archivedAds: 0,
+          totalViews: 0,
+          totalFavorites: 0,
+          inventoryValue: 0,
+          averagePrice: 0,
+          totalAds: 0,
+          averageViews: 0
+        },
+        recentActivity: []
+      },
+      analytics: analyticsRes.status === 'fulfilled' && analyticsRes.value ? analyticsRes.value : {
+        overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+        categoryPerformance: [],
+        statusBreakdown: [],
+        priceDistribution: [],
+        topPerformingAds: [],
+        locationDistribution: []
+      }
+    };
+  } catch (err) {
+    logger.error('Error fetching profile data:', err);
+    return null;
+  }
+}
+
+// === Open/Close ===
+async function openProfileDrawer(data) {
+  logger.info('🚀 openProfileDrawer called');
+  
+  if (!drawer) {
+    logger.error('❌ Profile drawer not found in DOM');
+    return;
+  }
+
+  logger.info('✓ Drawer found, fetching data...');
+
+  // If no data provided, fetch it
+  if (!data) {
+    data = await fetchProfileData();
+    if (!data) {
+      logger.error('❌ Could not fetch profile data');
+      return;
+    }
+    logger.info('✓ Data fetched:', data);
+  }
+
+  logger.info('✓ Opening drawer with data:', data.user?.name);
+
+  drawerState.previousFocus = document.activeElement;
+  drawerState.data = data;
+  drawerState.isOpen = true;
+
+  // Render
+  renderHeader(data.user);
+  renderOverview(data);
+  renderAnalytics(data.analytics);
+  renderSettings(data.user);
+
+  // Restore last active tab
+  const savedTab = localStorage.getItem('profileActiveTab') || 'overview';
+  setActiveTab(savedTab);
+
+  // Show drawer
+  logger.info('✓ Showing drawer...');
+  drawer.hidden = false;
+  requestAnimationFrame(() => {
+    drawer.classList.add('is-open');
+    logger.info('✓ Drawer is now visible with class is-open');
+  });
+
+  // Focus first focusable element
+  const firstFocusable = drawer.querySelector(focusableSelectors);
+  firstFocusable?.focus();
+
+  // Add listeners
+  document.addEventListener('keydown', trapFocus);
+  document.addEventListener('keydown', handleEscape);
+  
+  logger.info('🎉 Profile drawer opened successfully!');
+}
+
+function closeProfileDrawer() {
+  if (!drawer || !drawerState.isOpen) return;
+
+  drawer.classList.remove('is-open');
+
+  setTimeout(() => {
+    drawer.hidden = true;
+    drawerState.isOpen = false;
+
+    // Restore focus
+    if (drawerState.previousFocus) {
+      drawerState.previousFocus.focus();
+      drawerState.previousFocus = null;
+    }
+
+    // Remove listeners
+    document.removeEventListener('keydown', trapFocus);
+    document.removeEventListener('keydown', handleEscape);
+  }, 250);
+}
+
+// === Event Listeners ===
+function init() {
+  if (!drawer) {
+    logger.warn('Profile drawer not found, skipping init');
+    return;
+  }
+
+  // Close handlers
+  closeBtn?.addEventListener('click', closeProfileDrawer);
+  overlay?.addEventListener('click', closeProfileDrawer);
+  drawer.querySelectorAll('[data-close]').forEach((el) => {
+    el.addEventListener('click', closeProfileDrawer);
+  });
+
+  // Tabs
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', onTabClick);
+    tab.addEventListener('keydown', onTabKeydown);
+  });
+
+  // Avatar upload
+  avatarBtn?.addEventListener('click', () => avatarInput?.click());
+  avatarInput?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) onUploadAvatar(file);
+  });
+
+  // Drag & drop avatar
+  avatarBtn?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  avatarBtn?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) onUploadAvatar(file);
+  });
+
+  // Forms
+  infoForm?.addEventListener('submit', onSaveInfo);
+  locationForm?.addEventListener('submit', onSaveLocation);
+  passwordForm?.addEventListener('submit', onChangePassword);
+  deleteBtn?.addEventListener('click', onDeleteAccount);
+
+  // CTA
+  createAdBtn?.addEventListener('click', () => {
+    closeProfileDrawer();
+    // Trigger new ad modal (external)
+    window.showNewAdModal?.();
+  });
+
+  logger.info('Profile drawer initialized');
+}
+
+// Expose globally IMMEDIATELY (before init)
+window.openProfileDrawer = openProfileDrawer;
+window.closeProfileDrawer = closeProfileDrawer;
+
+// Alias pour compatibilité avec l'ancien code
+window.openProfileModal = openProfileDrawer;
+window.closeProfileModal = closeProfileDrawer;
+
+logger.info('Profile drawer functions exposed globally');
+
+// Auto-init on load
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initProfileModal, { once: true });
+  document.addEventListener('DOMContentLoaded', init);
 } else {
-  initProfileModal();
+  init();
 }

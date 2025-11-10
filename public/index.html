@@ -31,10 +31,11 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <link rel="stylesheet" href="./dist/tokens.min.css">
   <link rel="stylesheet" href="./dist/app.min.css">
-  <!-- Module Messages (drawer de messagerie) -->
+  <!-- Modules (drawers de messagerie & profil) -->
   <link rel="stylesheet" href="/css/modules/messages.css">
   <link rel="stylesheet" href="/css/modules/voice-call.css">
   <link rel="stylesheet" href="/css/modules/image-viewer.css">
+  <link rel="stylesheet" href="/css/modules/profile.css">
   <script src="./runtime-config.js"></script>
   <!-- Socket.IO client (nécessaire pour window.io) -->
   <script src="https://unpkg.com/socket.io-client@4.7.2/dist/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
@@ -1137,195 +1138,248 @@
   <script defer src="./dist/app.min.js"></script>
 
   <!-- PROFILE MODAL -->
-  <div id="profileOverlay" class="mm-overlay"></div>
-
-  <!-- Profile Modal (Drawer Style like Favorites) -->
-  <div class="mm-modal" id="profileModal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
-    <header class="mm-header">
-      <div class="mm-header-row">
-        <div class="profile-avatar-mini-wrapper">
-          <img class="profile-avatar-mini" id="profileAvatarMini" src="/uploads/avatars/default.jpg" alt="Avatar" loading="lazy">
-        </div>
-        <div class="profile-header-info">
-          <h2 id="profileTitle">Mon profil</h2>
-          <p class="profile-header-subtitle" id="profileEmailHeader">email@example.com</p>
-        </div>
-        <div class="mm-actions">
-          <button class="mm-icon" id="profileClose" aria-label="Fermer le profil">✕</button>
-        </div>
-      </div>
-    </header>
-
-    <div class="mm-body">
-      <div class="profile-tabs" role="tablist">
-        <button class="profile-tab active" data-tab="overview" role="tab" aria-controls="tab-overview">Aperçu</button>
-        <button class="profile-tab" data-tab="analytics" role="tab" aria-controls="tab-analytics">Analytics</button>
-        <button class="profile-tab" data-tab="ads" role="tab" aria-controls="tab-ads">Mes annonces</button>
-        <button class="profile-tab" data-tab="settings" role="tab" aria-controls="tab-settings">Réglages</button>
-      </div>
-
-      <section class="profile-tab-content active" id="tab-overview" role="tabpanel">
-        <div class="profile-overview" id="profileOverview">
-          <section class="profile-summary-card" id="profileSummaryCard">
-            <div class="profile-summary-card__avatar">
-              <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
-                <img class="profile-avatar" id="profileAvatar" src="/uploads/avatars/default.jpg" alt="Avatar" loading="lazy" decoding="async">
-                <button type="button" class="profile-avatar-trigger" id="profileAvatarTrigger">Modifier</button>
-                <input type="file" class="profile-avatar-input" id="profileAvatarInput" accept="image/*" hidden>
-              </div>
-            </div>
-            <div class="profile-summary-card__content">
-              <div class="profile-summary-card__header">
-                <h3 id="profileUserName">Utilisateur</h3>
-                <span class="profile-badge" id="profileMemberSince">Membre depuis —</span>
-              </div>
-              <p class="profile-summary-card__email" id="profileEmail">email@example.com</p>
-              <div class="profile-summary-card__meta" id="profileMeta">
-                <span class="profile-chip" id="profileLocationChip">Localisation inconnue</span>
-                <span class="profile-chip muted" id="profileStatusChip">— annonces actives</span>
-              </div>
-              <div class="profile-summary-card__actions">
-                <button type="button" class="mm-btn" data-open-tab="settings">Modifier mon profil</button>
-                <button type="button" class="mm-btn subtle" id="profileOpenNewAd">Créer une annonce</button>
-              </div>
-            </div>
-          </section>
-
-
-          <div class="profile-delete-account">
-            <button type="button" class="mm-btn danger" id="deleteAccountBtn">Supprimer le compte</button>
-            <div id="deleteAccountFeedback" style="display:none;color:red;margin-top:10px;"></div>
-          </div>
-
-          <section class="profile-insights" id="profileInsights"></section>
-
-          <section class="profile-activity">
-            <div class="profile-section-heading">
-              <h3>Activité récente</h3>
-              <button type="button" class="profile-link" data-open-tab="ads">Gérer mes annonces</button>
-            </div>
-            <div id="profileActivity"></div>
-          </section>
-        </div>
-      </section>
-
-      <section class="profile-tab-content" id="tab-analytics" role="tabpanel">
-        <div class="profile-analytics" id="profileAnalytics">
-          <div class="analytics-snapshot" id="analyticsOverview"></div>
-          <div class="analytics-columns">
-            <div class="analytics-card">
-              <h3>Performances par catégorie</h3>
-              <div id="analyticsCategory"></div>
-            </div>
-            <div class="analytics-card">
-              <h3>Répartition des statuts</h3>
-              <div id="analyticsStatus"></div>
-            </div>
-          </div>
-          <div class="analytics-columns">
-            <div class="analytics-card">
-              <h3>Distribution des prix</h3>
-              <div id="analyticsPrices"></div>
-            </div>
-            <div class="analytics-card">
-              <h3>Top annonces</h3>
-              <div id="analyticsTopAds"></div>
-            </div>
-          </div>
-          <div class="analytics-card">
-            <h3>Villes les plus actives</h3>
-            <div id="analyticsLocations" class="analytics-pills"></div>
+  <!-- Profile Drawer (nouveau pattern unifié) -->
+  <div id="profileDrawer" class="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="profileTitle" hidden>
+    <div class="profile-overlay" data-close></div>
+    <aside class="profile-panel">
+      <!-- Header fixe avec avatar + identité + tabs -->
+      <header id="profileHeader" class="profile-header">
+        <button class="profile-close" data-close aria-label="Fermer le profil">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        
+        <div class="profile-id">
+          <button class="profile-avatar" id="profileAvatarBtn" aria-label="Changer l'avatar" type="button">
+            <img id="profileAvatarImg" src="/uploads/avatars/default.jpg" alt="Avatar utilisateur" loading="lazy" />
+            <span class="profile-avatar-overlay" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </span>
+            <input id="profileAvatarInput" type="file" accept="image/*" hidden />
+          </button>
+          <div class="profile-meta">
+            <h2 id="profileTitle" class="profile-name">Mon profil</h2>
+            <p class="profile-email" id="profileEmail">email@example.com</p>
+            <p class="profile-memberSince" id="profileMemberSince">Membre depuis —</p>
           </div>
         </div>
-      </section>
 
-      <section class="profile-tab-content" id="tab-ads" role="tabpanel">
-        <div class="profile-ads-toolbar">
-          <div class="profile-ads-filters" id="profileAdsFilters">
-            <button class="profile-filter-btn active" data-filter="all">Toutes <span class="profile-filter-badge" id="filterAllCount">0</span></button>
-            <button class="profile-filter-btn" data-filter="active">Actives <span class="profile-filter-badge" id="filterActiveCount">0</span></button>
-            <button class="profile-filter-btn" data-filter="draft">Brouillons <span class="profile-filter-badge" id="filterDraftCount">0</span></button>
-            <button class="profile-filter-btn" data-filter="archived">Archivées <span class="profile-filter-badge" id="filterArchivedCount">0</span></button>
+        <nav id="profileTabs" class="profile-tabs" role="tablist">
+          <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">Aperçu</button>
+          <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">Analytique</button>
+          <button role="tab" aria-selected="false" aria-controls="profilePanelSettings" id="tab-settings" data-tab="settings">Paramètres</button>
+        </nav>
+      </header>
+
+      <!-- Body avec panels -->
+      <section class="profile-body">
+        <!-- Panel 1: Aperçu -->
+        <div id="profilePanelOverview" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-overview">
+          <!-- Carte résumé -->
+          <div class="profile-card profile-summary">
+            <div class="profile-summary-chips">
+              <span class="profile-chip" id="profileRoleChip">Utilisateur</span>
+              <span class="profile-chip" id="profileLocationChip">📍 —</span>
+              <span class="profile-chip" id="profileRadiusChip">🔘 — km</span>
+              <span class="profile-chip" id="profileStatusChip">✓ Actif</span>
+            </div>
+            <button type="button" class="profile-cta" id="profileCreateAdBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Créer une annonce
+            </button>
           </div>
-          <button type="button" class="mm-btn primary" id="profileNewAd">Nouvelle annonce</button>
-        </div>
-        <div class="profile-ads-grid" id="profileAdsGrid"></div>
-        <div class="profile-empty" id="profileAdsEmpty" hidden>
-          <div class="profile-empty__icon">📦</div>
-          <p class="profile-empty__title">Aucune annonce</p>
-          <p class="profile-empty__text">Publiez votre première annonce pour apparaître ici.</p>
-          <button type="button" class="mm-btn" id="profileEmptyCreate">Publier une annonce</button>
-        </div>
-      </section>
 
-      <section class="profile-tab-content" id="tab-settings" role="tabpanel">
-        <div class="profile-settings">
-          <section class="profile-settings__card">
-            <h3>Informations personnelles</h3>
+          <!-- Métriques clés -->
+          <div class="profile-metrics" id="profileMetrics">
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricActiveAds">0</span>
+              <span class="profile-metric-label">Annonces actives</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricDraftAds">0</span>
+              <span class="profile-metric-label">Brouillons</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricArchivedAds">0</span>
+              <span class="profile-metric-label">Archivées</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricTotalViews">0</span>
+              <span class="profile-metric-label">Vues totales</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricTotalFavorites">0</span>
+              <span class="profile-metric-label">Favoris totaux</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricInventoryValue">0 €</span>
+              <span class="profile-metric-label">Valeur catalogue</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricAveragePrice">0 €</span>
+              <span class="profile-metric-label">Prix moyen</span>
+            </div>
+            <div class="profile-metric">
+              <span class="profile-metric-value" id="metricAverageViews">0</span>
+              <span class="profile-metric-label">Vues moy./annonce</span>
+            </div>
+          </div>
+
+          <!-- Insights -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Insights</h3>
+            <ul class="profile-insights" id="profileInsights">
+              <li>Chargement...</li>
+            </ul>
+          </div>
+
+          <!-- Activité récente -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Activité récente</h3>
+            <ul class="profile-activity" id="profileActivity">
+              <li>Aucune activité récente</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Panel 2: Analytique -->
+        <div id="profilePanelAnalytics" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-analytics" hidden>
+          <!-- KPIs -->
+          <div class="profile-kpis" id="profileKpis">
+            <div class="profile-kpi">
+              <span class="profile-kpi-label">Vues totales</span>
+              <span class="profile-kpi-value" id="kpiTotalViews">0</span>
+            </div>
+            <div class="profile-kpi">
+              <span class="profile-kpi-label">Favoris totaux</span>
+              <span class="profile-kpi-value" id="kpiTotalFavorites">0</span>
+            </div>
+            <div class="profile-kpi">
+              <span class="profile-kpi-label">Vues moy./annonce</span>
+              <span class="profile-kpi-value" id="kpiAverageViews">0</span>
+            </div>
+            <div class="profile-kpi">
+              <span class="profile-kpi-label">Valeur catalogue</span>
+              <span class="profile-kpi-value" id="kpiInventoryValue">0 €</span>
+            </div>
+          </div>
+
+          <!-- Performance par catégorie -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Performance par catégorie</h3>
+            <div class="profile-chart-bars" id="analyticsCategoryChart"></div>
+          </div>
+
+          <!-- Répartition par statut -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Répartition par statut</h3>
+            <div class="profile-chart-bars" id="analyticsStatusChart"></div>
+          </div>
+
+          <!-- Distribution des prix -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Distribution des prix</h3>
+            <div class="profile-chart-bars" id="analyticsPriceChart"></div>
+          </div>
+
+          <!-- Top annonces -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Top annonces</h3>
+            <ul class="profile-top-ads" id="analyticsTopAds">
+              <li>Aucune donnée</li>
+            </ul>
+          </div>
+
+          <!-- Répartition géographique -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Répartition géographique</h3>
+            <ul class="profile-geo-list" id="analyticsGeoList">
+              <li>Aucune donnée</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Panel 3: Paramètres -->
+        <div id="profilePanelSettings" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-settings" hidden>
+          <!-- Infos personnelles -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Informations personnelles</h3>
             <form id="profileInfoForm" class="profile-form">
-              <div class="profile-form-row">
-                <label for="profileName">Nom complet</label>
-                <input id="profileName" name="name" type="text" autocomplete="name" required>
+              <div class="profile-form-group">
+                <label for="profileNameInput">Nom</label>
+                <input type="text" id="profileNameInput" name="name" autocomplete="name" required />
               </div>
-              <div class="profile-form-row">
-                <label for="profileEmailInput">Adresse e-mail</label>
-                <input id="profileEmailInput" name="email" type="email" autocomplete="email" required>
+              <div class="profile-form-group">
+                <label for="profileEmailInput">Email</label>
+                <input type="email" id="profileEmailInput" name="email" autocomplete="email" required />
               </div>
-              <div class="profile-form-actions">
-                <button type="submit" class="mm-btn primary" id="profileInfoSubmit">Enregistrer</button>
-              </div>
-              <p class="profile-form-feedback" id="profileInfoFeedback"></p>
+              <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
+              <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
             </form>
-          </section>
+          </div>
 
-          <section class="profile-settings__card">
-            <h3>Localisation</h3>
+          <!-- Localisation -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Localisation</h3>
             <form id="profileLocationForm" class="profile-form">
-              <div class="profile-form-row">
-                <label for="profileCity">Ville</label>
-                <input id="profileCity" name="city" type="text" placeholder="Ex. Tunis" autocomplete="address-level2">
+              <div class="profile-form-group">
+                <label for="profileCityInput">Ville</label>
+                <input type="text" id="profileCityInput" name="city" autocomplete="address-level2" placeholder="Ex: Tunis" />
               </div>
-              <div class="profile-form-row">
-                <label for="profileRadius">Rayon de recherche (km)</label>
-                <input id="profileRadius" name="radiusKm" type="number" min="1" max="200" step="1">
+              <div class="profile-form-group">
+                <label for="profileRadiusInput">Rayon (km)</label>
+                <input type="number" id="profileRadiusInput" name="radiusKm" min="1" max="200" step="1" />
               </div>
-              <div class="profile-form-actions">
-                <button type="submit" class="mm-btn" id="profileLocationSubmit">Mettre à jour</button>
-              </div>
-              <p class="profile-form-feedback" id="profileLocationFeedback"></p>
+              <p class="profile-form-feedback" id="profileLocationFeedback" role="status" aria-live="polite"></p>
+              <button type="submit" class="profile-btn" id="profileLocationSubmit">Enregistrer</button>
             </form>
-          </section>
+          </div>
 
-          <section class="profile-settings__card">
-            <h3>Sécurité</h3>
+          <!-- Sécurité -->
+          <div class="profile-card">
+            <h3 class="profile-section-title">Sécurité</h3>
             <form id="profilePasswordForm" class="profile-form">
-              <div class="profile-form-row">
-                <label for="currentPassword">Mot de passe actuel</label>
-                <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required>
+              <div class="profile-form-group">
+                <label for="profileCurrentPassword">Mot de passe actuel</label>
+                <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required />
                 <span class="profile-form-error" id="currentPasswordError"></span>
               </div>
-              <div class="profile-form-row">
-                <label for="newPassword">Nouveau mot de passe</label>
-                <input type="password" id="newPassword" name="newPassword" minlength="8" autocomplete="new-password" required>
-                <span class="profile-form-hint">Minimum 8 caractères, incluant lettres et chiffres.</span>
+              <div class="profile-form-group">
+                <label for="profileNewPassword">Nouveau mot de passe</label>
+                <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required />
+                <span class="profile-form-hint">Minimum 8 caractères</span>
                 <span class="profile-form-error" id="newPasswordError"></span>
               </div>
-              <div class="profile-form-row">
-                <label for="confirmPassword">Confirmer le mot de passe</label>
-                <input type="password" id="confirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required>
+              <div class="profile-form-group">
+                <label for="profileConfirmPassword">Confirmer</label>
+                <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required />
                 <span class="profile-form-error" id="confirmPasswordError"></span>
               </div>
-              <div class="profile-form-actions">
-                <button type="submit" class="mm-btn primary" id="profilePasswordSubmit">Changer le mot de passe</button>
-              </div>
-              <p class="profile-form-feedback" id="profilePasswordFeedback"></p>
+              <p class="profile-form-feedback" id="profilePasswordFeedback" role="status" aria-live="polite"></p>
+              <button type="submit" class="profile-btn" id="profilePasswordSubmit">Changer le mot de passe</button>
             </form>
-          </section>
+          </div>
+
+          <!-- Zone danger -->
+          <div class="profile-card profile-danger">
+            <h3 class="profile-section-title">Zone de danger</h3>
+            <p class="profile-danger-text">La suppression de votre compte est définitive. Toutes vos données seront perdues.</p>
+            <button type="button" class="profile-btn profile-btn-danger" id="profileDeleteBtn">Supprimer le compte</button>
+          </div>
         </div>
       </section>
-    </div>
+    </aside>
   </div>
-  
+
   <!-- Profile Modal Script -->
+  <script src="/js/profile-modal.js"></script>
 </body>
 </html>

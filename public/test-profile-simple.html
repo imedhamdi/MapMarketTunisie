@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Simple Profile</title>
+  <link rel="stylesheet" href="/css/modules/profile.css">
+  <style>
+    :root {
+      --surface-0: #ffffff;
+      --surface-1: #f8fafc;
+      --surface-2: #f1f5f9;
+      --border-soft: #e2e8f0;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --color-primary: #3b82f6;
+      --color-primary-dark: #2563eb;
+      --color-error: #ef4444;
+      --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --shadow-4: -8px 0 24px rgba(0, 0, 0, 0.15);
+      --radius-1: 6px;
+      --radius-2: 12px;
+      --radius-pill: 999px;
+      --spacing-1: 0.25rem;
+      --spacing-2: 0.5rem;
+      --spacing-3: 0.75rem;
+      --spacing-4: 1rem;
+      --spacing-5: 1.25rem;
+      --spacing-6: 1.5rem;
+      --spacing-10: 2.5rem;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #f1f5f9;
+    }
+    .test-btn {
+      padding: 1rem 2rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .test-btn:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Profile Drawer</h1>
+  <button class="test-btn" onclick="testOpen()">Ouvrir avec données</button>
+  <button class="test-btn" onclick="testOpenEmpty()">Ouvrir sans données (fetch API)</button>
+  
+  <div style="margin-top: 2rem; padding: 1rem; background: white; border-radius: 8px;">
+    <h3>Console Output:</h3>
+    <div id="output" style="font-family: monospace; font-size: 0.9rem;"></div>
+  </div>
+
+  <script>
+    const output = document.getElementById('output');
+    function log(msg) {
+      output.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+
+    function testOpen() {
+      log('Calling openProfileDrawer with data...');
+      if (typeof window.openProfileDrawer === 'function') {
+        window.openProfileDrawer({
+          user: {
+            name: 'Test User',
+            email: 'test@example.com',
+            role: 'user',
+            isActive: true,
+            memberSince: new Date().toISOString(),
+            location: { city: 'Tunis', radiusKm: 50 }
+          },
+          stats: {
+            summary: {
+              activeAds: 5,
+              draftAds: 2,
+              archivedAds: 3,
+              totalViews: 500,
+              totalFavorites: 40,
+              inventoryValue: 10000,
+              averagePrice: 500,
+              averageViews: 25
+            },
+            recentActivity: []
+          },
+          analytics: {
+            overview: { totalViews: 500, totalFavorites: 40, averageViews: 25, inventoryValue: 10000 },
+            categoryPerformance: [{ category: 'Test', value: 100 }],
+            statusBreakdown: [{ status: 'active', value: 5 }],
+            priceDistribution: [{ bucket: '0-500€', value: 3 }],
+            topPerformingAds: [],
+            locationDistribution: []
+          }
+        });
+        log('✓ Function called');
+      } else {
+        log('✗ openProfileDrawer not found');
+      }
+    }
+
+    function testOpenEmpty() {
+      log('Calling openProfileDrawer without data...');
+      if (typeof window.openProfileDrawer === 'function') {
+        window.openProfileDrawer();
+        log('✓ Function called');
+      } else {
+        log('✗ openProfileDrawer not found');
+      }
+    }
+
+    window.addEventListener('load', () => {
+      log('Page loaded');
+      log('openProfileDrawer available: ' + (typeof window.openProfileDrawer !== 'undefined'));
+      log('openProfileModal available: ' + (typeof window.openProfileModal !== 'undefined'));
+    });
+  </script>
+
+  <script type="module" src="/js/profile-modal.js"></script>
+</body>
+</html>
