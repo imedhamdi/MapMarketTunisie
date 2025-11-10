@@ -76,7 +76,7 @@
     // Vérifier si l'utilisateur est connecté
     const checkAuthAndToggleButton = () => {
       const token = localStorage.getItem('token');
-      
+
       if (token) {
         // Si connecté, cacher le bouton et le wrapper
         btn.style.display = 'none';
@@ -101,12 +101,12 @@
     // Gérer le clic sur le bouton
     btn.addEventListener('click', () => {
       const token = localStorage.getItem('token');
-      
+
       // Si connecté, ne rien faire (normalement le bouton est caché)
       if (token) {
         return;
       }
-      
+
       // Si non connecté, ouvrir le modal d'inscription
       const signupTab = document.getElementById('signupTab');
       if (signupTab) {
