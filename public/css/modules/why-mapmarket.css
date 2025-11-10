@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .why-mapmarket {
-  --why-padding-block: clamp(4rem, 10vw, 8rem);
+  --why-padding-block: clamp(3rem, 8vw, 6rem);
   --why-gap: clamp(1.5rem, 3vw, 2rem);
   
   position: relative;

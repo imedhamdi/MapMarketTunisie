@@ -36,11 +36,13 @@
   <link rel="stylesheet" href="/css/modules/voice-call.css">
   <link rel="stylesheet" href="/css/modules/image-viewer.css">
   <link rel="stylesheet" href="/css/modules/profile.css">
+  <link rel="stylesheet" href="/css/modules/join-community.css">
   <script src="./runtime-config.js"></script>
   <!-- Socket.IO client (nécessaire pour window.io) -->
   <script src="https://unpkg.com/socket.io-client@4.7.2/dist/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
   <script defer src="/js/voice-call.js"></script>
   <script defer src="/js/messages.js"></script>
+  <script defer src="/js/join-community.js"></script>
   <script defer src="/js/why-mapmarket.js"></script>
 </head>
 
@@ -1080,6 +1082,109 @@
       <img id="imageViewerImg" class="image-viewer__img" src="" alt="">
     </div>
   </div>
+
+  <!-- Section "Rejoignez la communauté" -->
+  <section class="join-community" id="joinCommunity">
+    <div class="join-community__container">
+      <div class="join-community__wrapper">
+        <!-- Content -->
+        <div class="join-community__content">
+          <p class="join-community__eyebrow">Rejoignez-nous</p>
+          
+          <h2 class="join-community__title">
+            Publiez gratuitement et vendez plus vite
+          </h2>
+          
+          <p class="join-community__description">
+            Rejoignez des milliers de vendeurs de confiance et donnez de la visibilité à vos annonces localement.
+          </p>
+          
+          <ul class="join-community__features">
+            <li class="join-community__feature">
+              <svg class="join-community__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Publication illimitée et gratuite</span>
+            </li>
+            <li class="join-community__feature">
+              <svg class="join-community__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Visibilité locale maximale</span>
+            </li>
+            <li class="join-community__feature">
+              <svg class="join-community__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Messagerie intégrée et sécurisée</span>
+            </li>
+          </ul>
+          
+          <button type="button" class="join-community__cta" id="joinCommunityBtn">
+            <span>Créer un compte</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </button>
+          
+          <p class="join-community__note">
+            Aucune carte bancaire requise • Inscription en 30 secondes
+          </p>
+        </div>
+        
+        <!-- Visual Card -->
+        <div class="join-community__visual">
+          <div class="join-community__card">
+            <div class="join-community__card-header">
+              <div class="join-community__avatar-group">
+                <img 
+                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop" 
+                  alt="Utilisateur" 
+                  class="join-community__avatar"
+                  loading="lazy"
+                />
+                <img 
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop" 
+                  alt="Utilisateur" 
+                  class="join-community__avatar"
+                  loading="lazy"
+                />
+                <img 
+                  src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop" 
+                  alt="Utilisateur" 
+                  class="join-community__avatar"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            
+            <h3 class="join-community__card-title">
+              Une communauté active
+            </h3>
+            
+            <p class="join-community__card-subtitle">
+              Vendeurs et acheteurs se connectent chaque jour pour échanger en toute confiance.
+            </p>
+            
+            <div class="join-community__stats">
+              <div class="join-community__stat">
+                <div class="join-community__stat-value" data-counter="1250">0</div>
+                <div class="join-community__stat-label">Membres</div>
+              </div>
+              <div class="join-community__stat">
+                <div class="join-community__stat-value" data-counter="3500">0</div>
+                <div class="join-community__stat-label">Annonces</div>
+              </div>
+              <div class="join-community__stat">
+                <div class="join-community__stat-value">98%</div>
+                <div class="join-community__stat-label">Satisfaits</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Section "Pourquoi MapMarket ?" -->
   <section class="why-mapmarket" id="whyMapmarket">
