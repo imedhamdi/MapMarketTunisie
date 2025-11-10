@@ -41,6 +41,7 @@
   <script src="https://unpkg.com/socket.io-client@4.7.2/dist/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
   <script defer src="/js/voice-call.js"></script>
   <script defer src="/js/messages.js"></script>
+  <script defer src="/js/why-mapmarket.js"></script>
 </head>
 
 <body>
@@ -1079,6 +1080,97 @@
       <img id="imageViewerImg" class="image-viewer__img" src="" alt="">
     </div>
   </div>
+
+  <!-- Section "Pourquoi MapMarket ?" -->
+  <section class="why-mapmarket" id="whyMapmarket">
+    <div class="why-mapmarket__container">
+      <header class="why-mapmarket__header">
+        <h2 class="why-mapmarket__title">Pourquoi MapMarket ?</h2>
+        <p class="why-mapmarket__subtitle">Une plateforme conçue pour simplifier vos recherches et valoriser vos annonces</p>
+      </header>
+
+      <div class="why-mapmarket__grid">
+        <!-- Card 1: Rapide et simple -->
+        <article class="why-mapmarket__card">
+          <div class="why-mapmarket__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="why-mapmarket__content">
+            <h3 class="why-mapmarket__card-title">Rapide et simple</h3>
+            <p class="why-mapmarket__card-description">Publiez une annonce en moins de 2 minutes. Interface intuitive et processus optimisé.</p>
+            <span class="why-mapmarket__stat">⚡ 2 min moyenne</span>
+          </div>
+        </article>
+
+        <!-- Card 2: Localisé -->
+        <article class="why-mapmarket__card">
+          <div class="why-mapmarket__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <div class="why-mapmarket__content">
+            <h3 class="why-mapmarket__card-title">Localisé</h3>
+            <p class="why-mapmarket__card-description">Trouvez des offres autour de vous grâce à notre carte interactive et géolocalisation précise.</p>
+            <span class="why-mapmarket__stat">📍 GPS intégré</span>
+          </div>
+        </article>
+
+        <!-- Card 3: Fiable -->
+        <article class="why-mapmarket__card">
+          <div class="why-mapmarket__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <div class="why-mapmarket__content">
+            <h3 class="why-mapmarket__card-title">Fiable</h3>
+            <p class="why-mapmarket__card-description">Comptes vérifiés et modération active pour garantir la qualité et la sécurité.</p>
+            <span class="why-mapmarket__stat">✓ 100% sécurisé</span>
+          </div>
+        </article>
+
+        <!-- Card 4: Communication directe -->
+        <article class="why-mapmarket__card">
+          <div class="why-mapmarket__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="why-mapmarket__content">
+            <h3 class="why-mapmarket__card-title">Communication directe</h3>
+            <p class="why-mapmarket__card-description">Discutez avec les vendeurs en temps réel via notre système de messagerie intégré.</p>
+            <span class="why-mapmarket__stat">💬 Chat en temps réel</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- Statistiques -->
+      <div class="why-mapmarket__stats">
+        <div class="why-mapmarket__stats-item">
+          <span class="why-mapmarket__stats-value" data-counter="1250">0</span>
+          <span class="why-mapmarket__stats-label">Utilisateurs actifs</span>
+        </div>
+        <div class="why-mapmarket__stats-item">
+          <span class="why-mapmarket__stats-value" data-counter="3500">0</span>
+          <span class="why-mapmarket__stats-label">Annonces publiées</span>
+        </div>
+        <div class="why-mapmarket__stats-item">
+          <span class="why-mapmarket__stats-value" data-counter="98">0</span>
+          <span class="why-mapmarket__stats-label">Taux de satisfaction</span>
+        </div>
+        <div class="why-mapmarket__stats-item">
+          <span class="why-mapmarket__stats-value" data-counter="24">0</span>
+          <span class="why-mapmarket__stats-label">Support 24/7</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <footer class="mm-footer" id="appFooter">
     <div class="mm-footer__grid">
