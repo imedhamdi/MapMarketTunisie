@@ -646,10 +646,10 @@ async function fetchProfileData() {
   try {
     // Try to get user from authStore first (local data)
     const authUser = window.authStore?.get();
-    
+
     if (authUser) {
       logger.info('Using authStore user data');
-      
+
       // Build user object from authStore
       const user = {
         id: authUser._id || authUser.id || '',
@@ -667,33 +667,43 @@ async function fetchProfileData() {
 
       // Try to fetch stats and analytics (optional)
       const [statsRes, analyticsRes] = await Promise.allSettled([
-        fetch('/api/users/me/stats').then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/users/me/analytics').then(r => r.ok ? r.json() : null).catch(() => null)
+        fetch('/api/users/me/stats')
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+        fetch('/api/users/me/analytics')
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
       ]);
 
-      const stats = statsRes.status === 'fulfilled' && statsRes.value ? statsRes.value : {
-        summary: {
-          activeAds: 0,
-          draftAds: 0,
-          archivedAds: 0,
-          totalViews: 0,
-          totalFavorites: 0,
-          inventoryValue: 0,
-          averagePrice: 0,
-          totalAds: 0,
-          averageViews: 0
-        },
-        recentActivity: []
-      };
+      const stats =
+        statsRes.status === 'fulfilled' && statsRes.value
+          ? statsRes.value
+          : {
+              summary: {
+                activeAds: 0,
+                draftAds: 0,
+                archivedAds: 0,
+                totalViews: 0,
+                totalFavorites: 0,
+                inventoryValue: 0,
+                averagePrice: 0,
+                totalAds: 0,
+                averageViews: 0
+              },
+              recentActivity: []
+            };
 
-      const analytics = analyticsRes.status === 'fulfilled' && analyticsRes.value ? analyticsRes.value : {
-        overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
-        categoryPerformance: [],
-        statusBreakdown: [],
-        priceDistribution: [],
-        topPerformingAds: [],
-        locationDistribution: []
-      };
+      const analytics =
+        analyticsRes.status === 'fulfilled' && analyticsRes.value
+          ? analyticsRes.value
+          : {
+              overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+              categoryPerformance: [],
+              statusBreakdown: [],
+              priceDistribution: [],
+              topPerformingAds: [],
+              locationDistribution: []
+            };
 
       return { user, stats, analytics };
     }
@@ -701,9 +711,15 @@ async function fetchProfileData() {
     // Fallback: try API if no authStore
     logger.warn('No authStore data, trying API');
     const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
-      fetch('/api/users/me').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('/api/users/me/stats').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('/api/users/me/analytics').then(r => r.ok ? r.json() : null).catch(() => null)
+      fetch('/api/users/me')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch('/api/users/me/stats')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch('/api/users/me/analytics')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
     ]);
 
     const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
@@ -719,28 +735,34 @@ async function fetchProfileData() {
         avatarUrl: '',
         location: { city: '', radiusKm: 0 }
       },
-      stats: statsRes.status === 'fulfilled' && statsRes.value ? statsRes.value : {
-        summary: {
-          activeAds: 0,
-          draftAds: 0,
-          archivedAds: 0,
-          totalViews: 0,
-          totalFavorites: 0,
-          inventoryValue: 0,
-          averagePrice: 0,
-          totalAds: 0,
-          averageViews: 0
-        },
-        recentActivity: []
-      },
-      analytics: analyticsRes.status === 'fulfilled' && analyticsRes.value ? analyticsRes.value : {
-        overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
-        categoryPerformance: [],
-        statusBreakdown: [],
-        priceDistribution: [],
-        topPerformingAds: [],
-        locationDistribution: []
-      }
+      stats:
+        statsRes.status === 'fulfilled' && statsRes.value
+          ? statsRes.value
+          : {
+              summary: {
+                activeAds: 0,
+                draftAds: 0,
+                archivedAds: 0,
+                totalViews: 0,
+                totalFavorites: 0,
+                inventoryValue: 0,
+                averagePrice: 0,
+                totalAds: 0,
+                averageViews: 0
+              },
+              recentActivity: []
+            },
+      analytics:
+        analyticsRes.status === 'fulfilled' && analyticsRes.value
+          ? analyticsRes.value
+          : {
+              overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+              categoryPerformance: [],
+              statusBreakdown: [],
+              priceDistribution: [],
+              topPerformingAds: [],
+              locationDistribution: []
+            }
     };
   } catch (err) {
     logger.error('Error fetching profile data:', err);
@@ -751,7 +773,7 @@ async function fetchProfileData() {
 // === Open/Close ===
 async function openProfileDrawer(data) {
   logger.info('🚀 openProfileDrawer called');
-  
+
   if (!drawer) {
     logger.error('❌ Profile drawer not found in DOM');
     return;
@@ -760,26 +782,27 @@ async function openProfileDrawer(data) {
   logger.info('✓ Drawer found, fetching data...');
 
   // If no data provided, fetch it
-  if (!data) {
-    data = await fetchProfileData();
-    if (!data) {
+  let profileData = data;
+  if (!profileData) {
+    profileData = await fetchProfileData();
+    if (!profileData) {
       logger.error('❌ Could not fetch profile data');
       return;
     }
-    logger.info('✓ Data fetched:', data);
+    logger.info('✓ Data fetched:', profileData);
   }
 
-  logger.info('✓ Opening drawer with data:', data.user?.name);
+  logger.info('✓ Opening drawer with data:', profileData.user?.name);
 
   drawerState.previousFocus = document.activeElement;
-  drawerState.data = data;
+  drawerState.data = profileData;
   drawerState.isOpen = true;
 
   // Render
-  renderHeader(data.user);
-  renderOverview(data);
-  renderAnalytics(data.analytics);
-  renderSettings(data.user);
+  renderHeader(profileData.user);
+  renderOverview(profileData);
+  renderAnalytics(profileData.analytics);
+  renderSettings(profileData.user);
 
   // Restore last active tab
   const savedTab = localStorage.getItem('profileActiveTab') || 'overview';
@@ -800,7 +823,7 @@ async function openProfileDrawer(data) {
   // Add listeners
   document.addEventListener('keydown', trapFocus);
   document.addEventListener('keydown', handleEscape);
-  
+
   logger.info('🎉 Profile drawer opened successfully!');
 }
 

@@ -482,7 +482,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: background var(--transition-base), border-bottom-color var(--transition-base);
   isolation: isolate;
 }
 
@@ -498,11 +498,21 @@
     rgba(255, 77, 109, 0.04) 100%
   );
   border-bottom-color: var(--messages-accent-light);
-  border-left: 4px solid var(--messages-accent);
-  padding-left: 16px;
 }
 
 .conversation-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--messages-accent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.conversation-item.is-active::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -512,14 +522,24 @@
     transparent 100%
   );
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 /* Messages non lus */
 .conversation-item.has-unread {
   background: rgba(255, 77, 109, 0.02);
-  border-left: 2px solid var(--messages-accent-light);
-  padding-left: 18px;
+}
+
+.conversation-item.has-unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--messages-accent-light);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .conversation-item.has-unread .conversation-item__title {

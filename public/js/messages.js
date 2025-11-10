@@ -3443,7 +3443,7 @@
 
   // Attente utilitaire de connexion socket (résout true/false)
   function waitForSocketConnected(sock, timeout = 5000) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!sock) return resolve(false);
       if (sock.connected) return resolve(true);
       const timer = setTimeout(() => {
@@ -3472,7 +3472,7 @@
   }
 
   function handleCallStateChange(data) {
-    const { state, duration, remoteStream, isIncoming, conversationId, initiatorId } = data;
+    const { state, duration, remoteStream, isIncoming, conversationId } = data;
 
     if (!voiceCallModals.modal) return;
 
