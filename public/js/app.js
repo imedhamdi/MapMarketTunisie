@@ -7764,6 +7764,15 @@
     applyFavoritesFromUser(initialAuth);
   }
 
+  // Listen for avatar updates from profile modal
+  document.addEventListener('user:avatar-updated', (event) => {
+    const { avatarUrl } = event.detail || {};
+    if (avatarUrl) {
+      appLogger.info('Avatar update event received:', avatarUrl);
+      window.updateUserAvatar(avatarUrl);
+    }
+  });
+
   // Log startup info
 
   updateAuthUI();

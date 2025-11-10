@@ -54,8 +54,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Don't intercept uploaded files (avatars, images, etc.)
+  // Don't intercept uploaded files (avatars, images, etc.) - let browser handle them
   if (requestUrl.pathname.startsWith('/uploads/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Don't intercept socket.io requests
+  if (requestUrl.pathname.startsWith('/socket.io/')) {
     return;
   }
 
@@ -76,44 +82,64 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For other resources, try cache first with network fallback
   event.respondWith(cacheFirst(event.request));
 });
 
 async function cacheFirst(request) {
-  const cache = await caches.open(CACHE);
-  const cached = await cache.match(request);
-
-  if (cached) {
-    fetch(request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          cache.put(request, response.clone());
-        }
-      })
-      .catch(() => {});
-    return cached;
-  }
-
-  const response = await fetch(request);
-  if (response && response.status === 200) {
-    cache.put(request, response.clone());
-  }
-  return response;
-}
-
-async function networkFirst(request) {
-  const cache = await caches.open(CACHE);
   try {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(request);
+
+    if (cached) {
+      // Update cache in background
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200 && response.ok) {
+            cache.put(request, response.clone());
+          }
+        })
+        .catch(() => {
+          // Silently fail - we already have cached version
+        });
+      return cached;
+    }
+
     const response = await fetch(request);
-    if (response && response.status === 200) {
-      cache.put(request, response.clone());
+    if (response && response.status === 200 && response.ok) {
+      cache.put(request, response.clone()).catch(() => {
+        // Failed to cache, but still return response
+      });
     }
     return response;
   } catch (error) {
-    const cached = await cache.match(request);
-    if (cached) {
-      return cached;
+    console.error('[SW] Cache first error:', error);
+    // If everything fails, try to fetch without caching
+    return fetch(request);
+  }
+}
+
+async function networkFirst(request) {
+  try {
+    const cache = await caches.open(CACHE);
+    try {
+      const response = await fetch(request);
+      if (response && response.status === 200 && response.ok) {
+        cache.put(request, response.clone()).catch(() => {
+          // Failed to cache, but still return response
+        });
+      }
+      return response;
+    } catch (error) {
+      console.warn('[SW] Network request failed, trying cache:', error.message);
+      const cached = await cache.match(request);
+      if (cached) {
+        return cached;
+      }
+      throw error;
     }
+  } catch (error) {
+    console.error('[SW] Network first error:', error);
     throw error;
   }
 }

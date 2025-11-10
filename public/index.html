@@ -8,7 +8,7 @@
     content="MapMarket : trouvez des annonces près de chez vous sur une carte rapide et accessible.">
   <meta name="theme-color" content="#0f172a">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data: blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'">
+    content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com data: blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000 http://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'">
   <link rel="canonical" href="https://tondomaine.com/">
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -1166,6 +1166,10 @@
             <h2 id="profileTitle" class="profile-name">Mon profil</h2>
             <p class="profile-email" id="profileEmail">email@example.com</p>
             <p class="profile-memberSince" id="profileMemberSince">Membre depuis —</p>
+            <div class="profile-chips">
+              <span class="profile-chip" id="profileLocationChip">📍 —</span>
+              <span class="profile-chip" id="profileAdsCountChip">📋 0 annonces</span>
+            </div>
           </div>
         </div>
 
@@ -1180,74 +1184,7 @@
       <section class="profile-body">
         <!-- Panel 1: Aperçu -->
         <div id="profilePanelOverview" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-overview">
-          <!-- Carte résumé -->
-          <div class="profile-card profile-summary">
-            <div class="profile-summary-chips">
-              <span class="profile-chip" id="profileRoleChip">Utilisateur</span>
-              <span class="profile-chip" id="profileLocationChip">📍 —</span>
-              <span class="profile-chip" id="profileRadiusChip">🔘 — km</span>
-              <span class="profile-chip" id="profileStatusChip">✓ Actif</span>
-            </div>
-            <button type="button" class="profile-cta" id="profileCreateAdBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Créer une annonce
-            </button>
-          </div>
-
-          <!-- Métriques clés -->
-          <div class="profile-metrics" id="profileMetrics">
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricActiveAds">0</span>
-              <span class="profile-metric-label">Annonces actives</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricDraftAds">0</span>
-              <span class="profile-metric-label">Brouillons</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricArchivedAds">0</span>
-              <span class="profile-metric-label">Archivées</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricTotalViews">0</span>
-              <span class="profile-metric-label">Vues totales</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricTotalFavorites">0</span>
-              <span class="profile-metric-label">Favoris totaux</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricInventoryValue">0 €</span>
-              <span class="profile-metric-label">Valeur catalogue</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricAveragePrice">0 €</span>
-              <span class="profile-metric-label">Prix moyen</span>
-            </div>
-            <div class="profile-metric">
-              <span class="profile-metric-value" id="metricAverageViews">0</span>
-              <span class="profile-metric-label">Vues moy./annonce</span>
-            </div>
-          </div>
-
-          <!-- Insights -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Insights</h3>
-            <ul class="profile-insights" id="profileInsights">
-              <li>Chargement...</li>
-            </ul>
-          </div>
-
-          <!-- Activité récente -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Activité récente</h3>
-            <ul class="profile-activity" id="profileActivity">
-              <li>Aucune activité récente</li>
-            </ul>
-          </div>
+          <!-- Contenu à venir -->
         </div>
 
         <!-- Panel 2: Analytique -->
@@ -1276,18 +1213,6 @@
           <div class="profile-card">
             <h3 class="profile-section-title">Performance par catégorie</h3>
             <div class="profile-chart-bars" id="analyticsCategoryChart"></div>
-          </div>
-
-          <!-- Répartition par statut -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Répartition par statut</h3>
-            <div class="profile-chart-bars" id="analyticsStatusChart"></div>
-          </div>
-
-          <!-- Distribution des prix -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Distribution des prix</h3>
-            <div class="profile-chart-bars" id="analyticsPriceChart"></div>
           </div>
 
           <!-- Top annonces -->

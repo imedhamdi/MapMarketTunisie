@@ -34,23 +34,8 @@ const emailEl = document.getElementById('profileEmail');
 const memberSinceEl = document.getElementById('profileMemberSince');
 
 // Overview panel
-const roleChip = document.getElementById('profileRoleChip');
 const locationChip = document.getElementById('profileLocationChip');
-const radiusChip = document.getElementById('profileRadiusChip');
-const statusChip = document.getElementById('profileStatusChip');
-const createAdBtn = document.getElementById('profileCreateAdBtn');
-const metricsEls = {
-  activeAds: document.getElementById('metricActiveAds'),
-  draftAds: document.getElementById('metricDraftAds'),
-  archivedAds: document.getElementById('metricArchivedAds'),
-  totalViews: document.getElementById('metricTotalViews'),
-  totalFavorites: document.getElementById('metricTotalFavorites'),
-  inventoryValue: document.getElementById('metricInventoryValue'),
-  averagePrice: document.getElementById('metricAveragePrice'),
-  averageViews: document.getElementById('metricAverageViews')
-};
-const insightsContainer = document.getElementById('profileInsights');
-const activityContainer = document.getElementById('profileActivity');
+const adsCountChip = document.getElementById('profileAdsCountChip');
 
 // Analytics panel
 const kpisEls = {
@@ -60,8 +45,6 @@ const kpisEls = {
   inventoryValue: document.getElementById('kpiInventoryValue')
 };
 const categoryChart = document.getElementById('analyticsCategoryChart');
-const statusChart = document.getElementById('analyticsStatusChart');
-const priceChart = document.getElementById('analyticsPriceChart');
 const topAds = document.getElementById('analyticsTopAds');
 const geoList = document.getElementById('analyticsGeoList');
 
@@ -101,6 +84,13 @@ const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
 
 const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
 
+// Cache TTL: 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_KEYS = {
+  STATS: 'profile_stats_cache',
+  ANALYTICS: 'profile_analytics_cache'
+};
+
 // === Helpers ===
 function resolveAvatarSrc(rawValue) {
   if (typeof window.getAvatarUrl === 'function') {
@@ -110,6 +100,54 @@ function resolveAvatarSrc(rawValue) {
   if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) return rawValue;
   if (rawValue.startsWith('/')) return rawValue;
   return `/uploads/avatars/${rawValue}`;
+}
+
+// === Cache Helpers ===
+function saveCacheData(key, data) {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+    logger.info(`✓ Cache saved: ${key}`);
+  } catch (err) {
+    logger.error(`❌ Error saving cache ${key}:`, err);
+  }
+}
+
+function getCacheData(key) {
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+
+    const cacheItem = JSON.parse(cached);
+    const age = Date.now() - cacheItem.timestamp;
+
+    // Check if cache is still valid (within TTL)
+    if (age < CACHE_TTL) {
+      logger.info(`✓ Cache hit: ${key} (age: ${Math.round(age / 1000)}s)`);
+      return cacheItem.data;
+    }
+
+    // Cache expired, remove it
+    logger.info(`⏱ Cache expired: ${key}`);
+    localStorage.removeItem(key);
+    return null;
+  } catch (err) {
+    logger.error(`❌ Error reading cache ${key}:`, err);
+    return null;
+  }
+}
+
+function clearProfileCache() {
+  try {
+    localStorage.removeItem(CACHE_KEYS.STATS);
+    localStorage.removeItem(CACHE_KEYS.ANALYTICS);
+    logger.info('✓ Profile cache cleared');
+  } catch (err) {
+    logger.error('❌ Error clearing cache:', err);
+  }
 }
 
 function formatRelativeTime(isoDate) {
@@ -130,10 +168,25 @@ function formatRelativeTime(isoDate) {
 
 function showFeedback(el, message, type) {
   if (!el) return;
+  
+  // Clear previous feedback
+  el.textContent = '';
+  el.className = 'profile-form-feedback';
+  
+  // Force reflow to restart animation
+  void el.offsetWidth;
+  
+  // Set new feedback with aria-live support
   el.textContent = message;
   el.className = `profile-form-feedback ${type}`;
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-atomic', 'true');
+  
+  // Auto-hide after 5 seconds
   setTimeout(() => {
     el.className = 'profile-form-feedback';
+    el.textContent = '';
   }, 5000);
 }
 
@@ -150,6 +203,76 @@ function clearErrors() {
       el.classList.remove('visible');
     }
   });
+}
+
+function showEmptyAnalytics() {
+  const analyticsPanel = panels.analytics;
+  if (!analyticsPanel) return;
+
+  const emptyHTML = `
+    <div class="profile-empty-state">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+      </svg>
+      <h3>Aucune donnée analytique</h3>
+      <p>Créez votre première annonce pour commencer à suivre vos statistiques et performances.</p>
+    </div>
+  `;
+
+  // Replace KPI section
+  const kpisContainer = analyticsPanel.querySelector('.profile-kpis');
+  if (kpisContainer) {
+    kpisContainer.innerHTML = emptyHTML;
+  }
+}
+
+function restoreAnalyticsKpis() {
+  const analyticsPanel = panels.analytics;
+  if (!analyticsPanel) return;
+
+  const kpisContainer = analyticsPanel.querySelector('.profile-kpis');
+  if (kpisContainer) {
+    kpisContainer.innerHTML = `
+      <div class="profile-kpi">
+        <span class="profile-kpi-label">Vues totales</span>
+        <span class="profile-kpi-value" id="kpiTotalViews">0</span>
+      </div>
+      <div class="profile-kpi">
+        <span class="profile-kpi-label">Favoris totaux</span>
+        <span class="profile-kpi-value" id="kpiTotalFavorites">0</span>
+      </div>
+      <div class="profile-kpi">
+        <span class="profile-kpi-label">Vues moy./annonce</span>
+        <span class="profile-kpi-value" id="kpiAverageViews">0</span>
+      </div>
+      <div class="profile-kpi">
+        <span class="profile-kpi-label">Valeur catalogue</span>
+        <span class="profile-kpi-value" id="kpiInventoryValue">0 €</span>
+      </div>
+    `;
+    
+    // Re-cache DOM elements after restoration
+    kpisEls.totalViews = document.getElementById('kpiTotalViews');
+    kpisEls.totalFavorites = document.getElementById('kpiTotalFavorites');
+    kpisEls.averageViews = document.getElementById('kpiAverageViews');
+    kpisEls.inventoryValue = document.getElementById('kpiInventoryValue');
+  }
+}
+
+function showLoadingSkeletons() {
+  // Show skeletons in analytics panel only
+  const analyticsPanel = panels.analytics;
+  if (analyticsPanel) {
+    const kpisContainer = analyticsPanel.querySelector('.profile-kpis');
+    if (kpisContainer) {
+      kpisContainer.innerHTML = `
+        <div class="profile-skeleton profile-skeleton-kpi"></div>
+        <div class="profile-skeleton profile-skeleton-kpi"></div>
+        <div class="profile-skeleton profile-skeleton-kpi"></div>
+        <div class="profile-skeleton profile-skeleton-kpi"></div>
+      `;
+    }
+  }
 }
 
 // === Focus Management ===
@@ -238,85 +361,45 @@ function renderHeader(user) {
 function renderOverview(data) {
   const { user, stats } = data;
 
-  // Chips
-  if (roleChip) roleChip.textContent = user.role === 'admin' ? 'Admin' : 'Utilisateur';
+  // DEBUG: Log pour vérifier les données reçues
+  logger.info('renderOverview - stats:', stats);
+  logger.info('renderOverview - stats.summary:', stats?.summary);
+  logger.info('renderOverview - activeAds:', stats?.summary?.activeAds);
+
+  // Location chip
   if (locationChip) {
     locationChip.textContent = user.location?.city ? `📍 ${user.location.city}` : '📍 —';
   }
-  if (radiusChip) {
-    radiusChip.textContent = user.location?.radiusKm
-      ? `🔘 ${user.location.radiusKm} km`
-      : '🔘 — km';
-  }
-  if (statusChip) statusChip.textContent = user.isActive ? '✓ Actif' : '⊗ Inactif';
-
-  // Metrics
-  if (stats?.summary) {
-    const s = stats.summary;
-    if (metricsEls.activeAds) {
-      metricsEls.activeAds.textContent = numberFormatter.format(s.activeAds || 0);
-    }
-    if (metricsEls.draftAds) {
-      metricsEls.draftAds.textContent = numberFormatter.format(s.draftAds || 0);
-    }
-    if (metricsEls.archivedAds) {
-      metricsEls.archivedAds.textContent = numberFormatter.format(s.archivedAds || 0);
-    }
-    if (metricsEls.totalViews) {
-      metricsEls.totalViews.textContent = numberFormatter.format(s.totalViews || 0);
-    }
-    if (metricsEls.totalFavorites) {
-      metricsEls.totalFavorites.textContent = numberFormatter.format(s.totalFavorites || 0);
-    }
-    if (metricsEls.inventoryValue) {
-      metricsEls.inventoryValue.textContent = currencyFormatter.format(s.inventoryValue || 0);
-    }
-    if (metricsEls.averagePrice) {
-      metricsEls.averagePrice.textContent = currencyFormatter.format(s.averagePrice || 0);
-    }
-    if (metricsEls.averageViews) {
-      metricsEls.averageViews.textContent = numberFormatter.format(s.averageViews || 0);
-    }
-  }
-
-  // Insights (placeholder logic)
-  if (insightsContainer) {
-    const insights = [
-      'Vos annonces en Mobilier performent bien cette semaine',
-      `${stats?.summary?.totalViews || 0} vues au total ce mois`,
-      'Pensez à actualiser vos prix régulièrement'
-    ];
-    insightsContainer.innerHTML = insights.map((text) => `<li>${text}</li>`).join('');
-  }
-
-  // Activity
-  if (activityContainer && stats?.recentActivity) {
-    if (stats.recentActivity.length === 0) {
-      activityContainer.innerHTML = '<li>Aucune activité récente</li>';
-    } else {
-      activityContainer.innerHTML = stats.recentActivity
-        .map(
-          (activity) => `
-        <li>
-          <div class="profile-activity-info">
-            <div class="profile-activity-type">${activity.type || 'Événement'}</div>
-            <div class="profile-activity-title">${activity.title || '—'}</div>
-            <div class="profile-activity-date">${formatRelativeTime(activity.date)}</div>
-          </div>
-          ${activity.price ? `<div class="profile-activity-price">${currencyFormatter.format(activity.price)}</div>` : ''}
-        </li>
-      `
-        )
-        .join('');
-    }
+  
+  // Ads count chip
+  if (adsCountChip && stats?.summary) {
+    const activeAds = stats.summary.activeAds || 0;
+    adsCountChip.textContent = `📋 ${activeAds} annonce${activeAds > 1 ? 's' : ''}`;
   }
 }
 
 function renderAnalytics(analytics) {
-  if (!analytics) return;
+  if (!analytics) {
+    showEmptyAnalytics();
+    return;
+  }
+
+  // Check if analytics has any meaningful data
+  const overview = analytics.overview || {};
+  const hasData =
+    overview.totalViews > 0 ||
+    overview.totalFavorites > 0 ||
+    (analytics.categoryPerformance && analytics.categoryPerformance.length > 0);
+
+  if (!hasData) {
+    showEmptyAnalytics();
+    return;
+  }
+
+  // Restore KPIs structure (in case skeletons were shown)
+  restoreAnalyticsKpis();
 
   // KPIs
-  const overview = analytics.overview || {};
   if (kpisEls.totalViews) {
     kpisEls.totalViews.textContent = numberFormatter.format(overview.totalViews || 0);
   }
@@ -332,68 +415,27 @@ function renderAnalytics(analytics) {
 
   // Category performance
   if (categoryChart && analytics.categoryPerformance) {
-    const maxValue = Math.max(...analytics.categoryPerformance.map((c) => c.value), 1);
-    categoryChart.innerHTML = analytics.categoryPerformance
-      .map((item) => {
-        const percent = (item.value / maxValue) * 100;
-        return `
+    if (analytics.categoryPerformance.length === 0) {
+      categoryChart.innerHTML = '<div class="profile-empty-state"><p>Aucune donnée de catégorie disponible</p></div>';
+    } else {
+      const maxValue = Math.max(...analytics.categoryPerformance.map((c) => c.views || c.value || 0), 1);
+      categoryChart.innerHTML = analytics.categoryPerformance
+        .map((item) => {
+          const value = item.views || item.value || 0;
+          const percent = (value / maxValue) * 100;
+          return `
         <div class="profile-chart-bar">
           <div class="profile-chart-label">${item.category}</div>
           <div class="profile-chart-track">
             <div class="profile-chart-fill" style="width: ${percent}%">
-              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
+              <span class="profile-chart-value">${numberFormatter.format(value)}</span>
             </div>
           </div>
         </div>
       `;
-      })
-      .join('');
-  }
-
-  // Status breakdown
-  if (statusChart && analytics.statusBreakdown) {
-    const maxValue = Math.max(...analytics.statusBreakdown.map((s) => s.value), 1);
-    statusChart.innerHTML = analytics.statusBreakdown
-      .map((item) => {
-        const percent = (item.value / maxValue) * 100;
-        const label =
-          item.status === 'active'
-            ? 'Actives'
-            : item.status === 'draft'
-              ? 'Brouillons'
-              : 'Archivées';
-        return `
-        <div class="profile-chart-bar">
-          <div class="profile-chart-label">${label}</div>
-          <div class="profile-chart-track">
-            <div class="profile-chart-fill" style="width: ${percent}%">
-              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-      })
-      .join('');
-  }
-
-  // Price distribution
-  if (priceChart && analytics.priceDistribution) {
-    const maxValue = Math.max(...analytics.priceDistribution.map((p) => p.value), 1);
-    priceChart.innerHTML = analytics.priceDistribution
-      .map((item) => {
-        const percent = (item.value / maxValue) * 100;
-        return `
-        <div class="profile-chart-bar">
-          <div class="profile-chart-label">${item.bucket}</div>
-          <div class="profile-chart-track">
-            <div class="profile-chart-fill" style="width: ${percent}%">
-              <span class="profile-chart-value">${numberFormatter.format(item.value)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-      })
-      .join('');
+        })
+        .join('');
+    }
   }
 
   // Top ads
@@ -423,11 +465,7 @@ function renderAnalytics(analytics) {
       geoList.innerHTML = '<li>Aucune donnée</li>';
     } else {
       geoList.innerHTML = analytics.locationDistribution
-        .map(
-          (loc) => `
-        <li>${loc.city} (${numberFormatter.format(loc.value)})</li>
-      `
-        )
+        .map((loc) => `<li>${loc.city}</li>`)
         .join('');
     }
   }
@@ -464,6 +502,8 @@ async function onSaveInfo(e) {
 
     if (response.ok) {
       showFeedback(infoFeedback, 'Informations mises à jour', 'success');
+      // Clear cache to force refresh on next load
+      clearProfileCache();
       // Update local state
       if (drawerState.data?.user) {
         drawerState.data.user.name = result.user?.name || formData.get('name');
@@ -504,6 +544,8 @@ async function onSaveLocation(e) {
 
     if (response.ok) {
       showFeedback(locationFeedback, 'Localisation mise à jour', 'success');
+      // Clear cache to force refresh on next load
+      clearProfileCache();
       // Update local state
       if (drawerState.data?.user) {
         drawerState.data.user.location = drawerState.data.user.location || {};
@@ -579,11 +621,38 @@ async function onChangePassword(e) {
 
 async function onUploadAvatar(file) {
   if (!file || !file.type.startsWith('image/')) {
+    showFeedback(infoFeedback, '⚠️ Format de fichier invalide. Utilisez JPG, PNG ou WEBP.', 'error');
     logger.warn('Invalid file type');
     return;
   }
 
+  // Validate file size (2MB max)
+  const maxSize = 2 * 1024 * 1024;
+  if (file.size > maxSize) {
+    showFeedback(infoFeedback, '⚠️ Fichier trop volumineux. Maximum 2 MB.', 'error');
+    return;
+  }
+
   try {
+    // 1. Optimistic UI - Show preview immediately
+    const previewUrl = URL.createObjectURL(file);
+    if (avatarImg) {
+      avatarImg.src = previewUrl;
+    }
+
+    // Disable upload button during upload
+    if (avatarBtn) {
+      avatarBtn.disabled = true;
+      avatarBtn.style.opacity = '0.6';
+      avatarBtn.style.cursor = 'wait';
+    }
+
+    // Show uploading feedback
+    if (infoFeedback) {
+      showFeedback(infoFeedback, '⏳ Upload en cours...', 'info');
+    }
+
+    // 2. Upload to server
     const formData = new FormData();
     formData.append('avatar', file);
 
@@ -594,17 +663,70 @@ async function onUploadAvatar(file) {
 
     const result = await response.json();
 
-    if (response.ok && result.avatarUrl) {
-      if (avatarImg) avatarImg.src = resolveAvatarSrc(result.avatarUrl);
-      if (drawerState.data?.user) {
-        drawerState.data.user.avatarUrl = result.avatarUrl;
-      }
-      logger.info('Avatar uploaded successfully');
-    } else {
-      logger.error('Avatar upload failed:', result.message);
+    // Handle error responses
+    if (!response.ok) {
+      throw new Error(result.message || 'Échec de l\'upload');
     }
+
+    // Extract avatarUrl from new flat response structure
+    const avatarUrl = result.data?.avatarUrl || result.avatarUrl;
+
+    if (!avatarUrl) {
+      throw new Error('URL d\'avatar manquante dans la réponse');
+    }
+
+    // 3. Cache-busting - Update all avatar images with timestamp
+    const cacheBustedUrl = `${avatarUrl}?t=${Date.now()}`;
+
+    if (avatarImg) {
+      // Clean up blob URL
+      URL.revokeObjectURL(previewUrl);
+      avatarImg.src = cacheBustedUrl;
+    }
+
+    // Update state
+    if (drawerState.data?.user) {
+      drawerState.data.user.avatarUrl = avatarUrl;
+    }
+
+    // 4. Update authStore if available
+    if (window.authStore?.get) {
+      const currentUser = window.authStore.get();
+      if (currentUser) {
+        window.authStore.set({ ...currentUser, avatarUrl, avatar: avatarUrl });
+      }
+    }
+
+    // 5. Propagate to global header via CustomEvent
+    const event = new CustomEvent('user:avatar-updated', {
+      detail: { avatarUrl: cacheBustedUrl }
+    });
+    document.dispatchEvent(event);
+
+    // 6. Clear cache to force refresh on next load
+    clearProfileCache();
+
+    // 7. Success feedback with aria-live
+    showFeedback(infoFeedback, '✓ Avatar mis à jour avec succès', 'success');
+    logger.info('Avatar uploaded successfully:', avatarUrl);
   } catch (err) {
     logger.error('Error uploading avatar:', err);
+
+    // Revert optimistic update on error
+    if (avatarImg && drawerState.data?.user?.avatarUrl) {
+      avatarImg.src = resolveAvatarSrc(drawerState.data.user.avatarUrl);
+    }
+
+    // Error feedback
+    const errorMsg = err.message || 'Échec de l\'upload de l\'avatar';
+    showFeedback(infoFeedback, `❌ ${errorMsg}`, 'error');
+  } finally {
+    // Re-enable upload button
+    if (avatarBtn) {
+      avatarBtn.disabled = false;
+      avatarBtn.style.opacity = '1';
+      avatarBtn.style.cursor = 'pointer';
+    }
   }
 }
 
@@ -665,19 +787,93 @@ async function fetchProfileData() {
         }
       };
 
-      // Try to fetch stats and analytics (optional)
-      const [statsRes, analyticsRes] = await Promise.allSettled([
-        fetch('/api/users/me/stats')
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
-        fetch('/api/users/me/analytics')
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null)
-      ]);
+      // Try to get from cache first
+      let stats = getCacheData(CACHE_KEYS.STATS);
+      let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
 
-      const stats =
-        statsRes.status === 'fulfilled' && statsRes.value
-          ? statsRes.value
+      // If not in cache, fetch from API
+      if (!stats || !analytics) {
+        const [statsRes, analyticsRes] = await Promise.allSettled([
+          !stats ? fetch('/api/users/me/stats')
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null) : Promise.resolve({ data: stats }),
+          !analytics ? fetch('/api/users/me/analytics')
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null) : Promise.resolve({ data: analytics })
+        ]);
+
+        // API now returns flat structure in data field (no nested envelope)
+        if (!stats) {
+          stats =
+            statsRes.status === 'fulfilled' && statsRes.value?.data
+              ? statsRes.value.data
+              : {
+                  summary: {
+                    activeAds: 0,
+                    draftAds: 0,
+                    archivedAds: 0,
+                    totalViews: 0,
+                    totalFavorites: 0,
+                    inventoryValue: 0,
+                    averagePrice: 0,
+                    totalAds: 0,
+                    averageViews: 0
+                  },
+                  recentActivity: []
+                };
+          // Save to cache
+          if (stats.summary.totalAds > 0 || stats.summary.totalViews > 0) {
+            saveCacheData(CACHE_KEYS.STATS, stats);
+          }
+        }
+
+        if (!analytics) {
+          analytics =
+            analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
+              ? analyticsRes.value.data
+              : {
+                  overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+                  categoryPerformance: [],
+                  statusBreakdown: [],
+                  priceDistribution: [],
+                  topPerformingAds: [],
+                  locationDistribution: []
+                };
+          // Save to cache
+          if (analytics.overview.totalViews > 0 || analytics.categoryPerformance?.length > 0) {
+            saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+          }
+        }
+      }
+
+      return { user, stats, analytics };
+    }
+
+    // Fallback: try API if no authStore
+    logger.warn('No authStore data, trying API');
+    
+    // Try to get from cache first
+    let stats = getCacheData(CACHE_KEYS.STATS);
+    let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
+
+    const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
+      fetch('/api/users/me')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      !stats ? fetch('/api/users/me/stats')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null) : Promise.resolve({ data: stats }),
+      !analytics ? fetch('/api/users/me/analytics')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null) : Promise.resolve({ data: analytics })
+    ]);
+
+    const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
+
+    if (!stats) {
+      stats =
+        statsRes.status === 'fulfilled' && statsRes.value?.data
+          ? statsRes.value.data
           : {
               summary: {
                 activeAds: 0,
@@ -692,10 +888,16 @@ async function fetchProfileData() {
               },
               recentActivity: []
             };
+      // Save to cache
+      if (stats.summary.totalAds > 0 || stats.summary.totalViews > 0) {
+        saveCacheData(CACHE_KEYS.STATS, stats);
+      }
+    }
 
-      const analytics =
-        analyticsRes.status === 'fulfilled' && analyticsRes.value
-          ? analyticsRes.value
+    if (!analytics) {
+      analytics =
+        analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
+          ? analyticsRes.value.data
           : {
               overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
               categoryPerformance: [],
@@ -704,25 +906,11 @@ async function fetchProfileData() {
               topPerformingAds: [],
               locationDistribution: []
             };
-
-      return { user, stats, analytics };
+      // Save to cache
+      if (analytics.overview.totalViews > 0 || analytics.categoryPerformance?.length > 0) {
+        saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+      }
     }
-
-    // Fallback: try API if no authStore
-    logger.warn('No authStore data, trying API');
-    const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
-      fetch('/api/users/me')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch('/api/users/me/stats')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch('/api/users/me/analytics')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null)
-    ]);
-
-    const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
 
     return {
       user: apiUser?.user || {
@@ -735,34 +923,8 @@ async function fetchProfileData() {
         avatarUrl: '',
         location: { city: '', radiusKm: 0 }
       },
-      stats:
-        statsRes.status === 'fulfilled' && statsRes.value
-          ? statsRes.value
-          : {
-              summary: {
-                activeAds: 0,
-                draftAds: 0,
-                archivedAds: 0,
-                totalViews: 0,
-                totalFavorites: 0,
-                inventoryValue: 0,
-                averagePrice: 0,
-                totalAds: 0,
-                averageViews: 0
-              },
-              recentActivity: []
-            },
-      analytics:
-        analyticsRes.status === 'fulfilled' && analyticsRes.value
-          ? analyticsRes.value
-          : {
-              overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
-              categoryPerformance: [],
-              statusBreakdown: [],
-              priceDistribution: [],
-              topPerformingAds: [],
-              locationDistribution: []
-            }
+      stats,
+      analytics
     };
   } catch (err) {
     logger.error('Error fetching profile data:', err);
@@ -781,12 +943,20 @@ async function openProfileDrawer(data) {
 
   logger.info('✓ Drawer found, fetching data...');
 
-  // If no data provided, fetch it
+  drawerState.previousFocus = document.activeElement;
+  drawerState.isOpen = true;
+
+  // If no data provided, show skeletons and fetch it
   let profileData = data;
   if (!profileData) {
+    // Show loading skeletons
+    showLoadingSkeletons();
+    
     profileData = await fetchProfileData();
     if (!profileData) {
       logger.error('❌ Could not fetch profile data');
+      // Show error state
+      showEmptyAnalytics();
       return;
     }
     logger.info('✓ Data fetched:', profileData);
@@ -794,9 +964,7 @@ async function openProfileDrawer(data) {
 
   logger.info('✓ Opening drawer with data:', profileData.user?.name);
 
-  drawerState.previousFocus = document.activeElement;
   drawerState.data = profileData;
-  drawerState.isOpen = true;
 
   // Render
   renderHeader(profileData.user);
@@ -816,9 +984,17 @@ async function openProfileDrawer(data) {
     logger.info('✓ Drawer is now visible with class is-open');
   });
 
-  // Focus first focusable element
-  const firstFocusable = drawer.querySelector(focusableSelectors);
-  firstFocusable?.focus();
+  // Focus management - focus the close button or first tab
+  setTimeout(() => {
+    const closeButton = drawer.querySelector('.profile-close');
+    const firstTab = drawer.querySelector('[role="tab"]');
+    const focusTarget = closeButton || firstTab;
+    
+    if (focusTarget) {
+      focusTarget.focus();
+      logger.info('✓ Focus set to:', focusTarget.getAttribute('aria-label') || 'first element');
+    }
+  }, 100);
 
   // Add listeners
   document.addEventListener('keydown', trapFocus);
@@ -893,12 +1069,7 @@ function init() {
   passwordForm?.addEventListener('submit', onChangePassword);
   deleteBtn?.addEventListener('click', onDeleteAccount);
 
-  // CTA
-  createAdBtn?.addEventListener('click', () => {
-    closeProfileDrawer();
-    // Trigger new ad modal (external)
-    window.showNewAdModal?.();
-  });
+
 
   logger.info('Profile drawer initialized');
 }

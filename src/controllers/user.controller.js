@@ -320,11 +320,11 @@ export async function updateAvatar(req, res) {
       sizes: optimized.sizes
     });
 
+    // Return avatarUrl (primary field) for frontend consistency
     return sendSuccess(res, {
       message: 'Avatar mis à jour',
       data: {
-        avatar: user.avatar,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: user.avatarUrl || user.avatar,
         sizes: optimized.sizes
       }
     });
@@ -462,6 +462,7 @@ export async function getUserStats(req, res) {
     }
 
     const totalAds = Math.max(totals.total, 1);
+    // Return flat structure (no data envelope) for profile modal consistency
     const stats = {
       summary: {
         totalAds: totals.total,
@@ -471,9 +472,12 @@ export async function getUserStats(req, res) {
         totalViews,
         totalFavorites,
         inventoryValue: Number(totalValue.toFixed(2)),
-        averagePrice: Number((totalValue / totalAds).toFixed(2))
+        averagePrice: Number((totalValue / totalAds).toFixed(2)),
+        averageViews: Number((totalViews / totalAds).toFixed(1))
       },
       engagement: {
+        totalViews,
+        totalFavorites,
         averageViews: Number((totalViews / totalAds).toFixed(1)),
         averageFavorites: Number((totalFavorites / totalAds).toFixed(1)),
         activeRate: totals.total
@@ -507,9 +511,10 @@ export async function getUserStats(req, res) {
         }))
     };
 
+    // Return flat stats object (no data envelope)
     return sendSuccess(res, {
       message: 'Statistiques récupérées',
-      data: { stats }
+      data: stats
     });
   } catch (error) {
     return sendError(res, {
@@ -530,9 +535,18 @@ export async function getUserAnalytics(req, res) {
       .lean();
 
     if (userAds.length === 0) {
+      // Return empty analytics structure (flat, no envelope)
       return sendSuccess(res, {
         message: 'Analytics récupérées',
-        data: { analytics: null }
+        data: {
+          overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, averageFavorites: 0, inventoryValue: 0 },
+          statusBreakdown: [],
+          categoryPerformance: [],
+          priceDistribution: [],
+          topPerformingAds: [],
+          locationDistribution: [],
+          insights: []
+        }
       });
     }
 
@@ -605,6 +619,7 @@ export async function getUserAnalytics(req, res) {
     const averageViews = Number((totalViews / userAds.length).toFixed(1));
     const averageFavorites = Number((totalFavorites / userAds.length).toFixed(1));
 
+    // Return flat structure (no data envelope) for profile modal consistency
     const analytics = {
       overview: {
         totalViews,
@@ -635,9 +650,10 @@ export async function getUserAnalytics(req, res) {
       insights: buildAnalyticsInsights({ totals: statusMap, averageViews, averageFavorites })
     };
 
+    // Return flat analytics object (no data envelope)
     return sendSuccess(res, {
       message: 'Analytics récupérées',
-      data: { analytics }
+      data: analytics
     });
   } catch (error) {
     logger.error('Erreur lors de la récupération des analytics', { error: error.message });
@@ -770,10 +786,13 @@ export async function uploadAvatar(req, res) {
     user.avatar = req.file.filename;
     await user.save();
 
+    // Return avatarUrl (full path) for direct frontend usage
+    const avatarUrl = `/uploads/avatars/${user.avatar}`;
+
     return sendSuccess(res, {
       message: 'Avatar mis à jour avec succès',
       data: {
-        avatar: user.avatar
+        avatarUrl
       }
     });
   } catch (error) {
