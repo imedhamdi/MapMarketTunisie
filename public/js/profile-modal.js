@@ -168,21 +168,21 @@ function formatRelativeTime(isoDate) {
 
 function showFeedback(el, message, type) {
   if (!el) return;
-  
+
   // Clear previous feedback
   el.textContent = '';
   el.className = 'profile-form-feedback';
-  
+
   // Force reflow to restart animation
   void el.offsetWidth;
-  
+
   // Set new feedback with aria-live support
   el.textContent = message;
   el.className = `profile-form-feedback ${type}`;
   el.setAttribute('role', 'status');
   el.setAttribute('aria-live', 'polite');
   el.setAttribute('aria-atomic', 'true');
-  
+
   // Auto-hide after 5 seconds
   setTimeout(() => {
     el.className = 'profile-form-feedback';
@@ -250,7 +250,7 @@ function restoreAnalyticsKpis() {
         <span class="profile-kpi-value" id="kpiInventoryValue">0 €</span>
       </div>
     `;
-    
+
     // Re-cache DOM elements after restoration
     kpisEls.totalViews = document.getElementById('kpiTotalViews');
     kpisEls.totalFavorites = document.getElementById('kpiTotalFavorites');
@@ -370,7 +370,7 @@ function renderOverview(data) {
   if (locationChip) {
     locationChip.textContent = user.location?.city ? `📍 ${user.location.city}` : '📍 —';
   }
-  
+
   // Ads count chip
   if (adsCountChip && stats?.summary) {
     const activeAds = stats.summary.activeAds || 0;
@@ -416,9 +416,13 @@ function renderAnalytics(analytics) {
   // Category performance
   if (categoryChart && analytics.categoryPerformance) {
     if (analytics.categoryPerformance.length === 0) {
-      categoryChart.innerHTML = '<div class="profile-empty-state"><p>Aucune donnée de catégorie disponible</p></div>';
+      categoryChart.innerHTML =
+        '<div class="profile-empty-state"><p>Aucune donnée de catégorie disponible</p></div>';
     } else {
-      const maxValue = Math.max(...analytics.categoryPerformance.map((c) => c.views || c.value || 0), 1);
+      const maxValue = Math.max(
+        ...analytics.categoryPerformance.map((c) => c.views || c.value || 0),
+        1
+      );
       categoryChart.innerHTML = analytics.categoryPerformance
         .map((item) => {
           const value = item.views || item.value || 0;
@@ -621,7 +625,11 @@ async function onChangePassword(e) {
 
 async function onUploadAvatar(file) {
   if (!file || !file.type.startsWith('image/')) {
-    showFeedback(infoFeedback, '⚠️ Format de fichier invalide. Utilisez JPG, PNG ou WEBP.', 'error');
+    showFeedback(
+      infoFeedback,
+      '⚠️ Format de fichier invalide. Utilisez JPG, PNG ou WEBP.',
+      'error'
+    );
     logger.warn('Invalid file type');
     return;
   }
@@ -665,14 +673,14 @@ async function onUploadAvatar(file) {
 
     // Handle error responses
     if (!response.ok) {
-      throw new Error(result.message || 'Échec de l\'upload');
+      throw new Error(result.message || "Échec de l'upload");
     }
 
     // Extract avatarUrl from new flat response structure
     const avatarUrl = result.data?.avatarUrl || result.avatarUrl;
 
     if (!avatarUrl) {
-      throw new Error('URL d\'avatar manquante dans la réponse');
+      throw new Error("URL d'avatar manquante dans la réponse");
     }
 
     // 3. Cache-busting - Update all avatar images with timestamp
@@ -718,7 +726,7 @@ async function onUploadAvatar(file) {
     }
 
     // Error feedback
-    const errorMsg = err.message || 'Échec de l\'upload de l\'avatar';
+    const errorMsg = err.message || "Échec de l'upload de l'avatar";
     showFeedback(infoFeedback, `❌ ${errorMsg}`, 'error');
   } finally {
     // Re-enable upload button
@@ -794,12 +802,16 @@ async function fetchProfileData() {
       // If not in cache, fetch from API
       if (!stats || !analytics) {
         const [statsRes, analyticsRes] = await Promise.allSettled([
-          !stats ? fetch('/api/users/me/stats')
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null) : Promise.resolve({ data: stats }),
-          !analytics ? fetch('/api/users/me/analytics')
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null) : Promise.resolve({ data: analytics })
+          !stats
+            ? fetch('/api/users/me/stats')
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null)
+            : Promise.resolve({ data: stats }),
+          !analytics
+            ? fetch('/api/users/me/analytics')
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null)
+            : Promise.resolve({ data: analytics })
         ]);
 
         // API now returns flat structure in data field (no nested envelope)
@@ -832,7 +844,12 @@ async function fetchProfileData() {
             analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
               ? analyticsRes.value.data
               : {
-                  overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
+                  overview: {
+                    totalViews: 0,
+                    totalFavorites: 0,
+                    averageViews: 0,
+                    inventoryValue: 0
+                  },
                   categoryPerformance: [],
                   statusBreakdown: [],
                   priceDistribution: [],
@@ -851,7 +868,7 @@ async function fetchProfileData() {
 
     // Fallback: try API if no authStore
     logger.warn('No authStore data, trying API');
-    
+
     // Try to get from cache first
     let stats = getCacheData(CACHE_KEYS.STATS);
     let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
@@ -860,12 +877,16 @@ async function fetchProfileData() {
       fetch('/api/users/me')
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
-      !stats ? fetch('/api/users/me/stats')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null) : Promise.resolve({ data: stats }),
-      !analytics ? fetch('/api/users/me/analytics')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null) : Promise.resolve({ data: analytics })
+      !stats
+        ? fetch('/api/users/me/stats')
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        : Promise.resolve({ data: stats }),
+      !analytics
+        ? fetch('/api/users/me/analytics')
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        : Promise.resolve({ data: analytics })
     ]);
 
     const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
@@ -951,7 +972,7 @@ async function openProfileDrawer(data) {
   if (!profileData) {
     // Show loading skeletons
     showLoadingSkeletons();
-    
+
     profileData = await fetchProfileData();
     if (!profileData) {
       logger.error('❌ Could not fetch profile data');
@@ -989,7 +1010,7 @@ async function openProfileDrawer(data) {
     const closeButton = drawer.querySelector('.profile-close');
     const firstTab = drawer.querySelector('[role="tab"]');
     const focusTarget = closeButton || firstTab;
-    
+
     if (focusTarget) {
       focusTarget.focus();
       logger.info('✓ Focus set to:', focusTarget.getAttribute('aria-label') || 'first element');
@@ -1068,8 +1089,6 @@ function init() {
   locationForm?.addEventListener('submit', onSaveLocation);
   passwordForm?.addEventListener('submit', onChangePassword);
   deleteBtn?.addEventListener('click', onDeleteAccount);
-
-
 
   logger.info('Profile drawer initialized');
 }

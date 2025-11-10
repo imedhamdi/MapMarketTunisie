@@ -539,7 +539,13 @@ export async function getUserAnalytics(req, res) {
       return sendSuccess(res, {
         message: 'Analytics récupérées',
         data: {
-          overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, averageFavorites: 0, inventoryValue: 0 },
+          overview: {
+            totalViews: 0,
+            totalFavorites: 0,
+            averageViews: 0,
+            averageFavorites: 0,
+            inventoryValue: 0
+          },
           statusBreakdown: [],
           categoryPerformance: [],
           priceDistribution: [],
