@@ -1419,7 +1419,7 @@ main.container {
 
 #contactPopover {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% - 10px);
   left: 0;
   width: 100%;
   max-width: 560px;

@@ -1,105 +1,114 @@
 /**
  * Module pour gérer les annonces récemment vues
+ * SCOPE: Section #recentlyViewedSection uniquement
+ * Ne touche PAS aux carrousels d'images des cartes d'annonces
  */
-(function () {
+(function initRecentlyViewedSection() {
   'use strict';
 
-  // Configuration
-  const SCROLL_AMOUNT = 500; // Pixels à défiler
+  // ========== CONFIGURATION ==========
+  const SECTION_ID = 'recentlyViewedSection';
+  const TRACK_ID = 'recentlyViewedTrack';
+  const BTN_PREV_ID = 'recentlyViewedPrev';
+  const BTN_NEXT_ID = 'recentlyViewedNext';
+  const SCROLL_STEP = 320; // Largeur approx. d'une carte + gap (ajuster si besoin)
 
-  /**
-   * Charger et afficher les annonces récemment vues
-   */
-  async function loadRecentlyViewedAds() {
-    const section = document.getElementById('recentlyViewedSection');
-
-    try {
-      const response = await fetch('/api/users/me/recently-viewed', {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        console.log('[RecentlyViewed] Response not OK:', response.status);
-        if (section) section.hidden = true;
-        return;
-      }
-
-      const result = await response.json();
-      console.log('[RecentlyViewed] Loaded ads:', result.data?.ads?.length || 0);
-
-      if (result.status === 'success' && result.data?.ads?.length > 0) {
-        renderRecentlyViewedAds(result.data.ads);
-        if (section) {
-          section.hidden = false;
-          console.log('[RecentlyViewed] Section displayed with', result.data.ads.length, 'ads');
-          console.log('[RecentlyViewed] Section hidden status:', section.hidden);
-          console.log(
-            '[RecentlyViewed] Section hasAttribute("hidden"):',
-            section.hasAttribute('hidden')
-          );
-
-          const styles = window.getComputedStyle(section);
-          console.log('[RecentlyViewed] Section computed display:', styles.display);
-          console.log('[RecentlyViewed] Section computed visibility:', styles.visibility);
-          console.log('[RecentlyViewed] Section computed opacity:', styles.opacity);
-          console.log('[RecentlyViewed] Section computed height:', styles.height);
-          console.log('[RecentlyViewed] Section offsetHeight:', section.offsetHeight);
-          console.log('[RecentlyViewed] Section offsetWidth:', section.offsetWidth);
-          console.log('[RecentlyViewed] Section position:', section.getBoundingClientRect());
-        } else {
-          console.error('[RecentlyViewed] Section element not found!');
-        }
-      } else {
-        console.log('[RecentlyViewed] No ads to display');
-        if (section) section.hidden = true;
-      }
-    } catch (error) {
-      console.error('[RecentlyViewed] Error loading ads:', error);
-      if (section) section.hidden = true;
-    }
+  // ========== SÉLECTEURS SCOPÉS ==========
+  const section = document.getElementById(SECTION_ID);
+  if (!section) {
+    console.warn('[RecentlyViewed] Section non trouvée, module non initialisé');
+    return;
   }
 
-  /**
-   * Afficher les annonces dans le carrousel
-   */
-  function renderRecentlyViewedAds(ads) {
-    console.log('[RecentlyViewed] renderRecentlyViewedAds appelé avec', ads.length, 'annonces');
-    const track = document.getElementById('recentlyViewedTrack');
-    if (!track) {
-      console.error('[RecentlyViewed] Element recentlyViewedTrack non trouvé !');
-      return;
-    }
+  const track = section.querySelector(`#${TRACK_ID}`);
+  const btnPrev = section.querySelector(`#${BTN_PREV_ID}`);
+  const btnNext = section.querySelector(`#${BTN_NEXT_ID}`);
 
-    console.log('[RecentlyViewed] Track trouvé, vidage et ajout des cartes...');
-    track.innerHTML = '';
-
-    ads.forEach((ad, index) => {
-      console.log(`[RecentlyViewed] Création de la carte ${index + 1}:`, ad.title);
-      const card = createAdCard(ad);
-      track.appendChild(card);
+  if (!track || !btnPrev || !btnNext) {
+    console.warn('[RecentlyViewed] Éléments manquants, module non initialisé', {
+      track: !!track,
+      btnPrev: !!btnPrev,
+      btnNext: !!btnNext
     });
+    return;
+  }
 
-    console.log('[RecentlyViewed] Toutes les cartes ajoutées au track');
-    console.log("[RecentlyViewed] Nombre d'enfants dans track:", track.children.length);
+  // ========== FONCTIONS UTILITAIRES ==========
 
-    // Réattacher les event listeners après le rendu
-    initEventListeners();
-
-    // Mettre à jour les boutons après le rendu
-    setTimeout(updateNavigationButtons, 150);
+  /**
+   * Vérifier si l'utilisateur est connecté via authStore
+   */
+  function isUserLoggedIn() {
+    try {
+      const authUser = window.authStore?.get();
+      return authUser && (authUser._id || authUser.id);
+    } catch (error) {
+      console.warn('[RecentlyViewed] Erreur vérification connexion:', error);
+      return false;
+    }
   }
 
   /**
-   * Créer une carte d'annonce pour le carrousel
+   * Échapper les caractères HTML pour éviter XSS
+   */
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // ========== GESTION DU CARROUSEL ==========
+
+  /**
+   * Mettre à jour l'état des boutons de navigation
+   */
+  function updateButtons() {
+    const atStart = track.scrollLeft <= 1;
+    const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+
+    btnPrev.disabled = atStart;
+    btnNext.disabled = atEnd;
+
+    console.log('[RecentlyViewed] Boutons mis à jour:', {
+      scrollLeft: track.scrollLeft,
+      scrollWidth: track.scrollWidth,
+      clientWidth: track.clientWidth,
+      atStart,
+      atEnd
+    });
+  }
+
+  /**
+   * Défiler vers la gauche
+   */
+  function scrollPrev() {
+    console.log('[RecentlyViewed] Scroll vers la gauche');
+    track.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
+    setTimeout(updateButtons, 300); // Attendre la fin de l'animation
+  }
+
+  /**
+   * Défiler vers la droite
+   */
+  function scrollNext() {
+    console.log('[RecentlyViewed] Scroll vers la droite');
+    track.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
+    setTimeout(updateButtons, 300); // Attendre la fin de l'animation
+  }
+
+  // ========== RENDU DES CARTES ==========
+
+  /**
+   * Créer une carte d'annonce
    */
   function createAdCard(ad) {
     const card = document.createElement('div');
     card.className = 'carousel-card';
+    card.setAttribute('role', 'listitem');
     card.dataset.adId = ad._id;
 
-    // Utiliser la première thumbnail ou l'image principale
     const imageUrl = ad.thumbnails?.[0] || ad.images?.[0] || '/icons/placeholder.svg';
-
     const price = ad.price ? `${ad.price.toLocaleString('fr-FR')} DT` : 'Prix non spécifié';
     const location = ad.locationText || 'Lieu non spécifié';
 
@@ -122,290 +131,189 @@
       </div>
     `;
 
-    // Ajouter le gestionnaire de clic pour ouvrir l'annonce
+    // Ajouter le gestionnaire de clic
     card.addEventListener('click', () => {
-      openAdDetails(ad._id);
+      console.log('[RecentlyViewed] Clic sur annonce:', ad._id);
+      // Marquer pour éviter de réinjecter dans la liste
+      window.__skipRecentlyViewedTracking = true;
+      if (typeof window.openDetailsById === 'function') {
+        window.openDetailsById(ad._id);
+      }
+      setTimeout(() => {
+        window.__skipRecentlyViewedTracking = false;
+      }, 1000);
     });
 
     return card;
   }
 
   /**
-   * Ouvrir les détails d'une annonce
+   * Rendre les annonces dans le track
    */
-  function openAdDetails(adId) {
-    // Marquer temporairement que le clic vient de la section "récemment vu"
-    // pour éviter de réinjecter l'annonce dans la liste
-    window.__skipRecentlyViewedTracking = true;
+  function renderAds(ads) {
+    console.log('[RecentlyViewed] Rendu de', ads.length, 'annonces');
 
-    // Utiliser la fonction globale existante pour ouvrir l'annonce
-    if (typeof window.openDetailsById === 'function') {
-      window.openDetailsById(adId);
-    } else {
-      console.warn('openDetailsById function not found');
-    }
+    // Vider le track
+    track.innerHTML = '';
+    track.setAttribute('role', 'list');
 
-    // Réinitialiser le flag après un court délai
-    setTimeout(() => {
-      window.__skipRecentlyViewedTracking = false;
-    }, 1000);
-  }
-
-  /**
-   * Échapper les caractères HTML
-   */
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  /**
-   * Naviguer dans le carrousel (précédent)
-   */
-  function scrollPrev() {
-    console.log('[RecentlyViewed] scrollPrev appelé');
-    const track = document.getElementById('recentlyViewedTrack');
-    if (!track) {
-      console.warn('[RecentlyViewed] scrollPrev: track non trouvé');
-      return;
-    }
-
-    console.log('[RecentlyViewed] Scroll vers la gauche de', SCROLL_AMOUNT, 'px');
-    track.scrollBy({
-      left: -SCROLL_AMOUNT,
-      behavior: 'smooth'
+    // Ajouter les cartes
+    ads.forEach((ad, index) => {
+      console.log(`[RecentlyViewed] Création carte ${index + 1}:`, ad.title);
+      const card = createAdCard(ad);
+      track.appendChild(card);
     });
 
-    // Mettre à jour les boutons après un court délai
-    setTimeout(updateNavigationButtons, 300);
+    // Mettre à jour les boutons après le rendu
+    setTimeout(updateButtons, 150);
   }
 
-  /**
-   * Naviguer dans le carrousel (suivant)
-   */
-  function scrollNext() {
-    console.log('[RecentlyViewed] scrollNext appelé');
-    const track = document.getElementById('recentlyViewedTrack');
-    if (!track) {
-      console.warn('[RecentlyViewed] scrollNext: track non trouvé');
-      return;
-    }
-
-    console.log('[RecentlyViewed] Scroll vers la droite de', SCROLL_AMOUNT, 'px');
-    track.scrollBy({
-      left: SCROLL_AMOUNT,
-      behavior: 'smooth'
-    });
-
-    // Mettre à jour les boutons après un court délai
-    setTimeout(updateNavigationButtons, 300);
-  }
+  // ========== CHARGEMENT DES DONNÉES ==========
 
   /**
-   * Mettre à jour l'état des boutons de navigation
+   * Charger les annonces récemment vues depuis l'API
    */
-  function updateNavigationButtons() {
-    const track = document.getElementById('recentlyViewedTrack');
-    const prevButton = document.getElementById('recentlyViewedPrev');
-    const nextButton = document.getElementById('recentlyViewedNext');
+  async function loadRecentlyViewedAds() {
+    console.log('[RecentlyViewed] Chargement des annonces...');
 
-    if (!track || !prevButton || !nextButton) {
-      console.warn('[RecentlyViewed] updateNavigationButtons: éléments manquants', {
-        track: !!track,
-        prevButton: !!prevButton,
-        nextButton: !!nextButton
+    try {
+      const response = await fetch('/api/users/me/recently-viewed', {
+        credentials: 'include'
       });
-      return;
+
+      if (!response.ok) {
+        console.log('[RecentlyViewed] Réponse non-OK:', response.status);
+        section.hidden = true;
+        return;
+      }
+
+      const result = await response.json();
+      const ads = result.data?.ads || [];
+
+      console.log('[RecentlyViewed] Annonces chargées:', ads.length);
+
+      if (ads.length > 0) {
+        renderAds(ads);
+        section.hidden = false;
+        console.log('[RecentlyViewed] Section affichée avec', ads.length, 'annonces');
+      } else {
+        console.log('[RecentlyViewed] Aucune annonce à afficher');
+        section.hidden = true;
+      }
+    } catch (error) {
+      console.error('[RecentlyViewed] Erreur chargement:', error);
+      section.hidden = true;
     }
-
-    const scrollLeft = track.scrollLeft;
-    const maxScroll = track.scrollWidth - track.clientWidth;
-
-    console.log('[RecentlyViewed] updateNavigationButtons:', {
-      scrollLeft,
-      maxScroll,
-      scrollWidth: track.scrollWidth,
-      clientWidth: track.clientWidth
-    });
-
-    // Désactiver le bouton précédent si on est au début
-    prevButton.disabled = scrollLeft <= 5;
-    prevButton.style.opacity = prevButton.disabled ? '0.3' : '1';
-
-    // Désactiver le bouton suivant si on est à la fin
-    nextButton.disabled = scrollLeft >= maxScroll - 5;
-    nextButton.style.opacity = nextButton.disabled ? '0.3' : '1';
   }
 
   /**
-   * Écouter les événements de défilement
-   */
-  function handleScroll() {
-    updateNavigationButtons();
-  }
-
-  /**
-   * Enregistrer qu'un utilisateur a vu une annonce
+   * Enregistrer une vue d'annonce (tracking)
    */
   async function trackAdView(adId) {
-    // Vérifier si on doit ignorer le tracking (clic depuis la section "récemment vu")
+    // Ignorer si flag actif
     if (window.__skipRecentlyViewedTracking) {
-      console.log('[RecentlyViewed] Tracking skipped for:', adId);
+      console.log('[RecentlyViewed] Tracking ignoré pour:', adId);
       return;
     }
 
-    // Ne pas tracker si l'utilisateur n'est pas connecté
+    // Ignorer si non connecté
     if (!isUserLoggedIn()) {
       return;
     }
 
     try {
-      console.log('[RecentlyViewed] Tracking view for ad:', adId);
+      console.log('[RecentlyViewed] Tracking vue pour:', adId);
       const response = await fetch('/api/users/me/recently-viewed', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ adId })
       });
 
       if (response.ok) {
-        console.log('[RecentlyViewed] View tracked successfully');
-        // Recharger les annonces récemment vues pour mettre à jour l'affichage
+        console.log('[RecentlyViewed] Vue trackée avec succès');
+        // Recharger les annonces
         loadRecentlyViewedAds();
       } else {
-        console.log('[RecentlyViewed] Failed to track view:', response.status);
+        console.log('[RecentlyViewed] Échec tracking:', response.status);
       }
     } catch (error) {
-      console.error('[RecentlyViewed] Error tracking view:', error);
+      console.error('[RecentlyViewed] Erreur tracking:', error);
     }
   }
 
+  // ========== INITIALISATION ==========
+
   /**
-   * Initialiser les gestionnaires d'événements
+   * Attacher les event listeners
    */
-  function initEventListeners() {
-    console.log('[RecentlyViewed] Initialisation des event listeners...');
-    const prevButton = document.getElementById('recentlyViewedPrev');
-    const nextButton = document.getElementById('recentlyViewedNext');
-    const track = document.getElementById('recentlyViewedTrack');
+  function attachListeners() {
+    console.log('[RecentlyViewed] Attachement des listeners...');
 
-    console.log('[RecentlyViewed] prevButton:', !!prevButton);
-    console.log('[RecentlyViewed] nextButton:', !!nextButton);
-    console.log('[RecentlyViewed] track:', !!track);
+    // Navigation
+    btnPrev.addEventListener('click', scrollPrev);
+    btnNext.addEventListener('click', scrollNext);
+    track.addEventListener('scroll', updateButtons, { passive: true });
 
-    if (prevButton) {
-      // Retirer l'ancien listener s'il existe
-      prevButton.removeEventListener('click', scrollPrev);
-      // Ajouter le nouveau listener
-      prevButton.addEventListener('click', (e) => {
-        console.log('[RecentlyViewed] Click détecté sur prevButton');
-        e.preventDefault();
-        e.stopPropagation();
-        scrollPrev();
-      });
-      console.log('[RecentlyViewed] Event listener ajouté sur prevButton');
-      console.log('[RecentlyViewed] prevButton disabled?', prevButton.disabled);
-      console.log(
-        '[RecentlyViewed] prevButton style:',
-        window.getComputedStyle(prevButton).display
-      );
-    } else {
-      console.warn('[RecentlyViewed] prevButton non trouvé !');
-    }
-
-    if (nextButton) {
-      // Retirer l'ancien listener s'il existe
-      nextButton.removeEventListener('click', scrollNext);
-      // Ajouter le nouveau listener
-      nextButton.addEventListener('click', (e) => {
-        console.log('[RecentlyViewed] Click détecté sur nextButton');
-        e.preventDefault();
-        e.stopPropagation();
-        scrollNext();
-      });
-      console.log('[RecentlyViewed] Event listener ajouté sur nextButton');
-      console.log('[RecentlyViewed] nextButton disabled?', nextButton.disabled);
-      console.log(
-        '[RecentlyViewed] nextButton style:',
-        window.getComputedStyle(nextButton).display
-      );
-    } else {
-      console.warn('[RecentlyViewed] nextButton non trouvé !');
-    }
-
-    if (track) {
-      // Retirer l'ancien listener s'il existe
-      track.removeEventListener('scroll', handleScroll);
-      // Ajouter le nouveau listener
-      track.addEventListener('scroll', handleScroll);
-      console.log('[RecentlyViewed] Event listener scroll ajouté sur track');
-    } else {
-      console.warn('[RecentlyViewed] track non trouvé !');
-    }
+    console.log('[RecentlyViewed] Listeners attachés avec succès');
   }
 
   /**
-   * Vérifier si l'utilisateur est connecté
-   */
-  function isUserLoggedIn() {
-    // Vérifier via authStore (comme les autres modules)
-    try {
-      console.log('[RecentlyViewed] Vérification authStore...');
-      console.log('[RecentlyViewed] window.authStore existe?', !!window.authStore);
-
-      const authUser = window.authStore?.get();
-      console.log('[RecentlyViewed] authUser:', authUser);
-      console.log('[RecentlyViewed] authUser._id:', authUser?._id);
-
-      const isLoggedIn = authUser && (authUser._id || authUser.id);
-      console.log('[RecentlyViewed] isLoggedIn:', isLoggedIn);
-
-      return isLoggedIn;
-    } catch (error) {
-      console.warn('[RecentlyViewed] Erreur lors de la vérification de connexion:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Initialiser le module
+   * Initialiser le module principal
    */
   function init() {
     console.log('[RecentlyViewed] Initialisation du module');
 
-    // Ne rien faire si l'utilisateur n'est pas connecté
+    // Vérifier connexion
     if (!isUserLoggedIn()) {
       console.log('[RecentlyViewed] Utilisateur non connecté');
-      const section = document.getElementById('recentlyViewedSection');
-      if (section) section.hidden = true;
+      section.hidden = true;
       return;
     }
 
-    console.log('[RecentlyViewed] Utilisateur connecté, initialisation des listeners');
-    initEventListeners();
+    console.log('[RecentlyViewed] Utilisateur connecté');
 
-    // Charger les annonces après un court délai
+    // Attacher les listeners
+    attachListeners();
+
+    // Charger les annonces après un délai
     setTimeout(() => {
-      console.log('[RecentlyViewed] Chargement des annonces...');
       loadRecentlyViewedAds();
     }, 1000);
   }
 
-  // Exposer les fonctions nécessaires globalement
+  // ========== ÉCOUTER LES CHANGEMENTS D'AUTH ==========
+
+  /**
+   * Gérer les changements d'authentification
+   */
+  document.addEventListener('auth:change', (event) => {
+    console.log('[RecentlyViewed] Événement auth:change reçu');
+
+    if (event.detail && (event.detail._id || event.detail.id)) {
+      console.log('[RecentlyViewed] Utilisateur connecté, rechargement...');
+      init();
+    } else {
+      console.log('[RecentlyViewed] Utilisateur déconnecté, masquage...');
+      section.hidden = true;
+    }
+  });
+
+  // ========== EXPOSITION GLOBALE ==========
+
   window.recentlyViewed = {
     trackAdView,
     loadRecentlyViewedAds
   };
 
-  // Attendre que authStore soit disponible avant d'initialiser
-  console.log('[RecentlyViewed] Script chargé');
+  // ========== DÉMARRAGE ==========
 
+  /**
+   * Attendre que authStore soit disponible
+   */
   function waitForAuthStore() {
     if (window.authStore) {
-      console.log('[RecentlyViewed] authStore disponible, initialisation...');
+      console.log('[RecentlyViewed] authStore disponible, démarrage...');
       init();
     } else {
       console.log('[RecentlyViewed] En attente de authStore...');
@@ -413,26 +321,12 @@
     }
   }
 
-  // Écouter les changements d'authentification
-  document.addEventListener('auth:change', (event) => {
-    console.log('[RecentlyViewed] Événement auth:change reçu', event.detail);
-
-    // Si l'utilisateur vient de se connecter, charger les annonces
-    if (event.detail && event.detail._id) {
-      console.log('[RecentlyViewed] Utilisateur connecté, rechargement des annonces...');
-      init();
-    } else {
-      // Si l'utilisateur s'est déconnecté, masquer la section
-      console.log('[RecentlyViewed] Utilisateur déconnecté, masquage de la section...');
-      const section = document.getElementById('recentlyViewedSection');
-      if (section) section.hidden = true;
-    }
-  });
-
-  // Si le DOM est déjà chargé, attendre authStore, sinon attendre le DOM puis authStore
+  // Démarrer selon l'état du DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', waitForAuthStore);
   } else {
     waitForAuthStore();
   }
+
+  console.log('[RecentlyViewed] Module chargé');
 })();

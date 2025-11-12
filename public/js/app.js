@@ -1966,7 +1966,9 @@
     }
 
     const hasContent = paging.items.length > 0;
-    pagerContainer.hidden = !hasContent;
+    // Cacher la pagination si pas de contenu OU si une seule page
+    const shouldShowPagination = hasContent && (paging.totalPages > 1 || paging.hasNext);
+    pagerContainer.hidden = !shouldShowPagination;
 
     if (pagerIndicator) {
       if (hasContent) {
@@ -7193,8 +7195,8 @@
       return;
     }
     const message = contactMessage.value.trim();
-    if (message.length < CONTACT_MIN_LENGTH) {
-      showContactError(`Votre message doit contenir au moins ${CONTACT_MIN_LENGTH} caractères.`);
+    if (message.length === 0) {
+      showContactError('Veuillez saisir un message.');
       contactMessage.focus({ preventScroll: true });
       return;
     }
