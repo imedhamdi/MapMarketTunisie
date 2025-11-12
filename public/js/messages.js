@@ -603,19 +603,14 @@
   }
 
   function ensureSocket() {
-    console.log(
-      '[Messages] ensureSocket appelé, socket actuel:',
-      !!socket,
-      'userId:',
-      state.userId
-    );
+  // ...existing code...
     if (socket || !state.userId) return socket;
     if (!window.io) {
       console.warn('[chat] Socket.IO client manquant');
       return null;
     }
     const token = window.__ACCESS_TOKEN__ || null;
-    console.log('[Messages] Création du socket avec token:', !!token);
+  // ...existing code...
     socket = window.io(window.location.origin, {
       path: SOCKET_PATH,
       auth: token ? { token } : {},
@@ -625,11 +620,11 @@
       timeout: 20000
     });
 
-    console.log('[Messages] Socket créé, ID:', socket.id, 'connected:', socket.connected);
+  // ...existing code...
 
     // Écouter les événements de connexion
     socket.on('connect', () => {
-      console.log('[Messages] Socket CONNECTÉ ! ID:', socket.id);
+  // ...existing code...
     });
 
     socket.on('connect_error', (error) => {
@@ -643,15 +638,9 @@
     bindSocketEvents();
 
     // Initialiser le gestionnaire d'appels vocaux avec le socket
-    console.log('[Messages] Initialisation du voiceCallManager avec socket');
+  // ...existing code...
     if (voiceCallManager && !voiceCallManager.socket) {
-      console.log('[Messages] Appel de voiceCallManager.init()');
       voiceCallManager.init(socket);
-    } else {
-      console.log('[Messages] voiceCallManager non disponible ou déjà initialisé:', {
-        hasVoiceCallManager: !!voiceCallManager,
-        hasSocket: voiceCallManager?.socket
-      });
     }
 
     return socket;
@@ -662,9 +651,9 @@
 
     // Helper pour rejoindre la conversation active
     const rejoinActiveConversation = () => {
-      console.log('[DEBUG] rejoinActiveConversation, activeConversationId:', activeConversationId);
+  // ...existing code...
       if (activeConversationId && socket?.connected) {
-        console.log('[DEBUG] Émission conversation:join pour:', activeConversationId);
+  // ...existing code...
         socket.emit('conversation:join', {
           conversationId: activeConversationId,
           markAsRead: true
@@ -673,14 +662,14 @@
     };
 
     socket.on('connect', () => {
-      console.log('[DEBUG] Socket connecté, activeConversationId:', activeConversationId);
+  // ...existing code...
       rejoinActiveConversation();
     });
     socket.on('error', (payload) => {
       console.warn('[chat:error]', payload);
     });
     socket.on('message:new', async (payload) => {
-      console.log('[DEBUG] Événement message:new reçu du serveur');
+  // ...existing code...
       await handleIncomingMessage(payload);
     });
     socket.on('message:delivered', (payload) => {
@@ -756,15 +745,7 @@
   }
 
   async function handleIncomingMessage(payload) {
-    console.log('[DEBUG] message:new reçu:', {
-      hasPayload: !!payload,
-      conversationId: payload?.conversationId,
-      messageId: payload?.message?.id,
-      messageSender: payload?.message?.sender,
-      activeConversationId,
-      match: payload?.conversationId === activeConversationId,
-      userId: state.userId
-    });
+  // ...existing code...
 
     if (!payload?.conversationId || !payload?.message) {
       console.warn('[DEBUG] Payload invalide, abandon');
@@ -774,11 +755,7 @@
     const conversationId = String(payload.conversationId);
     const message = enhanceMessage(payload.message);
 
-    console.log('[DEBUG] Message traité:', {
-      conversationId,
-      messageId: message.id,
-      isActiveConv: conversationId === activeConversationId
-    });
+  // ...existing code...
 
     if (!state.conversationsLoaded) {
       refreshUnreadCountFromServer();
@@ -797,7 +774,7 @@
     storeMessage(conversationId, message);
 
     if (conversationId === activeConversationId) {
-      console.log('[DEBUG] Insertion du message dans la conv active');
+  // ...existing code...
       insertMessageIntoActive(message);
       if (message.sender !== state.userId) {
         socket?.emit('message:received', { conversationId, messageId: message.id });
@@ -806,7 +783,7 @@
       }
       markConversationAsRead(conversationId);
     } else if (message.sender !== state.userId) {
-      console.log('[DEBUG] Message pour une autre conv, incrémentation unread');
+  // ...existing code...
       incrementConversationUnread(conversationId);
     }
 
@@ -2914,14 +2891,10 @@
   }
 
   function joinConversation(conversationId, { markAsRead = false } = {}) {
-    console.log('[DEBUG] joinConversation appelé:', {
-      conversationId,
-      markAsRead,
-      socketConnected: socket?.connected
-    });
+  // ...existing code...
     ensureSocket();
     if (socket?.connected) {
-      console.log('[DEBUG] Émission conversation:join');
+  // ...existing code...
       socket.emit('conversation:join', { conversationId, markAsRead });
     } else {
       console.warn('[DEBUG] Socket non connecté, impossible de join');

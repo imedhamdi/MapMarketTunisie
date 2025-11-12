@@ -70,20 +70,14 @@
     btnPrev.disabled = atStart;
     btnNext.disabled = atEnd;
 
-    console.log('[RecentlyViewed] Boutons mis à jour:', {
-      scrollLeft: track.scrollLeft,
-      scrollWidth: track.scrollWidth,
-      clientWidth: track.clientWidth,
-      atStart,
-      atEnd
-    });
+  // ...existing code...
   }
 
   /**
    * Défiler vers la gauche
    */
   function scrollPrev() {
-    console.log('[RecentlyViewed] Scroll vers la gauche');
+  // ...existing code...
     track.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
     setTimeout(updateButtons, 300); // Attendre la fin de l'animation
   }
@@ -92,7 +86,7 @@
    * Défiler vers la droite
    */
   function scrollNext() {
-    console.log('[RecentlyViewed] Scroll vers la droite');
+  // ...existing code...
     track.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
     setTimeout(updateButtons, 300); // Attendre la fin de l'animation
   }
@@ -133,7 +127,6 @@
 
     // Ajouter le gestionnaire de clic
     card.addEventListener('click', () => {
-      console.log('[RecentlyViewed] Clic sur annonce:', ad._id);
       // Marquer pour éviter de réinjecter dans la liste
       window.__skipRecentlyViewedTracking = true;
       if (typeof window.openDetailsById === 'function') {
@@ -151,7 +144,7 @@
    * Rendre les annonces dans le track
    */
   function renderAds(ads) {
-    console.log('[RecentlyViewed] Rendu de', ads.length, 'annonces');
+  // ...existing code...
 
     // Vider le track
     track.innerHTML = '';
@@ -159,7 +152,7 @@
 
     // Ajouter les cartes
     ads.forEach((ad, index) => {
-      console.log(`[RecentlyViewed] Création carte ${index + 1}:`, ad.title);
+  // ...existing code...
       const card = createAdCard(ad);
       track.appendChild(card);
     });
@@ -174,7 +167,7 @@
    * Charger les annonces récemment vues depuis l'API
    */
   async function loadRecentlyViewedAds() {
-    console.log('[RecentlyViewed] Chargement des annonces...');
+  // ...existing code...
 
     try {
       const response = await fetch('/api/users/me/recently-viewed', {
@@ -182,7 +175,7 @@
       });
 
       if (!response.ok) {
-        console.log('[RecentlyViewed] Réponse non-OK:', response.status);
+  // ...existing code...
         section.hidden = true;
         return;
       }
@@ -190,14 +183,12 @@
       const result = await response.json();
       const ads = result.data?.ads || [];
 
-      console.log('[RecentlyViewed] Annonces chargées:', ads.length);
+  // ...existing code...
 
-      if (ads.length > 0) {
+      if (ads.length > 5) {
         renderAds(ads);
         section.hidden = false;
-        console.log('[RecentlyViewed] Section affichée avec', ads.length, 'annonces');
       } else {
-        console.log('[RecentlyViewed] Aucune annonce à afficher');
         section.hidden = true;
       }
     } catch (error) {
@@ -212,7 +203,7 @@
   async function trackAdView(adId) {
     // Ignorer si flag actif
     if (window.__skipRecentlyViewedTracking) {
-      console.log('[RecentlyViewed] Tracking ignoré pour:', adId);
+  // ...existing code...
       return;
     }
 
@@ -222,7 +213,7 @@
     }
 
     try {
-      console.log('[RecentlyViewed] Tracking vue pour:', adId);
+  // ...existing code...
       const response = await fetch('/api/users/me/recently-viewed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -231,11 +222,11 @@
       });
 
       if (response.ok) {
-        console.log('[RecentlyViewed] Vue trackée avec succès');
+  // ...existing code...
         // Recharger les annonces
         loadRecentlyViewedAds();
       } else {
-        console.log('[RecentlyViewed] Échec tracking:', response.status);
+  // ...existing code...
       }
     } catch (error) {
       console.error('[RecentlyViewed] Erreur tracking:', error);
@@ -248,30 +239,30 @@
    * Attacher les event listeners
    */
   function attachListeners() {
-    console.log('[RecentlyViewed] Attachement des listeners...');
+  // ...existing code...
 
     // Navigation
     btnPrev.addEventListener('click', scrollPrev);
     btnNext.addEventListener('click', scrollNext);
     track.addEventListener('scroll', updateButtons, { passive: true });
 
-    console.log('[RecentlyViewed] Listeners attachés avec succès');
+  // ...existing code...
   }
 
   /**
    * Initialiser le module principal
    */
   function init() {
-    console.log('[RecentlyViewed] Initialisation du module');
+  // ...existing code...
 
     // Vérifier connexion
     if (!isUserLoggedIn()) {
-      console.log('[RecentlyViewed] Utilisateur non connecté');
+  // ...existing code...
       section.hidden = true;
       return;
     }
 
-    console.log('[RecentlyViewed] Utilisateur connecté');
+  // ...existing code...
 
     // Attacher les listeners
     attachListeners();
@@ -288,13 +279,13 @@
    * Gérer les changements d'authentification
    */
   document.addEventListener('auth:change', (event) => {
-    console.log('[RecentlyViewed] Événement auth:change reçu');
+  // ...existing code...
 
     if (event.detail && (event.detail._id || event.detail.id)) {
-      console.log('[RecentlyViewed] Utilisateur connecté, rechargement...');
+  // ...existing code...
       init();
     } else {
-      console.log('[RecentlyViewed] Utilisateur déconnecté, masquage...');
+  // ...existing code...
       section.hidden = true;
     }
   });
@@ -313,10 +304,10 @@
    */
   function waitForAuthStore() {
     if (window.authStore) {
-      console.log('[RecentlyViewed] authStore disponible, démarrage...');
+  // ...existing code...
       init();
     } else {
-      console.log('[RecentlyViewed] En attente de authStore...');
+  // ...existing code...
       setTimeout(waitForAuthStore, 50);
     }
   }
@@ -328,5 +319,5 @@
     waitForAuthStore();
   }
 
-  console.log('[RecentlyViewed] Module chargé');
+  // ...existing code...
 })();

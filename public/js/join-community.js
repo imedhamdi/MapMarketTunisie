@@ -73,22 +73,22 @@
     const ctaWrapper = document.querySelector('.join-community__cta-wrapper');
     if (!btn) return;
 
-    // Vérifier si l'utilisateur est connecté
+    // Vérifier si l'utilisateur est connecté via la clé mm-auth
     const checkAuthAndToggleButton = () => {
-      const token = localStorage.getItem('token');
-
-      if (token) {
-        // Si connecté, cacher le bouton et le wrapper
+      let isLoggedIn = false;
+      try {
+        const mmAuth = localStorage.getItem('mm-auth');
+        if (mmAuth) {
+          const user = JSON.parse(mmAuth);
+          isLoggedIn = !!(user && user._id);
+        }
+      } catch (e) {}
+      if (isLoggedIn) {
         btn.style.display = 'none';
-        if (ctaWrapper) {
-          ctaWrapper.style.display = 'none';
-        }
+        if (ctaWrapper) ctaWrapper.style.display = 'none';
       } else {
-        // Si non connecté, afficher le bouton
         btn.style.display = '';
-        if (ctaWrapper) {
-          ctaWrapper.style.display = '';
-        }
+        if (ctaWrapper) ctaWrapper.style.display = '';
       }
     };
 
@@ -96,7 +96,25 @@
     checkAuthAndToggleButton();
 
     // Écouter les changements de localStorage (connexion/déconnexion)
-    window.addEventListener('storage', checkAuthAndToggleButton);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'mm-auth') {
+        checkAuthAndToggleButton();
+      }
+    });
+
+    // Écouter les événements personnalisés de login/logout si dispatchés ailleurs dans l'app
+    window.addEventListener('user:login', checkAuthAndToggleButton);
+    window.addEventListener('user:logout', checkAuthAndToggleButton);
+
+    // MutationObserver pour détecter les changements dynamiques sur localStorage (fallback)
+    let lastAuth = localStorage.getItem('mm-auth');
+    setInterval(() => {
+      const currentAuth = localStorage.getItem('mm-auth');
+      if (currentAuth !== lastAuth) {
+        lastAuth = currentAuth;
+        checkAuthAndToggleButton();
+      }
+    }, 1000);
 
     // Gérer le clic sur le bouton
     btn.addEventListener('click', () => {
