@@ -37,7 +37,7 @@
             '[RecentlyViewed] Section hasAttribute("hidden"):',
             section.hasAttribute('hidden')
           );
-          
+
           const styles = window.getComputedStyle(section);
           console.log('[RecentlyViewed] Section computed display:', styles.display);
           console.log('[RecentlyViewed] Section computed visibility:', styles.visibility);
@@ -176,7 +176,7 @@
       left: -SCROLL_AMOUNT,
       behavior: 'smooth'
     });
-    
+
     // Mettre à jour les boutons après un court délai
     setTimeout(updateNavigationButtons, 300);
   }
@@ -197,7 +197,7 @@
       left: SCROLL_AMOUNT,
       behavior: 'smooth'
     });
-    
+
     // Mettre à jour les boutons après un court délai
     setTimeout(updateNavigationButtons, 300);
   }
@@ -300,7 +300,7 @@
       // Retirer l'ancien listener s'il existe
       prevButton.removeEventListener('click', scrollPrev);
       // Ajouter le nouveau listener
-      prevButton.addEventListener('click', function(e) {
+      prevButton.addEventListener('click', (e) => {
         console.log('[RecentlyViewed] Click détecté sur prevButton');
         e.preventDefault();
         e.stopPropagation();
@@ -308,7 +308,10 @@
       });
       console.log('[RecentlyViewed] Event listener ajouté sur prevButton');
       console.log('[RecentlyViewed] prevButton disabled?', prevButton.disabled);
-      console.log('[RecentlyViewed] prevButton style:', window.getComputedStyle(prevButton).display);
+      console.log(
+        '[RecentlyViewed] prevButton style:',
+        window.getComputedStyle(prevButton).display
+      );
     } else {
       console.warn('[RecentlyViewed] prevButton non trouvé !');
     }
@@ -317,7 +320,7 @@
       // Retirer l'ancien listener s'il existe
       nextButton.removeEventListener('click', scrollNext);
       // Ajouter le nouveau listener
-      nextButton.addEventListener('click', function(e) {
+      nextButton.addEventListener('click', (e) => {
         console.log('[RecentlyViewed] Click détecté sur nextButton');
         e.preventDefault();
         e.stopPropagation();
@@ -325,7 +328,10 @@
       });
       console.log('[RecentlyViewed] Event listener ajouté sur nextButton');
       console.log('[RecentlyViewed] nextButton disabled?', nextButton.disabled);
-      console.log('[RecentlyViewed] nextButton style:', window.getComputedStyle(nextButton).display);
+      console.log(
+        '[RecentlyViewed] nextButton style:',
+        window.getComputedStyle(nextButton).display
+      );
     } else {
       console.warn('[RecentlyViewed] nextButton non trouvé !');
     }
@@ -349,14 +355,14 @@
     try {
       console.log('[RecentlyViewed] Vérification authStore...');
       console.log('[RecentlyViewed] window.authStore existe?', !!window.authStore);
-      
+
       const authUser = window.authStore?.get();
       console.log('[RecentlyViewed] authUser:', authUser);
       console.log('[RecentlyViewed] authUser._id:', authUser?._id);
-      
+
       const isLoggedIn = authUser && (authUser._id || authUser.id);
       console.log('[RecentlyViewed] isLoggedIn:', isLoggedIn);
-      
+
       return isLoggedIn;
     } catch (error) {
       console.warn('[RecentlyViewed] Erreur lors de la vérification de connexion:', error);
@@ -410,7 +416,7 @@
   // Écouter les changements d'authentification
   document.addEventListener('auth:change', (event) => {
     console.log('[RecentlyViewed] Événement auth:change reçu', event.detail);
-    
+
     // Si l'utilisateur vient de se connecter, charger les annonces
     if (event.detail && event.detail._id) {
       console.log('[RecentlyViewed] Utilisateur connecté, rechargement des annonces...');
