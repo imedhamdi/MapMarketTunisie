@@ -70,14 +70,14 @@
     btnPrev.disabled = atStart;
     btnNext.disabled = atEnd;
 
-  // ...existing code...
+    // ...existing code...
   }
 
   /**
    * Défiler vers la gauche
    */
   function scrollPrev() {
-  // ...existing code...
+    // ...existing code...
     track.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
     setTimeout(updateButtons, 300); // Attendre la fin de l'animation
   }
@@ -86,7 +86,7 @@
    * Défiler vers la droite
    */
   function scrollNext() {
-  // ...existing code...
+    // ...existing code...
     track.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
     setTimeout(updateButtons, 300); // Attendre la fin de l'animation
   }
@@ -144,7 +144,7 @@
    * Rendre les annonces dans le track
    */
   function renderAds(ads) {
-  // ...existing code...
+    // ...existing code...
 
     // Vider le track
     track.innerHTML = '';
@@ -152,7 +152,7 @@
 
     // Ajouter les cartes
     ads.forEach((ad, index) => {
-  // ...existing code...
+      // ...existing code...
       const card = createAdCard(ad);
       track.appendChild(card);
     });
@@ -167,7 +167,7 @@
    * Charger les annonces récemment vues depuis l'API
    */
   async function loadRecentlyViewedAds() {
-  // ...existing code...
+    // ...existing code...
 
     try {
       const response = await fetch('/api/users/me/recently-viewed', {
@@ -175,7 +175,7 @@
       });
 
       if (!response.ok) {
-  // ...existing code...
+        // ...existing code...
         section.hidden = true;
         return;
       }
@@ -183,7 +183,7 @@
       const result = await response.json();
       const ads = result.data?.ads || [];
 
-  // ...existing code...
+      // ...existing code...
 
       if (ads.length > 5) {
         renderAds(ads);
@@ -203,7 +203,7 @@
   async function trackAdView(adId) {
     // Ignorer si flag actif
     if (window.__skipRecentlyViewedTracking) {
-  // ...existing code...
+      // ...existing code...
       return;
     }
 
@@ -213,7 +213,7 @@
     }
 
     try {
-  // ...existing code...
+      // ...existing code...
       const response = await fetch('/api/users/me/recently-viewed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,11 +222,11 @@
       });
 
       if (response.ok) {
-  // ...existing code...
+        // ...existing code...
         // Recharger les annonces
         loadRecentlyViewedAds();
       } else {
-  // ...existing code...
+        // ...existing code...
       }
     } catch (error) {
       console.error('[RecentlyViewed] Erreur tracking:', error);
@@ -239,30 +239,30 @@
    * Attacher les event listeners
    */
   function attachListeners() {
-  // ...existing code...
+    // ...existing code...
 
     // Navigation
     btnPrev.addEventListener('click', scrollPrev);
     btnNext.addEventListener('click', scrollNext);
     track.addEventListener('scroll', updateButtons, { passive: true });
 
-  // ...existing code...
+    // ...existing code...
   }
 
   /**
    * Initialiser le module principal
    */
   function init() {
-  // ...existing code...
+    // ...existing code...
 
     // Vérifier connexion
     if (!isUserLoggedIn()) {
-  // ...existing code...
+      // ...existing code...
       section.hidden = true;
       return;
     }
 
-  // ...existing code...
+    // ...existing code...
 
     // Attacher les listeners
     attachListeners();
@@ -279,13 +279,13 @@
    * Gérer les changements d'authentification
    */
   document.addEventListener('auth:change', (event) => {
-  // ...existing code...
+    // ...existing code...
 
     if (event.detail && (event.detail._id || event.detail.id)) {
-  // ...existing code...
+      // ...existing code...
       init();
     } else {
-  // ...existing code...
+      // ...existing code...
       section.hidden = true;
     }
   });
@@ -304,10 +304,10 @@
    */
   function waitForAuthStore() {
     if (window.authStore) {
-  // ...existing code...
+      // ...existing code...
       init();
     } else {
-  // ...existing code...
+      // ...existing code...
       setTimeout(waitForAuthStore, 50);
     }
   }
