@@ -810,3 +810,158 @@ export async function uploadAvatar(req, res) {
     });
   }
 }
+
+/**
+ * Get recently viewed ads for the authenticated user
+ */
+export async function getRecentlyViewed(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Non authentifié'
+      });
+    }
+
+    const user = await User.findById(userId).select('recentlyViewed');
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Get the ads details for recently viewed items
+    const recentlyViewed = user.recentlyViewed || [];
+    const adIds = recentlyViewed.map((item) => item.adId);
+
+    // Fetch ads and maintain the order (exclude user's own ads)
+    const ads = await Ad.find({
+      _id: { $in: adIds },
+      status: 'active',
+      owner: { $ne: userId } // Exclure les annonces de l'utilisateur
+    })
+      .select('title price images thumbnails locationText owner')
+      .lean();
+
+    // Create a map for quick lookup
+    const adsMap = new Map(ads.map((ad) => [ad._id.toString(), ad]));
+
+    // Maintain the order from recentlyViewed and filter out user's own ads
+    const orderedAds = adIds
+      .map((id) => adsMap.get(id.toString()))
+      .filter((ad) => ad !== undefined);
+
+    return sendSuccess(res, {
+      data: {
+        ads: orderedAds
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération des annonces récemment vues', {
+      error: error.message
+    });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: 'Erreur lors de la récupération des annonces récemment vues'
+    });
+  }
+}
+
+/**
+ * Add an ad to the recently viewed list
+ */
+export async function addRecentlyViewed(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Non authentifié'
+      });
+    }
+
+    const { adId } = req.body;
+    if (!adId) {
+      return sendError(res, {
+        statusCode: 400,
+        code: 'MISSING_AD_ID',
+        message: "ID de l'annonce manquant"
+      });
+    }
+
+    // Validate adId
+    if (!mongoose.Types.ObjectId.isValid(adId)) {
+      return sendError(res, {
+        statusCode: 400,
+        code: 'INVALID_AD_ID',
+        message: "ID de l'annonce invalide"
+      });
+    }
+
+    // Check if ad exists and get its owner
+    const ad = await Ad.findById(adId).select('_id owner');
+    if (!ad) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'AD_NOT_FOUND',
+        message: 'Annonce non trouvée'
+      });
+    }
+
+    // Don't track if user is the owner of the ad
+    if (ad.owner && ad.owner.toString() === userId.toString()) {
+      return sendSuccess(res, {
+        message: 'Annonce ignorée (propriétaire)'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Initialize recentlyViewed if it doesn't exist
+    if (!user.recentlyViewed) {
+      user.recentlyViewed = [];
+    }
+
+    // Remove the ad if it already exists
+    user.recentlyViewed = user.recentlyViewed.filter((item) => item.adId.toString() !== adId);
+
+    // Add the ad at the beginning
+    user.recentlyViewed.unshift({
+      adId,
+      viewedAt: new Date()
+    });
+
+    // Keep only the last 10 viewed ads
+    if (user.recentlyViewed.length > 10) {
+      user.recentlyViewed = user.recentlyViewed.slice(0, 10);
+    }
+
+    await user.save();
+
+    return sendSuccess(res, {
+      message: 'Annonce ajoutée aux récemment vues'
+    });
+  } catch (error) {
+    logger.error("Erreur lors de l'ajout de l'annonce aux récemment vues", {
+      error: error.message
+    });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: "Erreur lors de l'ajout de l'annonce aux récemment vues"
+    });
+  }
+}

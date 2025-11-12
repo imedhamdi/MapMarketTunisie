@@ -12,7 +12,9 @@ import {
   getUserAnalytics,
   changePassword,
   uploadAvatar,
-  deactivateUser
+  deactivateUser,
+  getRecentlyViewed,
+  addRecentlyViewed
 } from '../controllers/user.controller.js';
 import { authRequired } from '../middlewares/auth.js';
 import validate from '../middlewares/validate.js';
@@ -79,6 +81,8 @@ router.post('/me/favorites', validate(favoritesSchema), invalidateUserCache(), u
 router.get('/me/stats', cacheUser(300), getUserStats);
 router.get('/me/analytics', cacheUser(300), getUserAnalytics);
 router.post('/me/change-password', invalidateUserCache(), changePassword);
+router.get('/me/recently-viewed', getRecentlyViewed);
+router.post('/me/recently-viewed', invalidateUserCache(), addRecentlyViewed);
 router.delete('/me', invalidateUserCache(), deleteMe);
 
 export default router;

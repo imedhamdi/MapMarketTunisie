@@ -1083,6 +1083,30 @@
     </div>
   </div>
 
+  <!-- Recently Viewed Section -->
+  <section class="recently-viewed-section" id="recentlyViewedSection" hidden>
+    <div class="container">
+      <div class="recently-viewed-header">
+        <h2 class="recently-viewed-title">Vous avez récemment vu</h2>
+      </div>
+      <div class="recently-viewed-carousel">
+        <button class="carousel-nav carousel-nav--prev" id="recentlyViewedPrev" aria-label="Annonces précédentes">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 6 9 12 15 18"></polyline>
+          </svg>
+        </button>
+        <div class="carousel-track-wrapper">
+          <div class="carousel-track" id="recentlyViewedTrack"></div>
+        </div>
+        <button class="carousel-nav carousel-nav--next" id="recentlyViewedNext" aria-label="Annonces suivantes">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 6 15 12 9 18"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
   <!-- Section "Rejoignez la communauté" -->
   <section class="join-community" id="joinCommunity">
     <div class="join-community__container">
@@ -1503,5 +1527,8 @@
 
   <!-- Profile Modal Script -->
   <script src="/js/profile-modal.js"></script>
+  
+  <!-- Recently Viewed Script -->
+  <script src="/js/recently-viewed.js"></script>
 </body>
 </html>

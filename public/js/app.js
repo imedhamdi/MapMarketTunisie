@@ -7388,6 +7388,10 @@
       } else {
         openDetailsModal(fetched);
       }
+      // Tracker la vue de l'annonce pour les annonces récemment vues
+      if (window.recentlyViewed && typeof window.recentlyViewed.trackAdView === 'function') {
+        window.recentlyViewed.trackAdView(normalizedId);
+      }
       return;
     }
     if (!hasOpened || openedWithSkeleton) {

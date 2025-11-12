@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Recently Viewed</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    .section {
+      margin: 20px 0;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Recently Viewed API</h1>
+  
+  <div class="section">
+    <h2>1. Vérifier la connexion</h2>
+    <button onclick="checkAuth()">Vérifier Auth</button>
+    <pre id="authResult"></pre>
+  </div>
+
+  <div class="section">
+    <h2>2. Charger les annonces récemment vues</h2>
+    <button onclick="loadRecent()">Charger</button>
+    <pre id="recentResult"></pre>
+  </div>
+
+  <div class="section">
+    <h2>3. Ajouter une annonce (test)</h2>
+    <input type="text" id="adId" placeholder="ID de l'annonce" style="padding: 8px; width: 300px;">
+    <button onclick="addRecent()">Ajouter</button>
+    <pre id="addResult"></pre>
+  </div>
+
+  <div class="section">
+    <h2>4. Test avec annonces existantes</h2>
+    <button onclick="testWithExisting()">Tester avec annonces de la DB</button>
+    <pre id="testResult"></pre>
+  </div>
+
+  <script>
+    async function checkAuth() {
+      const result = document.getElementById('authResult');
+      result.textContent = 'Vérification...';
+      
+      try {
+        const response = await fetch('/api/users/me/stats', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          result.textContent = 'Connecté ✓\n' + JSON.stringify(data, null, 2);
+        } else {
+          result.textContent = 'Non connecté ✗\nStatus: ' + response.status;
+        }
+      } catch (error) {
+        result.textContent = 'Erreur: ' + error.message;
+      }
+    }
+
+    async function loadRecent() {
+      const result = document.getElementById('recentResult');
+      result.textContent = 'Chargement...';
+      
+      try {
+        const response = await fetch('/api/users/me/recently-viewed', {
+          credentials: 'include'
+        });
+        
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+        
+        if (data.status === 'success' && data.data?.ads) {
+          result.textContent += '\n\n✓ ' + data.data.ads.length + ' annonces trouvées';
+        }
+      } catch (error) {
+        result.textContent = 'Erreur: ' + error.message;
+      }
+    }
+
+    async function addRecent() {
+      const result = document.getElementById('addResult');
+      const adId = document.getElementById('adId').value.trim();
+      
+      if (!adId) {
+        result.textContent = 'Veuillez entrer un ID d\'annonce';
+        return;
+      }
+      
+      result.textContent = 'Ajout...';
+      
+      try {
+        const response = await fetch('/api/users/me/recently-viewed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ adId })
+        });
+        
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+        
+        if (response.ok) {
+          result.textContent += '\n\n✓ Annonce ajoutée avec succès';
+          // Recharger la liste
+          setTimeout(loadRecent, 500);
+        }
+      } catch (error) {
+        result.textContent = 'Erreur: ' + error.message;
+      }
+    }
+
+    async function testWithExisting() {
+      const result = document.getElementById('testResult');
+      result.textContent = 'Test en cours...';
+      
+      try {
+        // Récupérer quelques annonces
+        const adsResponse = await fetch('/api/ads?limit=5', {
+          credentials: 'include'
+        });
+        
+        const adsData = await adsResponse.json();
+        
+        if (adsData.status === 'success' && adsData.data?.ads?.length > 0) {
+          result.textContent = 'Annonces disponibles: ' + adsData.data.ads.length + '\n\n';
+          
+          // Essayer d'ajouter la première annonce
+          const firstAd = adsData.data.ads[0];
+          result.textContent += 'Test avec annonce: ' + firstAd.title + ' (' + firstAd._id + ')\n\n';
+          
+          const addResponse = await fetch('/api/users/me/recently-viewed', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ adId: firstAd._id })
+          });
+          
+          const addData = await addResponse.json();
+          result.textContent += 'Résultat ajout:\n' + JSON.stringify(addData, null, 2);
+          
+          // Recharger la liste
+          setTimeout(loadRecent, 500);
+        } else {
+          result.textContent = 'Aucune annonce disponible dans la base';
+        }
+      } catch (error) {
+        result.textContent = 'Erreur: ' + error.message;
+      }
+    }
+
+    // Auto-check auth au chargement
+    window.addEventListener('load', checkAuth);
+  </script>
+</body>
+</html>

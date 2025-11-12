@@ -48,6 +48,12 @@ const UserSchema = new Schema(
       type: LocationSchema,
       default: () => ({ radiusKm: 10, consent: false })
     },
+    recentlyViewed: [
+      {
+        adId: { type: Schema.Types.ObjectId, ref: 'Ad' },
+        viewedAt: { type: Date, default: Date.now }
+      }
+    ],
     memberSince: { type: Date, default: Date.now },
     resetTokenHash: { type: String, select: false },
     resetTokenExp: { type: Date, select: false }
