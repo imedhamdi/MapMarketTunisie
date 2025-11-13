@@ -538,6 +538,24 @@
           </form>
         </div>
         <div class="auth-feedback" id="authFeedback" aria-live="polite" aria-atomic="true"></div>
+        <div class="auth-verification" id="verificationNotice" hidden>
+          <div class="auth-verification-icon" aria-hidden="true">✉️</div>
+          <div class="auth-verification-body">
+            <p class="auth-verification-title" id="verificationTitle">Vérifiez votre boîte mail</p>
+            <p class="auth-verification-text" id="verificationText">
+              Nous avons envoyé un lien de confirmation à
+              <strong id="verificationEmail"></strong>.
+            </p>
+            <div class="auth-verification-actions">
+              <button type="button" class="auth-verification-btn" id="resendVerificationBtn">
+                Renvoyer le lien
+              </button>
+              <button type="button" class="auth-verification-link" id="verificationRefreshBtn">
+                J'ai déjà confirmé
+              </button>
+            </div>
+          </div>
+        </div>
 
       </div>
       <button class="auth-close" id="closeAuth" aria-label="Fermer">✕</button>

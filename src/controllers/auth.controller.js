@@ -2,12 +2,13 @@ import jwt from 'jsonwebtoken';
 import sanitizeHtml from 'sanitize-html';
 
 import env from '../config/env.js';
-import { sendResetPasswordEmail } from '../config/mailer.js';
+import { sendResetPasswordEmail, sendEmailVerificationEmail } from '../config/mailer.js';
 import User from '../models/user.model.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import {
   createResetToken,
-  hashResetToken,
+  createVerificationToken,
+  hashToken,
   hashPassword,
   comparePassword
 } from '../utils/crypto.js';
@@ -38,26 +39,35 @@ export async function signup(req, res) {
   }
 
   const hashedPassword = await hashPassword(password);
+  const { token, hash, expiresAt } = createVerificationToken();
   const user = await User.create({
     name: cleanName,
     email,
     password: hashedPassword,
-    memberSince: new Date()
+    memberSince: new Date(),
+    emailVerified: false,
+    emailVerificationTokenHash: hash,
+    emailVerificationTokenExp: expiresAt
   });
 
-  const tokens = generateAuthTokens(user);
-  setAuthCookies(res, tokens);
+  try {
+    await sendEmailVerificationEmail(user.email, token, cleanName);
+  } catch (error) {
+    console.error("Erreur envoi email d'activation", error);
+  }
 
   return sendSuccess(res, {
     statusCode: 201,
-    message: 'Compte créé. Bienvenue 👋',
-    data: { user: formatUser(user) }
+    message: 'Compte créé. Vérifiez votre email pour activer votre accès ✉️',
+    data: { user: formatUser(user), requiresVerification: true }
   });
 }
 
 export async function login(req, res) {
   const { email, password } = req.body;
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email }).select(
+    '+password +emailVerificationTokenHash +emailVerificationTokenExp'
+  );
   if (!user) {
     return sendError(res, {
       statusCode: 401,
@@ -71,6 +81,14 @@ export async function login(req, res) {
       statusCode: 401,
       code: 'INVALID_CREDENTIALS',
       message: 'Email ou mot de passe incorrect'
+    });
+  }
+
+  if (user.emailVerificationTokenHash) {
+    return sendError(res, {
+      statusCode: 403,
+      code: 'EMAIL_NOT_VERIFIED',
+      message: 'Veuillez activer votre compte via le lien reçu par email.'
     });
   }
 
@@ -151,7 +169,7 @@ export async function forgotPassword(req, res) {
 
 export async function resetPassword(req, res) {
   const { token, password } = req.body;
-  const hashedToken = hashResetToken(token);
+  const hashedToken = hashToken(token);
 
   const user = await User.findOne({
     resetTokenHash: hashedToken,
@@ -177,6 +195,65 @@ export async function resetPassword(req, res) {
   return sendSuccess(res, {
     message: 'Mot de passe mis à jour 🔐',
     data: { user: formatUser(user) }
+  });
+}
+
+export async function verifyEmail(req, res) {
+  const { token } = req.body;
+  const hashedToken = hashToken(token);
+
+  const user = await User.findOne({
+    emailVerificationTokenHash: hashedToken,
+    emailVerificationTokenExp: { $gt: new Date() }
+  }).select('+emailVerificationTokenHash +emailVerificationTokenExp');
+
+  if (!user) {
+    return sendError(res, {
+      statusCode: 400,
+      code: 'VERIFICATION_TOKEN_INVALID',
+      message: 'Lien invalide ou expiré.'
+    });
+  }
+
+  user.emailVerificationTokenHash = undefined;
+  user.emailVerificationTokenExp = undefined;
+  user.emailVerified = true;
+  await user.save();
+
+  const tokens = generateAuthTokens(user);
+  setAuthCookies(res, tokens);
+
+  return sendSuccess(res, {
+    message: 'Email confirmé 🎉',
+    data: { user: formatUser(user) }
+  });
+}
+
+export async function resendVerification(req, res) {
+  const { email } = req.body;
+  const user = await User.findOne({ email }).select(
+    '+emailVerificationTokenHash +emailVerificationTokenExp'
+  );
+
+  if (!user || !user.emailVerificationTokenHash) {
+    return sendSuccess(res, {
+      message: "Si un compte existe ou est déjà actif, aucun email supplémentaire n'est nécessaire."
+    });
+  }
+
+  const { token, hash, expiresAt } = createVerificationToken();
+  user.emailVerificationTokenHash = hash;
+  user.emailVerificationTokenExp = expiresAt;
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    await sendEmailVerificationEmail(user.email, token, user.name);
+  } catch (error) {
+    console.error('Erreur renvoi email de vérification', error);
+  }
+
+  return sendSuccess(res, {
+    message: 'Nouveau lien de confirmation envoyé si le compte existe.'
   });
 }
 

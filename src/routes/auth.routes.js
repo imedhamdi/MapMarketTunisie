@@ -7,6 +7,8 @@ import {
   logout,
   forgotPassword,
   resetPassword,
+  verifyEmail,
+  resendVerification,
   getMe
 } from '../controllers/auth.controller.js';
 import { optionalAuth } from '../middlewares/auth.js';
@@ -16,7 +18,9 @@ import {
   signupSchema,
   loginSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema
 } from '../validators/auth.schema.js';
 
 const router = Router();
@@ -32,6 +36,8 @@ router.post(
   forgotPassword
 );
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post('/verify-email', validate(verifyEmailSchema), verifyEmail);
+router.post('/resend-verification', validate(resendVerificationSchema), resendVerification);
 router.get('/me', optionalAuth, getMe);
 
 export default router;

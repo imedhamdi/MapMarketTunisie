@@ -218,6 +218,18 @@ app.use('/api', (req, res) => {
   });
 });
 
+// Pages statiques dédiées (ex: vérification email)
+const staticPages = new Map([
+  ['/verify-email', 'verify-email.html'],
+  ['/reset-password', 'reset-password.html']
+]);
+
+for (const [route, file] of staticPages) {
+  app.get(route, (_req, res) => {
+    res.sendFile(path.join(publicDir, file));
+  });
+}
+
 // Servir le frontend pour toutes les autres routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));

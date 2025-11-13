@@ -170,12 +170,13 @@ JWT_EXPIRES_IN=15m
 REFRESH_TOKEN_SECRET=votre_secret_refresh_token_tres_long
 REFRESH_TOKEN_EXPIRES_IN=7d
 
-# Email
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=votre_email@gmail.com
-SMTP_PASSWORD=votre_mot_de_passe_application
-EMAIL_FROM=noreply@mapmarket.tn
+# Email (Mailgun)
+MAIL_FROM=MapMarket <noreply@mapmarket.fr>
+MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxx
+MAILGUN_DOMAIN=mapmarket.fr
+MAILGUN_API_BASE_URL=https://api.eu.mailgun.net/v3
+RESET_BASE_URL=http://localhost:5173/reset-password
+VERIFY_EMAIL_BASE_URL=http://localhost:5173/verify-email
 
 # Upload
 MAX_FILE_SIZE=5242880

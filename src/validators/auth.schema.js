@@ -35,3 +35,11 @@ export const resetPasswordSchema = Joi.object({
   token: Joi.string().trim().required(),
   password: passwordField.required()
 });
+
+export const verifyEmailSchema = Joi.object({
+  token: Joi.string().trim().required()
+});
+
+export const resendVerificationSchema = Joi.object({
+  email: emailField.required()
+});

@@ -3,15 +3,27 @@ import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 12;
 
-export function createResetToken() {
+function createTemporalToken(ttlMs) {
   const token = crypto.randomBytes(32).toString('hex');
-  const hash = crypto.createHash('sha256').update(token).digest('hex');
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  const hash = hashToken(token);
+  const expiresAt = new Date(Date.now() + ttlMs);
   return { token, hash, expiresAt };
 }
 
-export function hashResetToken(token) {
+export function createResetToken() {
+  return createTemporalToken(30 * 60 * 1000);
+}
+
+export function createVerificationToken() {
+  return createTemporalToken(24 * 60 * 60 * 1000);
+}
+
+export function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export function hashResetToken(token) {
+  return hashToken(token);
 }
 
 export async function hashPassword(password) {

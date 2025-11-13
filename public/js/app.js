@@ -3421,10 +3421,20 @@
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
   const forgotForm = document.getElementById('forgotForm');
+  const loginEmailInput = document.getElementById('loginEmail');
   const heroTitle = document.getElementById('heroTitle');
   const heroSubtitle = document.getElementById('heroSubtitle');
   const heroIcon = document.getElementById('heroIcon');
   const forgotTrigger = document.getElementById('forgotTrigger');
+  const verificationNotice = document.getElementById('verificationNotice');
+  const verificationTitle = document.getElementById('verificationTitle');
+  const verificationText = document.getElementById('verificationText');
+  const verificationEmailLabel = document.getElementById('verificationEmail');
+  const resendVerificationBtn = document.getElementById('resendVerificationBtn');
+  const verificationRefreshBtn = document.getElementById('verificationRefreshBtn');
+  let pendingVerificationEmail = '';
+  let verificationCooldownTimer = null;
+  const VERIFICATION_COOLDOWN_MS = 60000;
   const backToLogin = document.getElementById('backToLogin');
   const passwordToggles = document.querySelectorAll('.password-toggle');
   const bottomNav = document.getElementById('bottomNav');
@@ -4194,6 +4204,7 @@
   function resetAuthForms() {
     [loginForm, signupForm, forgotForm].forEach((form) => form.reset());
     clearFeedback();
+    hideVerificationNotice();
     Object.values(forms).forEach((form) =>
       form.classList.remove(
         'active',
@@ -4223,6 +4234,132 @@
   function clearFeedback() {
     clearFieldErrors();
     clearSuccessMessage();
+  }
+
+  function updateVerificationMessage(reason = 'signup') {
+    if (!verificationText) {
+      return;
+    }
+    const safeEmail = pendingVerificationEmail
+      ? `<strong>${escapeHtml(pendingVerificationEmail)}</strong>`
+      : '<strong>votre adresse email</strong>';
+    if (reason === 'login') {
+      verificationText.innerHTML = `Votre adresse ${safeEmail} n'est pas encore confirmée. Vérifiez votre boîte mail ou demandez un nouveau lien.`;
+    } else {
+      verificationText.innerHTML = `Nous avons envoyé un lien de confirmation à ${safeEmail}. Il expire dans 24h.`;
+    }
+  }
+
+  function showVerificationNotice(email = '', { reason = 'signup' } = {}) {
+    if (!verificationNotice) {
+      return;
+    }
+    pendingVerificationEmail = (email || pendingVerificationEmail || '').trim();
+    if (verificationEmailLabel) {
+      verificationEmailLabel.textContent = pendingVerificationEmail || 'votre adresse email';
+    }
+    if (verificationTitle) {
+      verificationTitle.textContent =
+        reason === 'login' ? 'Activation requise avant connexion' : 'Vérifiez votre boîte mail';
+    }
+    verificationNotice.dataset.reason = reason;
+    updateVerificationMessage(reason);
+    verificationNotice.hidden = false;
+    scheduleAuthMeasure();
+  }
+
+  function hideVerificationNotice() {
+    if (!verificationNotice) {
+      return;
+    }
+    verificationNotice.hidden = true;
+    verificationNotice.dataset.reason = '';
+    pendingVerificationEmail = '';
+    stopVerificationCooldown();
+    scheduleAuthMeasure();
+  }
+
+  function startVerificationCooldown() {
+    if (!resendVerificationBtn) {
+      return;
+    }
+    stopVerificationCooldown();
+    let remaining = Math.round(VERIFICATION_COOLDOWN_MS / 1000);
+    const baseLabel =
+      resendVerificationBtn.dataset.label || resendVerificationBtn.textContent.trim();
+    resendVerificationBtn.disabled = true;
+    const updateLabel = () => {
+      resendVerificationBtn.textContent = `Renvoyer dans ${remaining}s`;
+    };
+    updateLabel();
+    verificationCooldownTimer = window.setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        stopVerificationCooldown(baseLabel);
+      } else {
+        updateLabel();
+      }
+    }, 1000);
+  }
+
+  function stopVerificationCooldown(labelOverride) {
+    if (verificationCooldownTimer) {
+      clearInterval(verificationCooldownTimer);
+      verificationCooldownTimer = null;
+    }
+    if (!resendVerificationBtn) {
+      return;
+    }
+    resendVerificationBtn.disabled = false;
+    const baseLabel = labelOverride || resendVerificationBtn.dataset.label || 'Renvoyer le lien';
+    if (!resendVerificationBtn.classList.contains('loading')) {
+      resendVerificationBtn.textContent = baseLabel;
+    }
+  }
+
+  function handlePendingVerification(email, { reason = 'signup', message } = {}) {
+    const safeEmail = (email || pendingVerificationEmail || '').trim();
+    if (loginEmailInput && safeEmail) {
+      loginEmailInput.value = safeEmail;
+    }
+    showVerificationNotice(safeEmail, { reason });
+    const feedbackType = reason === 'login' ? 'error' : 'success';
+    const defaultMessage =
+      reason === 'login'
+        ? "Votre adresse email n'est pas encore confirmée. Consultez vos emails pour activer votre compte."
+        : 'Votre compte est presque prêt ! Confirmez votre email pour finaliser votre inscription.';
+    setAuthFeedback(message || defaultMessage, feedbackType);
+    if (reason === 'signup') {
+      showToast('Vérifiez votre boîte mail pour activer votre compte');
+    }
+    switchTab('login', { force: true, resetSuccess: false, instant: true });
+  }
+
+  async function handleResendVerificationClick() {
+    if (!resendVerificationBtn) {
+      return;
+    }
+    const targetEmail = (pendingVerificationEmail || loginEmailInput?.value || '').trim();
+    if (!targetEmail) {
+      setAuthFeedback('Renseignez votre email pour recevoir un nouveau lien.', 'info');
+      return;
+    }
+    pendingVerificationEmail = targetEmail;
+    setLoading(resendVerificationBtn, true);
+    let succeeded = false;
+    try {
+      await api.post('/api/auth/resend-verification', { email: pendingVerificationEmail });
+      setAuthFeedback('Un nouveau lien vient de vous être envoyé ✉️', 'success');
+      succeeded = true;
+    } catch (error) {
+      setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      stopVerificationCooldown();
+    } finally {
+      setLoading(resendVerificationBtn, false);
+      if (succeeded) {
+        startVerificationCooldown();
+      }
+    }
   }
 
   function switchTab(tab, options = {}) {
@@ -4414,6 +4551,21 @@
     });
   }
 
+  if (resendVerificationBtn) {
+    resendVerificationBtn.addEventListener('click', () => {
+      handleResendVerificationClick();
+    });
+  }
+
+  if (verificationRefreshBtn) {
+    verificationRefreshBtn.addEventListener('click', () => {
+      hideVerificationNotice();
+      setAuthFeedback('Si vous avez confirmé, connectez-vous ci-dessous ✅', 'info');
+      switchTab('login', { force: true, resetSuccess: false, instant: true });
+      loginEmailInput?.focus();
+    });
+  }
+
   passwordToggles.forEach((btn) =>
     btn.addEventListener('click', () => togglePassword(btn.dataset.target))
   );
@@ -4465,7 +4617,14 @@
       showToast('Connexion réussie');
       setTimeout(() => closeAuthFn(), 1200);
     } catch (error) {
-      setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      if (error.code === 'EMAIL_NOT_VERIFIED') {
+        handlePendingVerification(loginEmailInput?.value || '', {
+          reason: 'login',
+          message: extractAuthErrorMessage(error)
+        });
+      } else {
+        setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      }
     } finally {
       setLoading(button, false);
     }
@@ -4486,6 +4645,26 @@
       const password = document.getElementById('signupPassword').value;
       const response = await api.post('/api/auth/signup', { name, email, password });
       const user = response?.data?.user || null;
+      const requiresVerification = Boolean(response?.data?.requiresVerification);
+
+      if (requiresVerification) {
+        authStore.set(null);
+        favStore.clear();
+        updateFavBadge();
+        syncAllFavoriteButtons();
+        if (isFavModalOpen()) {
+          renderFavSheet();
+        }
+        updateAuthUI();
+        const verificationMessage =
+          response?.message || 'Compte créé ! Vérifiez votre email pour activer votre accès.';
+        handlePendingVerification(email, {
+          reason: 'signup',
+          message: verificationMessage
+        });
+        return;
+      }
+
       if (user) {
         authStore.set(user);
         applyFavoritesFromUser(user);
@@ -7782,6 +7961,26 @@
   updateAuthUI();
   loadAds();
   hydrateAuthFromSession();
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    const authParam = currentUrl.searchParams.get('auth');
+    if (authParam === 'login' || authParam === 'signup') {
+      setTimeout(() => {
+        openAuth(authParam === 'signup' ? 'signupName' : 'loginEmail');
+        switchTab(authParam, { force: true, resetSuccess: true, instant: true });
+      }, 350);
+      currentUrl.searchParams.delete('auth');
+      const cleanedSearch = currentUrl.searchParams.toString();
+      const nextUrl = `${currentUrl.pathname}${cleanedSearch ? `?${cleanedSearch}` : ''}${
+        currentUrl.hash
+      }`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  } catch (_error) {
+    // Ignorer les erreurs d'URL (ex: environnements file://)
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {

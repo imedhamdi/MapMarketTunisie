@@ -58,16 +58,19 @@ const env = {
   jwtAccessExpires: process.env.JWT_ACCESS_EXPIRES ?? '15m',
   jwtRefreshExpires: process.env.JWT_REFRESH_EXPIRES ?? '30d',
 
-  // Email
+  // Email / Mailgun
   mail: {
-    from: process.env.MAIL_FROM ?? 'MapMarket <no-reply@mapmarket.local>',
-    host: process.env.SMTP_HOST ?? 'localhost',
-    port: Number(process.env.SMTP_PORT ?? 1025),
-    user: process.env.SMTP_USER ?? '',
-    pass: process.env.SMTP_PASS ?? ''
+    from: process.env.MAIL_FROM ?? 'MapMarket <no-reply@mapmarket.local>'
+  },
+
+  mailgun: {
+    apiKey: process.env.MAILGUN_API_KEY ?? '',
+    domain: process.env.MAILGUN_DOMAIN ?? '',
+    baseUrl: process.env.MAILGUN_API_BASE_URL ?? 'https://api.mailgun.net/v3'
   },
 
   resetBaseUrl: process.env.RESET_BASE_URL ?? 'http://localhost:5173/reset-password',
+  verifyEmailBaseUrl: process.env.VERIFY_EMAIL_BASE_URL ?? 'http://localhost:5173/verify-email',
 
   // Redis (cache optionnel)
   redisEnabled: process.env.REDIS_ENABLED !== 'false',
