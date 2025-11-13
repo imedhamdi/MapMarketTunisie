@@ -111,6 +111,68 @@ const CACHE_KEYS = {
   ANALYTICS: 'profile_analytics_cache'
 };
 
+const ANALYTICS_OVERVIEW_DEFAULTS = Object.freeze({
+  totalViews: 0,
+  totalFavorites: 0,
+  averageViews: 0,
+  inventoryValue: 0
+});
+
+function createEmptyAnalytics() {
+  return {
+    overview: { ...ANALYTICS_OVERVIEW_DEFAULTS },
+    categoryPerformance: [],
+    statusBreakdown: [],
+    priceDistribution: [],
+    topPerformingAds: [],
+    locationDistribution: []
+  };
+}
+
+// Ensures analytics payloads always expose the expected structure.
+function normalizeAnalyticsData(rawAnalytics) {
+  const base = rawAnalytics && typeof rawAnalytics === 'object' ? rawAnalytics : {};
+  const empty = createEmptyAnalytics();
+
+  return {
+    ...empty,
+    ...base,
+    overview: {
+      ...empty.overview,
+      ...(typeof base.overview === 'object' ? base.overview : {})
+    },
+    categoryPerformance: Array.isArray(base.categoryPerformance)
+      ? base.categoryPerformance
+      : empty.categoryPerformance,
+    statusBreakdown: Array.isArray(base.statusBreakdown)
+      ? base.statusBreakdown
+      : empty.statusBreakdown,
+    priceDistribution: Array.isArray(base.priceDistribution)
+      ? base.priceDistribution
+      : empty.priceDistribution,
+    topPerformingAds: Array.isArray(base.topPerformingAds)
+      ? base.topPerformingAds
+      : empty.topPerformingAds,
+    locationDistribution: Array.isArray(base.locationDistribution)
+      ? base.locationDistribution
+      : empty.locationDistribution
+  };
+}
+
+function shouldCacheAnalytics(analytics) {
+  if (!analytics) return false;
+  const overview = analytics.overview || {};
+  const hasOverviewData =
+    (overview.totalViews || 0) > 0 ||
+    (overview.totalFavorites || 0) > 0 ||
+    (overview.averageViews || 0) > 0 ||
+    (overview.inventoryValue || 0) > 0;
+  const hasCategoryData =
+    Array.isArray(analytics.categoryPerformance) && analytics.categoryPerformance.length > 0;
+
+  return hasOverviewData || hasCategoryData;
+}
+
 // === Helpers ===
 function resolveAvatarSrc(rawValue) {
   if (typeof window.getAvatarUrl === 'function') {
@@ -960,6 +1022,7 @@ async function fetchProfileData() {
       // Try to get from cache first
       let stats = getCacheData(CACHE_KEYS.STATS);
       let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
+      let analyticsNormalized = false;
 
       // If not in cache, fetch from API
       if (!stats || !analytics) {
@@ -1002,27 +1065,21 @@ async function fetchProfileData() {
         }
 
         if (!analytics) {
-          analytics =
+          analytics = normalizeAnalyticsData(
             analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
               ? analyticsRes.value.data
-              : {
-                  overview: {
-                    totalViews: 0,
-                    totalFavorites: 0,
-                    averageViews: 0,
-                    inventoryValue: 0
-                  },
-                  categoryPerformance: [],
-                  statusBreakdown: [],
-                  priceDistribution: [],
-                  topPerformingAds: [],
-                  locationDistribution: []
-                };
+              : null
+          );
+          analyticsNormalized = true;
           // Save to cache
-          if (analytics.overview.totalViews > 0 || analytics.categoryPerformance?.length > 0) {
+          if (shouldCacheAnalytics(analytics)) {
             saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
           }
         }
+      }
+
+      if (!analyticsNormalized) {
+        analytics = normalizeAnalyticsData(analytics);
       }
 
       return { user, stats, analytics };
@@ -1034,6 +1091,7 @@ async function fetchProfileData() {
     // Try to get from cache first
     let stats = getCacheData(CACHE_KEYS.STATS);
     let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
+    let analyticsNormalized = false;
 
     const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
       fetch('/api/users/me')
@@ -1078,21 +1136,20 @@ async function fetchProfileData() {
     }
 
     if (!analytics) {
-      analytics =
+      analytics = normalizeAnalyticsData(
         analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
           ? analyticsRes.value.data
-          : {
-              overview: { totalViews: 0, totalFavorites: 0, averageViews: 0, inventoryValue: 0 },
-              categoryPerformance: [],
-              statusBreakdown: [],
-              priceDistribution: [],
-              topPerformingAds: [],
-              locationDistribution: []
-            };
+          : null
+      );
+      analyticsNormalized = true;
       // Save to cache
-      if (analytics.overview.totalViews > 0 || analytics.categoryPerformance?.length > 0) {
+      if (shouldCacheAnalytics(analytics)) {
         saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
       }
+    }
+
+    if (!analyticsNormalized) {
+      analytics = normalizeAnalyticsData(analytics);
     }
 
     return {
