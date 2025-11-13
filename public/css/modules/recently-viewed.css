@@ -72,6 +72,7 @@
   border: 1px solid var(--color-border-soft, #e2e8f0);
   background: var(--color-surface, white);
   cursor: pointer;
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;

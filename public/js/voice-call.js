@@ -5,6 +5,20 @@
 (function () {
   'use strict';
 
+  const isVoiceCallDebugEnabled = Boolean(window?.__VOICE_CALL_DEBUG__);
+  const voiceCallDebug = (..._args) => {
+    if (!isVoiceCallDebugEnabled) return;
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+      console.log(..._args);
+    }
+  };
+  const voiceCallWarn = (..._args) => {
+    if (!isVoiceCallDebugEnabled) return;
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn(..._args);
+    }
+  };
+
   // Configuration WebRTC
   const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -80,7 +94,7 @@
      * Initialiser le gestionnaire d'appels
      */
     init(socket) {
-      console.log('[VoiceCall] Initialisation du VoiceCallManager avec socket:', !!socket);
+      voiceCallDebug('[VoiceCall] Initialisation du VoiceCallManager avec socket:', !!socket);
       this.socket = socket;
       this.setupSocketListeners();
       this.loadAudioAssets();
@@ -104,27 +118,27 @@
      */
     setupSocketListeners() {
       if (!this.socket) {
-        console.warn('[VoiceCall] Socket non disponible pour configurer les listeners');
+        voiceCallWarn('[VoiceCall] Socket non disponible pour configurer les listeners');
         return;
       }
 
-      console.log('[VoiceCall] Configuration des listeners Socket.IO');
+      voiceCallDebug('[VoiceCall] Configuration des listeners Socket.IO');
 
       // Appel entrant
       this.socket.on('call:incoming', (data) => {
-        console.log('[VoiceCall] Événement call:incoming reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:incoming reçu', data);
         this.handleIncomingCall(data);
       });
 
       // Offre WebRTC reçue
       this.socket.on('call:offer', async (data) => {
-        console.log('[VoiceCall] Événement call:offer reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:offer reçu', data);
         await this.handleOffer(data);
       });
 
       // Réponse WebRTC reçue
       this.socket.on('call:answer', async (data) => {
-        console.log('[VoiceCall] Événement call:answer reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:answer reçu', data);
         await this.handleAnswer(data);
       });
 
@@ -135,19 +149,19 @@
 
       // Appel terminé
       this.socket.on('call:ended', (data) => {
-        console.log('[VoiceCall] Événement call:ended reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:ended reçu', data);
         this.handleCallEnded(data);
       });
 
       // Appel rejeté
       this.socket.on('call:rejected', (data) => {
-        console.log('[VoiceCall] Événement call:rejected reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:rejected reçu', data);
         this.handleCallRejected(data);
       });
 
       // Appel annulé
       this.socket.on('call:cancelled', (data) => {
-        console.log('[VoiceCall] Événement call:cancelled reçu', data);
+        voiceCallDebug('[VoiceCall] Événement call:cancelled reçu', data);
         this.handleCallCancelled(data);
       });
     }
@@ -156,7 +170,7 @@
      * Initier un appel sortant
      */
     async initiateCall(conversationId, remoteUserId, remoteUsername) {
-      console.log('[VoiceCall] initiateCall appelé', {
+      voiceCallDebug('[VoiceCall] initiateCall appelé', {
         conversationId,
         remoteUserId,
         remoteUsername
@@ -173,13 +187,13 @@
 
         // Vérifier la connexion socket AVANT de demander le micro pour éviter une permission inutile
         if (!this.socket || !this.socket.connected) {
-          console.warn('[VoiceCall] Abandon: socket non connecté avant init appel');
+          voiceCallWarn('[VoiceCall] Abandon: socket non connecté avant init appel');
           this.handleError('Connexion socket indisponible. Réessayez.');
           this.updateCallState(CALL_STATES.IDLE);
           return;
         }
 
-        console.log("[VoiceCall] Demande d'accès au microphone...");
+        voiceCallDebug("[VoiceCall] Demande d'accès au microphone...");
         // Demander l'accès au microphone
         this.localStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -190,13 +204,13 @@
           video: false
         });
 
-        console.log('[VoiceCall] Microphone obtenu, création de la connexion peer');
+        voiceCallDebug('[VoiceCall] Microphone obtenu, création de la connexion peer');
 
         // S'assurer que la piste audio locale est activée
         const [audioTrack] = this.localStream.getAudioTracks();
         if (audioTrack) {
           audioTrack.enabled = true; // garantir qu'elle n'est pas coupée par défaut
-          console.log('[VoiceCall][LOCAL]', {
+          voiceCallDebug('[VoiceCall][LOCAL]', {
             enabled: audioTrack.enabled,
             readyState: audioTrack.readyState,
             settings: audioTrack.getSettings ? audioTrack.getSettings() : undefined
@@ -215,11 +229,11 @@
         const audioSenders = this.peerConnection
           .getSenders()
           .filter((s) => s.track && s.track.kind === 'audio');
-        console.log('[VoiceCall][DEBUG] audioSenders après addTrack:', audioSenders);
+        voiceCallDebug('[VoiceCall][DEBUG] audioSenders après addTrack:', audioSenders);
         audioSenders.forEach((sender, i) => {
           const t = sender.track;
           if (t) {
-            console.log(
+            voiceCallDebug(
               `[VoiceCall][DEBUG] sender[${i}] track id:`,
               t.id,
               'enabled:',
@@ -233,7 +247,7 @@
         });
 
         // Émettre l'événement d'initialisation
-        console.log('[VoiceCall] État du socket avant émission:', {
+        voiceCallDebug('[VoiceCall] État du socket avant émission:', {
           connected: this.socket?.connected,
           id: this.socket?.id
         });
@@ -246,7 +260,7 @@
           return;
         }
 
-        console.log("[VoiceCall] Émission de l'événement call:initiate", {
+        voiceCallDebug("[VoiceCall] Émission de l'événement call:initiate", {
           conversationId,
           type: 'audio'
         });
@@ -255,13 +269,13 @@
           type: 'audio'
         });
 
-        console.log("[VoiceCall] Création de l'offre WebRTC...");
+        voiceCallDebug("[VoiceCall] Création de l'offre WebRTC...");
         // Créer l'offre WebRTC mais NE PAS l'envoyer tant que callId n'est pas reçu.
         const offer = await this.peerConnection.createOffer();
         await this.peerConnection.setLocalDescription(offer);
         this._pendingOffer = offer; // sera envoyée dans handleIncomingCall pour l'initiateur
 
-        console.log('[VoiceCall] Offre créée et mise en attente');
+        voiceCallDebug('[VoiceCall] Offre créée et mise en attente');
         this.updateCallState(CALL_STATES.RINGING);
         this.playRingtone();
       } catch (error) {
@@ -281,7 +295,7 @@
      * Gérer un appel entrant
      */
     handleIncomingCall(data) {
-      console.log('[VoiceCall] handleIncomingCall - État actuel:', {
+      voiceCallDebug('[VoiceCall] handleIncomingCall - État actuel:', {
         isInitiator: this.isInitiator,
         hasPendingOffer: !!this._pendingOffer,
         hasCurrentCall: !!this.currentCall,
@@ -294,7 +308,7 @@
 
       if (wasInitiatorWaitingOffer) {
         // L'initiateur reçoit aussi call:incoming, nous pouvons maintenant envoyer l'offre
-        console.log('[VoiceCall] Initiateur envoie offre avec callId:', data.callId);
+        voiceCallDebug('[VoiceCall] Initiateur envoie offre avec callId:', data.callId);
         this.socket.emit('call:offer', {
           callId: data.callId,
           conversationId: data.conversationId,
@@ -303,7 +317,7 @@
         this._pendingOffer = null; // Nettoyage après envoi
       } else {
         // Côté destinataire (non initiateur) => rejoindre room + sonnerie
-        console.log('[VoiceCall] Destinataire reçoit appel entrant, callId:', data.callId);
+        voiceCallDebug('[VoiceCall] Destinataire reçoit appel entrant, callId:', data.callId);
         this.isInitiator = false;
         this.remoteUserId = data.initiatorId;
 
@@ -312,7 +326,7 @@
           conversationId: data.conversationId,
           markAsRead: false
         });
-        console.log('[VoiceCall] Destinataire rejoint conversation room:', data.conversationId);
+        voiceCallDebug('[VoiceCall] Destinataire rejoint conversation room:', data.conversationId);
 
         this.updateCallState(CALL_STATES.RINGING);
         this.playRingtone();
@@ -334,14 +348,14 @@
      * Répondre à un appel entrant
      */
     async answerCall() {
-      console.log('[VoiceCall] answerCall appelé, arrêt sonnerie...');
+      voiceCallDebug('[VoiceCall] answerCall appelé, arrêt sonnerie...');
       try {
         this.stopRingtone();
-        console.log('[VoiceCall] Sonnerie arrêtée, changement état vers CONNECTING');
+        voiceCallDebug('[VoiceCall] Sonnerie arrêtée, changement état vers CONNECTING');
         this.updateCallState(CALL_STATES.CONNECTING);
 
         // Demander l'accès au microphone
-        console.log('[VoiceCall] Demande accès microphone pour répondre...');
+        voiceCallDebug('[VoiceCall] Demande accès microphone pour répondre...');
         this.localStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -355,14 +369,14 @@
         const [audioTrack] = this.localStream.getAudioTracks();
         if (audioTrack) {
           audioTrack.enabled = true;
-          console.log('[VoiceCall][LOCAL]', {
+          voiceCallDebug('[VoiceCall][LOCAL]', {
             enabled: audioTrack.enabled,
             readyState: audioTrack.readyState,
             settings: audioTrack.getSettings ? audioTrack.getSettings() : undefined
           });
         }
 
-        console.log('[VoiceCall] Microphone obtenu, création peerConnection...');
+        voiceCallDebug('[VoiceCall] Microphone obtenu, création peerConnection...');
         // Créer la connexion peer
         this.createPeerConnection();
 
@@ -370,11 +384,11 @@
         this.localStream.getTracks().forEach((track) => {
           this.peerConnection.addTrack(track, this.localStream);
         });
-        console.log('[VoiceCall] Pistes audio ajoutées');
+        voiceCallDebug('[VoiceCall] Pistes audio ajoutées');
 
         // Si une offre était en attente, la traiter maintenant
         if (this._pendingIncomingOffer) {
-          console.log('[VoiceCall] Traitement offre en attente...');
+          voiceCallDebug('[VoiceCall] Traitement offre en attente...');
           await this.processIncomingOffer(this._pendingIncomingOffer);
           this._pendingIncomingOffer = null;
         }
@@ -390,17 +404,17 @@
      */
     async processIncomingOffer(data) {
       try {
-        console.log('[VoiceCall] processIncomingOffer - setRemoteDescription');
+        voiceCallDebug('[VoiceCall] processIncomingOffer - setRemoteDescription');
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
 
-        console.log('[VoiceCall] Création de la réponse WebRTC...');
+        voiceCallDebug('[VoiceCall] Création de la réponse WebRTC...');
         const answer = await this.peerConnection.createAnswer();
         await this.peerConnection.setLocalDescription(answer);
 
         // Attendre les candidats ICE
         await this.waitForIceCandidates();
 
-        console.log('[VoiceCall] Envoi de la réponse au serveur');
+        voiceCallDebug('[VoiceCall] Envoi de la réponse au serveur');
         this.socket.emit('call:answer', {
           callId: this.currentCall.callId,
           conversationId: this.conversationId,
@@ -417,13 +431,13 @@
      * Gérer l'offre WebRTC
      */
     async handleOffer(data) {
-      console.log('[VoiceCall] handleOffer reçu, peerConnection existe:', !!this.peerConnection);
+      voiceCallDebug('[VoiceCall] handleOffer reçu, peerConnection existe:', !!this.peerConnection);
 
       try {
         // Si pas de peerConnection, c'est que l'utilisateur n'a pas encore répondu
         // Stocker l'offre et attendre answerCall()
         if (!this.peerConnection) {
-          console.log('[VoiceCall] Offre mise en attente, en attente de answerCall()');
+          voiceCallDebug('[VoiceCall] Offre mise en attente, en attente de answerCall()');
           this._pendingIncomingOffer = data;
           return;
         }
@@ -463,7 +477,7 @@
 
         // Attendre que remoteDescription soit définie avant d'ajouter les candidats ICE
         if (!this.peerConnection.remoteDescription) {
-          console.warn('[VoiceCall] Candidat ICE reçu avant remoteDescription, en attente...');
+          voiceCallWarn('[VoiceCall] Candidat ICE reçu avant remoteDescription, en attente...');
           return;
         }
 
@@ -497,7 +511,7 @@
 
         // Handler onunmute: relancer onStateChange quand la piste devient active
         track.onunmute = () => {
-          console.log('[VoiceCall] Piste distante dé-mutée, relance onStateChange');
+          voiceCallDebug('[VoiceCall] Piste distante dé-mutée, relance onStateChange');
           if (this.onStateChange) {
             this.onStateChange({
               state: this.callState,
@@ -509,12 +523,12 @@
         // Log des pistes audio distantes
         if (this.remoteStream) {
           const remoteAudioTracks = this.remoteStream.getAudioTracks();
-          console.log('[VoiceCall][DEBUG] remoteStream audioTracks:', remoteAudioTracks);
+          voiceCallDebug('[VoiceCall][DEBUG] remoteStream audioTracks:', remoteAudioTracks);
           if (remoteAudioTracks.length === 0) {
-            console.warn('[VoiceCall][DEBUG] Aucun flux audio reçu dans remoteStream !');
+            voiceCallWarn('[VoiceCall][DEBUG] Aucun flux audio reçu dans remoteStream !');
           } else {
             remoteAudioTracks.forEach((track, i) => {
-              console.log(
+              voiceCallDebug(
                 `[VoiceCall][DEBUG] remoteStream track[${i}] enabled:`,
                 track.enabled,
                 'muted:',
@@ -536,7 +550,7 @@
       // Gérer les changements de connexion
       this.peerConnection.onconnectionstatechange = () => {
         const state = this.peerConnection.connectionState;
-        console.log('État de connexion WebRTC:', state);
+        voiceCallDebug('État de connexion WebRTC:', state);
 
         if (state === 'connected') {
           this.updateCallState(CALL_STATES.CONNECTED);
@@ -554,7 +568,7 @@
     waitForIceCandidates() {
       return new Promise((resolve) => {
         if (!this.peerConnection) {
-          console.warn('[VoiceCall] peerConnection null dans waitForIceCandidates');
+          voiceCallWarn('[VoiceCall] peerConnection null dans waitForIceCandidates');
           resolve();
           return;
         }
@@ -736,7 +750,7 @@
           const stats = await this.peerConnection.getStats();
           stats.forEach((report) => {
             if (report.type === 'inbound-rtp' && report.kind === 'audio') {
-              console.log('[WebRTC Stats] Inbound Audio:', {
+              voiceCallDebug('[WebRTC Stats] Inbound Audio:', {
                 bytesReceived: report.bytesReceived,
                 packetsReceived: report.packetsReceived,
                 packetsLost: report.packetsLost,
@@ -746,7 +760,7 @@
             }
           });
         } catch (error) {
-          console.warn('[WebRTC Stats] Erreur lors de la récupération des stats:', error);
+          voiceCallWarn('[WebRTC Stats] Erreur lors de la récupération des stats:', error);
         }
       }, 3000);
     }
@@ -768,7 +782,7 @@
       // Arrêter toute sonnerie existante d'abord
       this.stopRingtone();
 
-      console.log('[VoiceCall] playRingtone démarrage...');
+      voiceCallDebug('[VoiceCall] playRingtone démarrage...');
 
       try {
         this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -776,13 +790,13 @@
         // Reprendre le contexte si suspendu (autoplay policy)
         if (this._audioContext.state === 'suspended') {
           this._audioContext.resume().catch((e) => {
-            console.warn('[VoiceCall] Impossible de reprendre AudioContext:', e);
+            voiceCallWarn('[VoiceCall] Impossible de reprendre AudioContext:', e);
           });
         }
 
         const playBeep = () => {
           if (!this._audioContext || this._audioContext.state === 'closed') {
-            console.warn('[VoiceCall] AudioContext fermé, arrêt beep');
+            voiceCallWarn('[VoiceCall] AudioContext fermé, arrêt beep');
             return;
           }
 
@@ -815,9 +829,9 @@
           playBeep();
         }, 2000);
 
-        console.log('[VoiceCall] Sonnerie démarrée');
+        voiceCallDebug('[VoiceCall] Sonnerie démarrée');
       } catch (error) {
-        console.warn('[VoiceCall] Erreur lors de la lecture de la sonnerie:', error);
+        voiceCallWarn('[VoiceCall] Erreur lors de la lecture de la sonnerie:', error);
       }
     }
 
@@ -825,7 +839,7 @@
      * Arrêter la sonnerie
      */
     stopRingtone() {
-      console.log('[VoiceCall] stopRingtone appelé, nettoyage...', {
+      voiceCallDebug('[VoiceCall] stopRingtone appelé, nettoyage...', {
         hasInterval: !!this._ringtoneInterval,
         hasContext: !!this._audioContext
       });
@@ -833,15 +847,15 @@
       if (this._ringtoneInterval) {
         clearInterval(this._ringtoneInterval);
         this._ringtoneInterval = null;
-        console.log('[VoiceCall] Interval sonnerie nettoyé');
+        voiceCallDebug('[VoiceCall] Interval sonnerie nettoyé');
       }
 
       if (this._audioContext) {
         try {
           this._audioContext.close();
-          console.log('[VoiceCall] AudioContext fermé');
+          voiceCallDebug('[VoiceCall] AudioContext fermé');
         } catch (e) {
-          console.warn('[VoiceCall] Erreur fermeture AudioContext:', e);
+          voiceCallWarn('[VoiceCall] Erreur fermeture AudioContext:', e);
         }
         this._audioContext = null;
       }
@@ -851,7 +865,7 @@
         this.ringtoneAudio.currentTime = 0;
       }
 
-      console.log('[VoiceCall] stopRingtone terminé');
+      voiceCallDebug('[VoiceCall] stopRingtone terminé');
     }
 
     /**

@@ -2,7 +2,16 @@
 // PROFILE DRAWER - Module ES
 // ========================================
 
-const logger = window.__APP_LOGGER__ || console;
+const noopLogger = () => {};
+const logger = window.__APP_LOGGER__ || {
+  info: noopLogger,
+  warn: noopLogger,
+  error: (...args) => {
+    if (typeof console !== 'undefined' && typeof console.error === 'function') {
+      console.error('[ProfileModal]', ...args);
+    }
+  }
+};
 
 // === State ===
 const drawerState = {

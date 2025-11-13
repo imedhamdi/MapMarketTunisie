@@ -585,10 +585,7 @@ button.nav-link {
   box-shadow: var(--shadow-brand-strong);
 }
 
-.avatar-btn.is-auth:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(var(--color-brand-rgb), 0.35);
-}
+
 
 .avatar-btn:focus-visible {
   outline: 2px solid rgba(var(--color-brand-rgb), 0.6);

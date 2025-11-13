@@ -3,10 +3,15 @@
     if (window.__APP_LOGGER__) {
       return window.__APP_LOGGER__;
     }
+    const noopLogger = () => {};
     const fallback = {
-      error: (...args) => console.warn('[AppError]', ...args),
-      warn: (...args) => console.warn('[AppWarn]', ...args),
-      info: (...args) => console.info('[AppInfo]', ...args)
+      error: (...args) => {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') {
+          console.error('[AppError]', ...args);
+        }
+      },
+      warn: noopLogger,
+      info: noopLogger
     };
     window.__APP_LOGGER__ = fallback;
     return fallback;
@@ -5877,7 +5882,6 @@
   let contactSending = false;
   let contactCooldownUntil = 0;
   const CONTACT_MAX_LENGTH = 500;
-  const CONTACT_MIN_LENGTH = 12;
   const CONTACT_COOLDOWN_MS = 3000;
   const CONTACT_FOCUS_SELECTOR =
     'button:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
@@ -6559,12 +6563,6 @@
         // Normaliser l'ID pour la comparaison
         const adIdNormalized = normalizeAdId(ad.id);
         const isFav = favStore.has(adIdNormalized);
-
-        // Debug: vérifier pourquoi ça ne marche pas
-        console.log('[DEBUG] updateDetailsActions - ad.id:', ad.id);
-        console.log('[DEBUG] updateDetailsActions - adIdNormalized:', adIdNormalized);
-        console.log('[DEBUG] updateDetailsActions - favStore.values():', favStore.values());
-        console.log('[DEBUG] updateDetailsActions - isFav:', isFav);
 
         setDetailsSaveState(isFav);
         saveBtn.addEventListener('click', handleDetailsSaveClick);

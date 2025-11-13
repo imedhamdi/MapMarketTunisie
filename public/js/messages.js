@@ -1,6 +1,20 @@
 (function () {
   'use strict';
 
+  const isMessagesDebugEnabled = Boolean(window?.__MESSAGES_DEBUG__);
+  const messagesDebugLog = (..._args) => {
+    if (!isMessagesDebugEnabled) return;
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+      console.log(..._args);
+    }
+  };
+  const messagesDebugWarn = (..._args) => {
+    if (!isMessagesDebugEnabled) return;
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn(..._args);
+    }
+  };
+
   const SOCKET_PATH = '/ws/chat';
   const API_BASE = window.__API_BASE__ || `${window.location.origin}/api/v1`;
   const CONVERSATION_LIMIT = 60;
@@ -632,7 +646,7 @@
     });
 
     socket.on('disconnect', (reason) => {
-      console.warn('[Messages] Socket DÉCONNECTÉ:', reason);
+      messagesDebugWarn('[Messages] Socket DÉCONNECTÉ:', reason);
     });
 
     bindSocketEvents();
@@ -3258,13 +3272,16 @@
   // ==================== VOICE CALL FUNCTIONS ====================
 
   function setupVoiceCallManager() {
-    console.log('[Messages] setupVoiceCallManager appelé');
+    messagesDebugLog('[Messages] setupVoiceCallManager appelé');
     if (!window.VoiceCallManager) {
-      console.warn('[VoiceCall] VoiceCallManager non disponible');
+      messagesDebugWarn('[VoiceCall] VoiceCallManager non disponible');
+      if (typeof window.showToast === 'function') {
+        window.showToast('Appels vocaux indisponibles pour le moment.');
+      }
       return;
     }
 
-    console.log("[Messages] Création d'une nouvelle instance VoiceCallManager");
+    messagesDebugLog("[Messages] Création d'une nouvelle instance VoiceCallManager");
     voiceCallManager = new window.VoiceCallManager();
 
     // Référence à l'élément audio distant
@@ -3274,7 +3291,7 @@
     const safePlay = () => {
       if (remoteEl?.srcObject) {
         remoteEl.play().catch((e) => {
-          console.warn('[Messages] safePlay: erreur lecture', e);
+          messagesDebugWarn('[Messages] safePlay: erreur lecture', e);
         });
       }
     };
@@ -3325,24 +3342,30 @@
   }
 
   async function handleCallButtonClick() {
-    console.log(
+    messagesDebugLog(
       '[Messages] handleCallButtonClick appelé, activeConversationId:',
       activeConversationId
     );
 
     // Empêcher double clic / appel en cours
     if (voiceCallManager && voiceCallManager.isInCall()) {
-      console.warn('[Messages] Appel déjà en cours, ignorer');
+      messagesDebugWarn('[Messages] Appel déjà en cours, ignorer');
+      if (typeof window.showToast === 'function') {
+        window.showToast('Un appel est déjà en cours.');
+      }
       return;
     }
 
     if (!activeConversationId) {
-      console.warn('[Messages] Pas de conversation active');
+      messagesDebugWarn('[Messages] Pas de conversation active');
+      if (typeof window.showToast === 'function') {
+        window.showToast('Sélectionnez une conversation avant de lancer un appel.');
+      }
       return;
     }
 
     const conversation = findConversation(activeConversationId);
-    console.log('[Messages] Conversation trouvée:', conversation);
+    messagesDebugLog('[Messages] Conversation trouvée:', conversation);
     if (!conversation || !conversation.otherParticipant) {
       console.error('[Messages] Conversation ou participant introuvable');
       if (typeof window.showToast === 'function') {
@@ -3355,7 +3378,7 @@
     const remoteUsername = conversation.otherParticipant.name || 'Utilisateur';
     const remoteAvatar = conversation.otherParticipant.avatar || '/uploads/avatars/default.jpg';
 
-    console.log("[Messages] Préparation de l'appel vers:", {
+    messagesDebugLog("[Messages] Préparation de l'appel vers:", {
       remoteUserId,
       remoteUsername,
       conversationId: activeConversationId
@@ -3363,14 +3386,14 @@
 
     // Initialiser / connecter le socket si nécessaire
     if (!socket) {
-      console.log('[Messages] Socket non initialisé, appel de ensureSocket()');
+      messagesDebugLog('[Messages] Socket non initialisé, appel de ensureSocket()');
       ensureSocket();
     }
 
     // Attendre connexion effective si pas encore connectée
     // La connexion socket valide l'authentification (cookie HttpOnly)
     if (!socket.connected) {
-      console.log('[Messages] Attente connexion socket avant appel...');
+      messagesDebugLog('[Messages] Attente connexion socket avant appel...');
       const connected = await waitForSocketConnected(socket, 4000).catch(() => false);
       if (!connected) {
         console.error('[Messages] Échec connexion socket avant appel');
@@ -3382,11 +3405,11 @@
     }
 
     // Si socket connecté, l'authentification est validée côté serveur
-    console.log('[Messages] Socket connecté, authentification OK');
+    messagesDebugLog('[Messages] Socket connecté, authentification OK');
 
     // Initialiser le manager avec le socket
     if (!voiceCallManager.socket) {
-      console.log('[Messages] Initialisation du voiceCallManager avec socket');
+      messagesDebugLog('[Messages] Initialisation du voiceCallManager avec socket');
       voiceCallManager.init(socket);
     }
 
@@ -3403,11 +3426,11 @@
     }
 
     // Afficher le modal
-    console.log("[Messages] Affichage du modal d'appel");
+    messagesDebugLog("[Messages] Affichage du modal d'appel");
     showVoiceCallModal();
 
     // Initier l'appel
-    console.log('[Messages] Appel de voiceCallManager.initiateCall()');
+    messagesDebugLog('[Messages] Appel de voiceCallManager.initiateCall()');
     voiceCallManager.initiateCall(activeConversationId, remoteUserId, remoteUsername);
 
     // Forcer la lecture après action utilisateur
@@ -3541,7 +3564,7 @@
 
           // Log détaillé
           const tracks = remoteStream.getAudioTracks();
-          console.log('[Messages][DEBUG] Attachement audio distant:', {
+          messagesDebugLog('[Messages][DEBUG] Attachement audio distant:', {
             hasAudioElement: !!audioEl,
             hasSrcObject: !!audioEl.srcObject,
             audioTracks: tracks.length,
@@ -3555,7 +3578,7 @@
           // Configurer la sortie audio si disponible
           if (audioEl && 'setSinkId' in audioEl) {
             audioEl.setSinkId('default').catch((e) => {
-              console.warn('[Messages][DEBUG] setSinkId échoué:', e);
+              messagesDebugWarn('[Messages][DEBUG] setSinkId échoué:', e);
             });
           }
 
@@ -3563,7 +3586,7 @@
           audioEl
             .play()
             .then(() => {
-              console.log('[Messages][DEBUG] Lecture audio distante démarrée avec succès');
+              messagesDebugLog('[Messages][DEBUG] Lecture audio distante démarrée avec succès');
             })
             .catch((e) => {
               console.warn(

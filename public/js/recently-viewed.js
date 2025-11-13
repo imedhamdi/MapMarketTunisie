@@ -16,20 +16,23 @@
   // ========== SÉLECTEURS SCOPÉS ==========
   const section = document.getElementById(SECTION_ID);
   if (!section) {
-    console.warn('[RecentlyViewed] Section non trouvée, module non initialisé');
     return;
   }
 
   const track = section.querySelector(`#${TRACK_ID}`);
   const btnPrev = section.querySelector(`#${BTN_PREV_ID}`);
   const btnNext = section.querySelector(`#${BTN_NEXT_ID}`);
+  let listenersAttached = false;
 
   if (!track || !btnPrev || !btnNext) {
-    console.warn('[RecentlyViewed] Éléments manquants, module non initialisé', {
-      track: !!track,
-      btnPrev: !!btnPrev,
-      btnNext: !!btnNext
-    });
+    console.error(
+      '[RecentlyViewed] Un ou plusieurs éléments du carrousel sont manquants. Vérifiez les IDs dans le HTML.',
+      {
+        trackElement: track,
+        btnPrevElement: btnPrev,
+        btnNextElement: btnNext
+      }
+    );
     return;
   }
 
@@ -43,7 +46,6 @@
       const authUser = window.authStore?.get();
       return authUser && (authUser._id || authUser.id);
     } catch (error) {
-      console.warn('[RecentlyViewed] Erreur vérification connexion:', error);
       return false;
     }
   }
@@ -71,6 +73,17 @@
     btnNext.disabled = atEnd;
 
     // ...existing code...
+  }
+
+  /**
+   * Réinitialiser le carrousel et masquer la section
+   */
+  function hideSectionAndReset() {
+    track.innerHTML = '';
+    track.setAttribute('role', 'list');
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    section.hidden = true;
   }
 
   /**
@@ -151,7 +164,7 @@
     track.setAttribute('role', 'list');
 
     // Ajouter les cartes
-    ads.forEach((ad, index) => {
+    ads.forEach((ad, _index) => {
       // ...existing code...
       const card = createAdCard(ad);
       track.appendChild(card);
@@ -176,7 +189,7 @@
 
       if (!response.ok) {
         // ...existing code...
-        section.hidden = true;
+        hideSectionAndReset();
         return;
       }
 
@@ -185,15 +198,15 @@
 
       // ...existing code...
 
-      if (ads.length > 5) {
+      if (ads.length > 0) {
         renderAds(ads);
         section.hidden = false;
       } else {
-        section.hidden = true;
+        hideSectionAndReset();
       }
     } catch (error) {
       console.error('[RecentlyViewed] Erreur chargement:', error);
-      section.hidden = true;
+      hideSectionAndReset();
     }
   }
 
@@ -239,6 +252,11 @@
    * Attacher les event listeners
    */
   function attachListeners() {
+    if (listenersAttached) {
+      return;
+    }
+    listenersAttached = true;
+
     // ...existing code...
 
     // Navigation
@@ -258,7 +276,7 @@
     // Vérifier connexion
     if (!isUserLoggedIn()) {
       // ...existing code...
-      section.hidden = true;
+      hideSectionAndReset();
       return;
     }
 
@@ -267,10 +285,8 @@
     // Attacher les listeners
     attachListeners();
 
-    // Charger les annonces après un délai
-    setTimeout(() => {
-      loadRecentlyViewedAds();
-    }, 1000);
+    // Charger les annonces immédiatement après connexion
+    loadRecentlyViewedAds();
   }
 
   // ========== ÉCOUTER LES CHANGEMENTS D'AUTH ==========
@@ -286,7 +302,7 @@
       init();
     } else {
       // ...existing code...
-      section.hidden = true;
+      hideSectionAndReset();
     }
   });
 
