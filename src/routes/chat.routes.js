@@ -14,7 +14,8 @@ import {
   conversationIdSchema,
   reportMessageParamsSchema,
   reportMessageBodySchema,
-  searchMessagesSchema
+  searchMessagesSchema,
+  callConsentSchema
 } from '../validators/chat.schema.js';
 import { sendError } from '../utils/responses.js';
 import logger from '../config/logger.js';
@@ -160,6 +161,13 @@ router.post(
   chatLimiter,
   validate(conversationIdSchema, 'params'),
   chatController.unblockConversation
+);
+router.post(
+  '/conversations/:id/call-consent',
+  chatLimiter,
+  validate(conversationIdSchema, 'params'),
+  validate(callConsentSchema),
+  chatController.updateCallConsent
 );
 router.post(
   '/conversations/:id/hide',

@@ -1,3 +1,34 @@
+function normalizeIdValue(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (value?._id) return value._id.toString();
+  if (typeof value.toString === 'function') return value.toString();
+  return null;
+}
+
+function extractConsentEntry(store, userId) {
+  if (!store || !userId) return null;
+  const key = userId.toString();
+  if (typeof store.get === 'function') {
+    return store.get(key) || store.get(userId) || null;
+  }
+  if (typeof store === 'object') {
+    return store[key] || store[userId] || null;
+  }
+  return null;
+}
+
+function formatConsentEntry(entry) {
+  if (!entry) {
+    return { allowed: false, updatedAt: null, updatedBy: null };
+  }
+  return {
+    allowed: Boolean(entry.allowed),
+    updatedAt: entry.updatedAt || null,
+    updatedBy: normalizeIdValue(entry.updatedBy)
+  };
+}
+
 export function formatConversationForUser(conversation, userId) {
   if (!conversation) return null;
   const obj = conversation.toObject ? conversation.toObject() : conversation;
@@ -65,6 +96,22 @@ export function formatConversationForUser(conversation, userId) {
     }
   }
 
+  const otherParticipantId = otherParticipant?.id || null;
+  const meConsentEntry = conversation.getVoiceCallConsent
+    ? conversation.getVoiceCallConsent(userId)
+    : extractConsentEntry(obj.voiceCallConsent, userId);
+  const otherConsentEntry =
+    otherParticipantId && conversation.getVoiceCallConsent
+      ? conversation.getVoiceCallConsent(otherParticipantId)
+      : extractConsentEntry(obj.voiceCallConsent, otherParticipantId);
+  const meConsent = formatConsentEntry(meConsentEntry);
+  const otherConsent = formatConsentEntry(otherConsentEntry);
+  const voiceCallConsent = {
+    me: meConsent,
+    other: otherConsent,
+    ready: Boolean(meConsent.allowed && otherConsent.allowed)
+  };
+
   const rawLastMessage = obj.lastMessage || null;
   const lastMessage = rawLastMessage
     ? {
@@ -104,6 +151,7 @@ export function formatConversationForUser(conversation, userId) {
       Array.isArray(obj.hiddenFor) &&
       obj.hiddenFor.some((id) => id.toString() === userId.toString()),
     createdAt: obj.createdAt,
-    updatedAt: obj.updatedAt
+    updatedAt: obj.updatedAt,
+    voiceCallConsent
   };
 }

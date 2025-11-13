@@ -117,6 +117,13 @@ async function getTotalUnreadCount(userId) {
   }, 0);
 }
 
+async function updateVoiceCallConsent(id, userId, allowCalls) {
+  const convo = await getConversationById(id, userId);
+  convo.setVoiceCallConsent(userId, Boolean(allowCalls), userId);
+  await convo.save();
+  return convo;
+}
+
 export default {
   startConversation,
   getUserConversations,
@@ -124,5 +131,6 @@ export default {
   blockConversation,
   unblockConversation,
   hideConversation,
-  getTotalUnreadCount
+  getTotalUnreadCount,
+  updateVoiceCallConsent
 };

@@ -82,3 +82,7 @@ export const searchMessagesSchema = Joi.object({
   limit: Joi.number().min(1).max(100).optional(),
   cursor: Joi.string().optional()
 });
+
+export const callConsentSchema = Joi.object({
+  allowCalls: Joi.boolean().required()
+});

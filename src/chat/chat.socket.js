@@ -406,6 +406,36 @@ export async function initChatSocket(httpServer) {
           return socket.emit('error', { code: 'NOT_PARTICIPANT', message: 'Non autorisé' });
         }
 
+        const otherParticipant = convo.participants.find((p) => p.toString() !== userId.toString());
+        if (!otherParticipant) {
+          return socket.emit('error', {
+            code: 'CONVERSATION_INVALID',
+            message: 'Participant introuvable pour cet appel.'
+          });
+        }
+        const otherParticipantId = otherParticipant.toString();
+
+        const initiatorConsent =
+          typeof convo.hasVoiceCallConsent === 'function'
+            ? convo.hasVoiceCallConsent(userId)
+            : false;
+        if (!initiatorConsent) {
+          return socket.emit('error', {
+            code: 'CALL_CONSENT_REQUIRED',
+            message: 'Activez les appels vocaux dans cette conversation avant de téléphoner.'
+          });
+        }
+        const recipientConsent =
+          typeof convo.hasVoiceCallConsent === 'function'
+            ? convo.hasVoiceCallConsent(otherParticipantId)
+            : false;
+        if (!recipientConsent) {
+          return socket.emit('error', {
+            code: 'CALL_RECIPIENT_NOT_READY',
+            message: "Votre interlocuteur n'a pas encore accepté les appels vocaux."
+          });
+        }
+
         // Faire rejoindre la room conversation pour recevoir les événements WebRTC
         socket.join(`conversation:${conversationId}`);
         logger.info('Initiateur a rejoint conversation room', { conversationId, userId });
@@ -416,11 +446,6 @@ export async function initChatSocket(httpServer) {
           initiatorId: userId,
           type
         });
-
-        // Notifier l'autre participant directement via sa room user
-        const otherParticipantId = convo.participants
-          .find((p) => p.toString() !== userId.toString())
-          .toString();
 
         const callData = {
           callId: call._id.toString(),

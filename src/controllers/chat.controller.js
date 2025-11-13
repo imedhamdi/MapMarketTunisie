@@ -137,6 +137,49 @@ export const reportMessage = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Message signalé', data: { message } });
 });
 
+export const updateCallConsent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { allowCalls } = req.body;
+  const userId = req.user._id;
+  const conversation = await conversationService.updateVoiceCallConsent(id, userId, allowCalls);
+  const formattedConversation = formatConversationForUser(conversation, userId);
+
+  const consentMeta =
+    typeof conversation.getVoiceCallConsent === 'function'
+      ? conversation.getVoiceCallConsent(userId)
+      : null;
+  const updatedAt =
+    consentMeta?.updatedAt instanceof Date
+      ? consentMeta.updatedAt.toISOString()
+      : new Date().toISOString();
+
+  const payload = {
+    conversationId: conversation._id.toString(),
+    userId: userId.toString(),
+    allowCalls: Boolean(allowCalls),
+    updatedAt
+  };
+
+  const io = getIO();
+  if (io && Array.isArray(conversation.participants)) {
+    conversation.participants.forEach((participant) => {
+      const participantId =
+        typeof participant === 'object' && participant?._id
+          ? participant._id.toString()
+          : participant?.toString?.();
+      if (!participantId) return;
+      io.to(`user:${participantId}`).emit('conversation:call-consent', payload);
+    });
+  }
+
+  return sendSuccess(res, {
+    message: allowCalls
+      ? 'Vous acceptez désormais les appels pour cette conversation.'
+      : 'Vous refusez désormais les appels pour cette conversation.',
+    data: { conversation: formattedConversation }
+  });
+});
+
 export const uploadAttachment = asyncHandler(async (req, res) => {
   const file = req.file;
   const userId = req.user._id;

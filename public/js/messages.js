@@ -60,6 +60,7 @@
   let activeAudioPlayer = null;
   let voiceCallManager = null;
   const voiceCallModals = {};
+  let updatingCallConsent = false;
 
   const state = {
     conversations: [],
@@ -293,6 +294,12 @@
     dom.chatVoiceStatus = document.getElementById('chatVoiceStatus');
     dom.chatVoiceTimer = document.getElementById('chatVoiceTimer');
     dom.chatVoiceCancel = document.getElementById('chatVoiceCancel');
+    dom.chatCallConsent = document.getElementById('chatCallConsent');
+    dom.chatCallConsentToggle = document.getElementById('chatCallConsentToggle');
+    dom.chatCallConsentHint = document.getElementById('chatCallConsentHint');
+    dom.chatCallConsentSelf = document.getElementById('chatCallConsentSelf');
+    dom.chatCallConsentOther = document.getElementById('chatCallConsentOther');
+    dom.chatCallConsentOtherLabel = document.getElementById('chatCallConsentOtherLabel');
 
     // Éléments pour l'appel vocal
     voiceCallModals.modal = document.getElementById('voiceCallModal');
@@ -354,6 +361,7 @@
     dom.chatFileInput?.addEventListener('change', handleAttachmentSelection);
     dom.chatAttachmentPreview?.addEventListener('click', handleAttachmentRemove);
     dom.chatCallBtn?.addEventListener('click', handleCallButtonClick);
+    dom.chatCallConsentToggle?.addEventListener('change', handleCallConsentToggle);
     setupVoiceRecorderControls();
     dom.chatMessages?.addEventListener('click', handleMessageActionClick);
 
@@ -681,6 +689,14 @@
     });
     socket.on('error', (payload) => {
       console.warn('[chat:error]', payload);
+      if (
+        payload?.code === 'CALL_CONSENT_REQUIRED' ||
+        payload?.code === 'CALL_RECIPIENT_NOT_READY'
+      ) {
+        if (typeof window.showToast === 'function' && payload?.message) {
+          window.showToast(payload.message);
+        }
+      }
     });
     socket.on('message:new', async (payload) => {
       // ...existing code...
@@ -703,6 +719,7 @@
         hideTypingIndicator({ delay: 600 });
       }
     });
+    socket.on('conversation:call-consent', handleCallConsentEvent);
   }
 
   async function loadConversations({ force = false } = {}) {
@@ -869,6 +886,39 @@
     }
   }
 
+  function buildVoiceCallConsentState(raw = {}) {
+    const toDate = (value) => {
+      if (!value) return null;
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+    const me = raw?.me || {};
+    const other = raw?.other || {};
+    return {
+      me: {
+        allowed: Boolean(me.allowed),
+        updatedAt: toDate(me.updatedAt),
+        updatedBy: me.updatedBy || null
+      },
+      other: {
+        allowed: Boolean(other.allowed),
+        updatedAt: toDate(other.updatedAt),
+        updatedBy: other.updatedBy || null
+      },
+      ready: Boolean(me.allowed && other.allowed)
+    };
+  }
+
+  function ensureConversationConsent(conversation) {
+    if (!conversation) {
+      return buildVoiceCallConsentState();
+    }
+    if (!conversation.voiceCallConsent) {
+      conversation.voiceCallConsent = buildVoiceCallConsentState();
+    }
+    return conversation.voiceCallConsent;
+  }
+
   function enhanceConversation(raw) {
     if (!raw) return null;
     const id = String(raw.id || raw._id);
@@ -937,7 +987,8 @@
       unreadCount: raw.unreadCount || 0,
       isBlocked: Boolean(raw.isBlocked),
       blockedBy: raw.blockedBy || null,
-      hidden: Boolean(raw.hidden)
+      hidden: Boolean(raw.hidden),
+      voiceCallConsent: buildVoiceCallConsentState(raw.voiceCallConsent)
     };
   }
 
@@ -3374,6 +3425,15 @@
       return;
     }
 
+    if (!conversation.voiceCallConsent?.ready) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(
+          'Activez les appels pour vous et votre interlocuteur avant de démarrer un appel.'
+        );
+      }
+      return;
+    }
+
     const remoteUserId = conversation.otherParticipant.id;
     const remoteUsername = conversation.otherParticipant.name || 'Utilisateur';
     const remoteAvatar = conversation.otherParticipant.avatar || '/uploads/avatars/default.jpg';
@@ -3435,6 +3495,79 @@
 
     // Forcer la lecture après action utilisateur
     safePlay();
+  }
+
+  async function handleCallConsentToggle(event) {
+    if (!dom.chatCallConsentToggle) return;
+    if (!activeConversationId) {
+      event.target.checked = false;
+      return;
+    }
+    if (updatingCallConsent) {
+      event.preventDefault();
+      event.target.checked = !event.target.checked;
+      return;
+    }
+    const allowCalls = Boolean(event.target.checked);
+    updatingCallConsent = true;
+    dom.chatCallConsent?.classList.add('is-disabled');
+    dom.chatCallConsentToggle.disabled = true;
+    try {
+      const payload = await apiFetch(`/chat/conversations/${activeConversationId}/call-consent`, {
+        method: 'POST',
+        body: { allowCalls }
+      });
+      const updatedConversation = payload?.conversation
+        ? enhanceConversation(payload.conversation)
+        : null;
+      if (updatedConversation) {
+        upsertConversation(updatedConversation);
+        if (updatedConversation.id === activeConversationId) {
+          updateCallConsentUi(updatedConversation);
+          updateCallButtonVisibility();
+        }
+        renderConversations();
+      }
+    } catch (error) {
+      event.target.checked = !allowCalls;
+      console.error('[Messages] Mise à jour du consentement aux appels impossible', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast(
+          error?.message || "Impossible de mettre à jour votre préférence d'appel vocal."
+        );
+      }
+    } finally {
+      updatingCallConsent = false;
+      if (dom.chatCallConsent) {
+        dom.chatCallConsent.classList.remove('is-disabled');
+      }
+      if (dom.chatCallConsentToggle) {
+        dom.chatCallConsentToggle.disabled = false;
+      }
+      const conversation = findConversation(activeConversationId);
+      updateCallConsentUi(conversation);
+    }
+  }
+
+  function handleCallConsentEvent(payload = {}) {
+    if (!payload?.conversationId) return;
+    const conversation = findConversation(payload.conversationId);
+    if (!conversation) return;
+    const consent = ensureConversationConsent(conversation);
+    const rawUpdatedAt = payload.updatedAt ? new Date(payload.updatedAt) : new Date();
+    const updatedAt = Number.isNaN(rawUpdatedAt.getTime()) ? null : rawUpdatedAt;
+    const userId = payload.userId ? String(payload.userId) : null;
+    const isCurrentUser = userId && state.userId && userId === state.userId;
+    const target = isCurrentUser ? consent.me : consent.other;
+    target.allowed = Boolean(payload.allowCalls);
+    target.updatedAt = updatedAt;
+    target.updatedBy = userId;
+    consent.ready = Boolean(consent.me.allowed && consent.other.allowed);
+    if (conversation.id === activeConversationId) {
+      updateCallConsentUi(conversation);
+      updateCallButtonVisibility();
+    }
+    renderConversations();
   }
 
   // Attente utilitaire de connexion socket (résout true/false)
@@ -3666,16 +3799,79 @@
     }
   }
 
+  function setConsentPillState(element, allowed, label) {
+    if (!element) return;
+    element.classList.remove('is-active', 'is-waiting');
+    element.classList.add(allowed ? 'is-active' : 'is-waiting');
+    const textNode = element.querySelector('.chat-call-consent__label');
+    if (textNode && label) {
+      textNode.textContent = label;
+    }
+    const dot = element.querySelector('.chat-call-consent__dot');
+    if (dot) {
+      dot.style.opacity = allowed ? '1' : '0.7';
+    }
+    element.setAttribute(
+      'aria-label',
+      `${label || ''} ${allowed ? 'autorisé' : 'en attente'}`.trim()
+    );
+  }
+
+  function updateCallConsentUi(conversation) {
+    if (!dom.chatCallConsent) return;
+    if (!conversation || !conversation.otherParticipant) {
+      dom.chatCallConsent.hidden = true;
+      dom.chatCallConsent.classList.remove('is-disabled');
+      if (dom.chatCallConsentToggle) {
+        dom.chatCallConsentToggle.checked = false;
+      }
+      return;
+    }
+    const consent = ensureConversationConsent(conversation);
+    dom.chatCallConsent.hidden = false;
+    dom.chatCallConsent.classList.toggle('is-disabled', updatingCallConsent);
+    if (dom.chatCallConsentToggle) {
+      dom.chatCallConsentToggle.checked = Boolean(consent.me.allowed);
+      dom.chatCallConsentToggle.disabled = updatingCallConsent;
+    }
+    setConsentPillState(dom.chatCallConsentSelf, consent.me.allowed, 'Vous');
+    const otherName = conversation.otherParticipant?.name || 'Interlocuteur';
+    if (dom.chatCallConsentOtherLabel) {
+      dom.chatCallConsentOtherLabel.textContent = otherName;
+    }
+    setConsentPillState(dom.chatCallConsentOther, consent.other.allowed, otherName);
+    if (dom.chatCallConsentHint) {
+      dom.chatCallConsentHint.textContent = consent.ready
+        ? 'Appels vocaux disponibles, vous pouvez lancer un appel.'
+        : 'Les appels démarrent une fois vos deux accords enregistrés.';
+    }
+  }
+
   function updateCallButtonVisibility() {
     if (!dom.chatCallBtn) return;
 
     const conversation = activeConversationId ? findConversation(activeConversationId) : null;
     const hasOtherParticipant = conversation && conversation.otherParticipant;
-
-    if (hasOtherParticipant && !voiceCallManager?.isInCall()) {
-      dom.chatCallBtn.hidden = false;
-    } else {
+    updateCallConsentUi(conversation);
+    if (!hasOtherParticipant) {
       dom.chatCallBtn.hidden = true;
+      return;
+    }
+    dom.chatCallBtn.hidden = false;
+    const isBusy = Boolean(voiceCallManager?.isInCall());
+    const consent = conversation
+      ? ensureConversationConsent(conversation)
+      : buildVoiceCallConsentState();
+    const isReady = Boolean(consent.ready);
+    dom.chatCallBtn.disabled = !isReady || isBusy;
+    dom.chatCallBtn.setAttribute('aria-disabled', String(dom.chatCallBtn.disabled));
+    if (!isReady) {
+      dom.chatCallBtn.title =
+        'Les appels seront disponibles après acceptation par vous et votre interlocuteur.';
+    } else if (isBusy) {
+      dom.chatCallBtn.title = 'Un appel est déjà en cours.';
+    } else {
+      dom.chatCallBtn.title = 'Démarrer un appel vocal';
     }
   }
 

@@ -1,5 +1,14 @@
 import mongoose, { Schema } from 'mongoose';
 
+const VoiceCallConsentSchema = new Schema(
+  {
+    allowed: { type: Boolean, default: false },
+    updatedAt: { type: Date, default: Date.now },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }
+  },
+  { _id: false }
+);
+
 /**
  * Modèle de conversation - Une conversation par annonce et par paire d'utilisateurs
  */
@@ -70,6 +79,11 @@ const ConversationSchema = new Schema(
       type: Date,
       default: Date.now,
       index: true
+    },
+    voiceCallConsent: {
+      type: Map,
+      of: VoiceCallConsentSchema,
+      default: () => new Map()
     }
   },
   { timestamps: true }
@@ -116,6 +130,43 @@ ConversationSchema.methods.hideForUser = function (userId) {
 };
 ConversationSchema.methods.unhideForUser = function (userId) {
   this.hiddenFor = this.hiddenFor.filter((id) => id.toString() !== userId.toString());
+};
+
+ConversationSchema.methods.getVoiceCallConsent = function (userId) {
+  if (!userId) return null;
+  const key = userId.toString();
+  const store = this.voiceCallConsent;
+  if (!store) return null;
+  if (typeof store.get === 'function') {
+    return store.get(key) || store.get(userId) || null;
+  }
+  if (typeof store === 'object') {
+    return store[key] || store[userId] || null;
+  }
+  return null;
+};
+
+ConversationSchema.methods.setVoiceCallConsent = function (userId, allowed, updatedBy) {
+  if (!userId) return null;
+  const key = userId.toString();
+  if (!this.voiceCallConsent || typeof this.voiceCallConsent.set !== 'function') {
+    this.voiceCallConsent = new Map();
+  }
+  const entry = {
+    allowed: Boolean(allowed),
+    updatedAt: new Date(),
+    updatedBy: updatedBy || userId
+  };
+  this.voiceCallConsent.set(key, entry);
+  if (typeof this.markModified === 'function') {
+    this.markModified('voiceCallConsent');
+  }
+  return entry;
+};
+
+ConversationSchema.methods.hasVoiceCallConsent = function (userId) {
+  const entry = this.getVoiceCallConsent(userId);
+  return Boolean(entry?.allowed);
 };
 
 export default mongoose.model('Conversation', ConversationSchema);

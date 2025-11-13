@@ -974,6 +974,24 @@
               <p class="chat-panel__banner-text"><strong>Rappel sécurité</strong> Ne partagez jamais d’informations sensibles (IBAN, codes). Utilisez la messagerie pour fixer un rendez-vous en lieu sûr.</p>
               <button type="button" class="chat-panel__banner-close" id="chatBannerClose">Compris</button>
             </div>
+            <div class="chat-call-consent" id="chatCallConsent" hidden>
+              <div class="chat-call-consent__status" aria-live="polite">
+                <span class="chat-call-consent__pill" id="chatCallConsentSelf">
+                  <span class="chat-call-consent__dot" aria-hidden="true"></span>
+                  <span class="chat-call-consent__label">Vous</span>
+                </span>
+                <span class="chat-call-consent__pill" id="chatCallConsentOther">
+                  <span class="chat-call-consent__dot" aria-hidden="true"></span>
+                  <span class="chat-call-consent__label" id="chatCallConsentOtherLabel">Interlocuteur</span>
+                </span>
+              </div>
+              <label class="chat-call-consent__toggle" for="chatCallConsentToggle">
+                <input type="checkbox" id="chatCallConsentToggle" class="chat-call-consent__checkbox">
+                <span class="chat-call-consent__switch" aria-hidden="true"></span>
+                <span class="chat-call-consent__text">Autoriser les appels vocaux</span>
+              </label>
+              <p class="chat-call-consent__hint" id="chatCallConsentHint" aria-live="polite">Activez les appels après accord mutuel.</p>
+            </div>
             <div class="chat-panel__messages-wrapper">
               <div class="chat-panel__messages" id="chatMessages" tabindex="0" aria-label="Historique des messages"></div>
               <div class="mm-typing" id="typingIndicator" hidden role="status" aria-live="polite">
