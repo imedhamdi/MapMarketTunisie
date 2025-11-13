@@ -28,8 +28,7 @@ const closeBtn = drawer?.querySelector('.profile-close');
 const tabs = drawer?.querySelectorAll('[role="tab"]');
 const panels = {
   overview: document.getElementById('profilePanelOverview'),
-  analytics: document.getElementById('profilePanelAnalytics'),
-  settings: document.getElementById('profilePanelSettings')
+  analytics: document.getElementById('profilePanelAnalytics')
 };
 
 // Avatar
@@ -57,7 +56,7 @@ const categoryChart = document.getElementById('analyticsCategoryChart');
 const topAds = document.getElementById('analyticsTopAds');
 const geoList = document.getElementById('analyticsGeoList');
 
-// Settings panel
+// Editable forms (Overview tab)
 const infoForm = document.getElementById('profileInfoForm');
 const infoFeedback = document.getElementById('profileInfoFeedback');
 const infoSubmit = document.getElementById('profileInfoSubmit');

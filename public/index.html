@@ -1397,7 +1397,6 @@
         <nav id="profileTabs" class="profile-tabs" role="tablist">
           <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">Aperçu</button>
           <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">Analytique</button>
-          <button role="tab" aria-selected="false" aria-controls="profilePanelSettings" id="tab-settings" data-tab="settings">Paramètres</button>
         </nav>
       </header>
 
@@ -1405,7 +1404,85 @@
       <section class="profile-body">
         <!-- Panel 1: Aperçu -->
         <div id="profilePanelOverview" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-overview">
-          <!-- Contenu à venir -->
+          <div class="profile-overview-grid">
+            <article class="profile-card profile-card--form profile-card--accent">
+              <div class="profile-card-head">
+                <span class="profile-card-kicker">Profil</span>
+                <h3 class="profile-section-title">Informations personnelles</h3>
+                <p class="profile-section-subtitle">Actualisez vos coordonnées publiques et votre email de contact.</p>
+              </div>
+              <form id="profileInfoForm" class="profile-form">
+                <div class="profile-form-group">
+                  <label for="profileNameInput">Nom</label>
+                  <input type="text" id="profileNameInput" name="name" autocomplete="name" required />
+                </div>
+                <div class="profile-form-group">
+                  <label for="profileEmailInput">Email</label>
+                  <input type="email" id="profileEmailInput" name="email" autocomplete="email" required readonly aria-readonly="true" aria-disabled="true" class="profile-input-locked" />
+                  <p class="profile-field-lock" role="note"><span aria-hidden="true">🔒</span> Adresse vérifiée. Contactez l’équipe support pour la modifier.</p>
+                </div>
+                <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
+                <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
+              </form>
+            </article>
+
+            <article class="profile-card profile-card--form">
+              <div class="profile-card-head">
+                <span class="profile-card-kicker">Zone d’activité</span>
+                <h3 class="profile-section-title">Localisation</h3>
+                <p class="profile-section-subtitle">Affinez la zone sur laquelle vous recevez des alertes.</p>
+              </div>
+              <form id="profileLocationForm" class="profile-form">
+                <div class="profile-form-group">
+                  <label for="profileCityInput">Ville</label>
+                  <input type="text" id="profileCityInput" name="city" autocomplete="address-level2" placeholder="Ex: Tunis" />
+                </div>
+                <div class="profile-form-group">
+                  <label for="profileRadiusInput">Rayon (km)</label>
+                  <input type="number" id="profileRadiusInput" name="radiusKm" min="1" max="200" step="1" />
+                </div>
+                <p class="profile-form-feedback" id="profileLocationFeedback" role="status" aria-live="polite"></p>
+                <button type="submit" class="profile-btn" id="profileLocationSubmit">Mettre à jour</button>
+              </form>
+            </article>
+
+            <article class="profile-card profile-card--form profile-card--security">
+              <div class="profile-card-head">
+                <span class="profile-card-kicker">Sécurité</span>
+                <h3 class="profile-section-title">Mot de passe</h3>
+                <p class="profile-section-subtitle">Gardez un compte sûr avec un mot de passe fort.</p>
+              </div>
+              <form id="profilePasswordForm" class="profile-form">
+                <div class="profile-form-group">
+                  <label for="profileCurrentPassword">Mot de passe actuel</label>
+                  <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required />
+                  <span class="profile-form-error" id="currentPasswordError"></span>
+                </div>
+                <div class="profile-form-group">
+                  <label for="profileNewPassword">Nouveau mot de passe</label>
+                  <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required />
+                  <span class="profile-form-hint">Minimum 8 caractères</span>
+                  <span class="profile-form-error" id="newPasswordError"></span>
+                </div>
+                <div class="profile-form-group">
+                  <label for="profileConfirmPassword">Confirmer</label>
+                  <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required />
+                  <span class="profile-form-error" id="confirmPasswordError"></span>
+                </div>
+                <p class="profile-form-feedback" id="profilePasswordFeedback" role="status" aria-live="polite"></p>
+                <button type="submit" class="profile-btn" id="profilePasswordSubmit">Changer le mot de passe</button>
+              </form>
+            </article>
+
+            <article class="profile-card profile-danger profile-card--full">
+              <div class="profile-card-head">
+                <span class="profile-card-kicker">Action irréversible</span>
+                <h3 class="profile-section-title">Zone de danger</h3>
+                <p class="profile-section-subtitle profile-danger-text">La suppression de votre compte est définitive. Toutes vos données seront perdues.</p>
+              </div>
+              <button type="button" class="profile-btn profile-btn-danger" id="profileDeleteBtn">Supprimer le compte</button>
+            </article>
+          </div>
         </div>
 
         <!-- Panel 2: Analytique -->
@@ -1453,74 +1530,6 @@
           </div>
         </div>
 
-        <!-- Panel 3: Paramètres -->
-        <div id="profilePanelSettings" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-settings" hidden>
-          <!-- Infos personnelles -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Informations personnelles</h3>
-            <form id="profileInfoForm" class="profile-form">
-              <div class="profile-form-group">
-                <label for="profileNameInput">Nom</label>
-                <input type="text" id="profileNameInput" name="name" autocomplete="name" required />
-              </div>
-              <div class="profile-form-group">
-                <label for="profileEmailInput">Email</label>
-                <input type="email" id="profileEmailInput" name="email" autocomplete="email" required />
-              </div>
-              <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
-              <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
-            </form>
-          </div>
-
-          <!-- Localisation -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Localisation</h3>
-            <form id="profileLocationForm" class="profile-form">
-              <div class="profile-form-group">
-                <label for="profileCityInput">Ville</label>
-                <input type="text" id="profileCityInput" name="city" autocomplete="address-level2" placeholder="Ex: Tunis" />
-              </div>
-              <div class="profile-form-group">
-                <label for="profileRadiusInput">Rayon (km)</label>
-                <input type="number" id="profileRadiusInput" name="radiusKm" min="1" max="200" step="1" />
-              </div>
-              <p class="profile-form-feedback" id="profileLocationFeedback" role="status" aria-live="polite"></p>
-              <button type="submit" class="profile-btn" id="profileLocationSubmit">Enregistrer</button>
-            </form>
-          </div>
-
-          <!-- Sécurité -->
-          <div class="profile-card">
-            <h3 class="profile-section-title">Sécurité</h3>
-            <form id="profilePasswordForm" class="profile-form">
-              <div class="profile-form-group">
-                <label for="profileCurrentPassword">Mot de passe actuel</label>
-                <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required />
-                <span class="profile-form-error" id="currentPasswordError"></span>
-              </div>
-              <div class="profile-form-group">
-                <label for="profileNewPassword">Nouveau mot de passe</label>
-                <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required />
-                <span class="profile-form-hint">Minimum 8 caractères</span>
-                <span class="profile-form-error" id="newPasswordError"></span>
-              </div>
-              <div class="profile-form-group">
-                <label for="profileConfirmPassword">Confirmer</label>
-                <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required />
-                <span class="profile-form-error" id="confirmPasswordError"></span>
-              </div>
-              <p class="profile-form-feedback" id="profilePasswordFeedback" role="status" aria-live="polite"></p>
-              <button type="submit" class="profile-btn" id="profilePasswordSubmit">Changer le mot de passe</button>
-            </form>
-          </div>
-
-          <!-- Zone danger -->
-          <div class="profile-card profile-danger">
-            <h3 class="profile-section-title">Zone de danger</h3>
-            <p class="profile-danger-text">La suppression de votre compte est définitive. Toutes vos données seront perdues.</p>
-            <button type="button" class="profile-btn profile-btn-danger" id="profileDeleteBtn">Supprimer le compte</button>
-          </div>
-        </div>
       </section>
     </aside>
   </div>
