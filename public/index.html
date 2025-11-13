@@ -1532,6 +1532,25 @@
 
       </section>
     </aside>
+    <div id="profileDeleteConfirm" class="mm-confirm profile-confirm" hidden>
+      <div class="mm-confirm__backdrop" data-confirm-close></div>
+      <div class="mm-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="profileDeleteConfirmTitle">
+        <div class="mm-confirm__icon" aria-hidden="true">⚠️</div>
+        <div class="mm-confirm__copy">
+          <h3 id="profileDeleteConfirmTitle" class="mm-confirm__title">Supprimer le compte</h3>
+          <p class="mm-confirm__message">
+            Cette action est définitive. Tapez <strong>SUPPRIMER</strong> pour confirmer et effacer toutes vos données.
+          </p>
+        </div>
+        <label class="mm-confirm__label" for="profileDeleteConfirmInput">Confirmez en tapant "SUPPRIMER"</label>
+        <input type="text" id="profileDeleteConfirmInput" class="mm-confirm__input" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="SUPPRIMER" aria-required="true" />
+        <p class="profile-form-feedback mm-confirm__feedback" id="profileDeleteConfirmFeedback" role="status" aria-live="polite"></p>
+        <div class="mm-confirm__actions">
+          <button type="button" class="mm-confirm__btn mm-confirm__btn--ghost" id="profileDeleteCancelBtn" data-confirm-close>Annuler</button>
+          <button type="button" class="mm-confirm__btn mm-confirm__btn--primary" id="profileDeleteConfirmBtn" disabled>Supprimer définitivement</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Profile Modal Script -->

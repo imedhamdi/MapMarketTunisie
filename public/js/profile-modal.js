@@ -21,6 +21,11 @@ const drawerState = {
   previousFocus: null
 };
 
+const deleteConfirmState = {
+  isOpen: false,
+  isLoading: false
+};
+
 // === DOM Elements ===
 const drawer = document.getElementById('profileDrawer');
 const overlay = drawer?.querySelector('.profile-overlay');
@@ -77,6 +82,13 @@ const newPasswordError = document.getElementById('newPasswordError');
 const confirmPasswordError = document.getElementById('confirmPasswordError');
 
 const deleteBtn = document.getElementById('profileDeleteBtn');
+const deleteConfirmModal = document.getElementById('profileDeleteConfirm');
+const deleteConfirmInput = document.getElementById('profileDeleteConfirmInput');
+const deleteConfirmBtn = document.getElementById('profileDeleteConfirmBtn');
+const deleteCancelBtn = document.getElementById('profileDeleteCancelBtn');
+const deleteConfirmFeedback = document.getElementById('profileDeleteConfirmFeedback');
+const deleteConfirmDialog = deleteConfirmModal?.querySelector('.mm-confirm__dialog') || null;
+const deleteConfirmBtnDefaultText = deleteConfirmBtn?.textContent || 'Supprimer définitivement';
 
 // === Formatters ===
 const numberFormatter = new Intl.NumberFormat('fr-FR');
@@ -197,6 +209,164 @@ function clearErrors() {
   });
 }
 
+function isDeleteConfirmOpen() {
+  return Boolean(deleteConfirmModal && !deleteConfirmModal.hidden && deleteConfirmState.isOpen);
+}
+
+function resetDeleteConfirmFeedback() {
+  if (deleteConfirmFeedback) {
+    deleteConfirmFeedback.className = 'profile-form-feedback mm-confirm__feedback';
+    deleteConfirmFeedback.textContent = '';
+  }
+}
+
+function showDeleteConfirmFeedback(message, type) {
+  if (!deleteConfirmFeedback) return;
+  showFeedback(deleteConfirmFeedback, message, type);
+  deleteConfirmFeedback.classList.add('mm-confirm__feedback');
+}
+
+function deleteKeywordMatch(value) {
+  return value.trim().toUpperCase() === 'SUPPRIMER';
+}
+
+function openDeleteConfirm() {
+  if (!deleteConfirmModal) return;
+  if (isDeleteConfirmOpen()) return;
+
+  deleteConfirmModal.hidden = false;
+  deleteConfirmModal.removeAttribute('hidden');
+  deleteConfirmModal.classList.add('is-open');
+  deleteConfirmState.isOpen = true;
+  deleteConfirmState.isLoading = false;
+
+  if (deleteConfirmInput) {
+    deleteConfirmInput.value = '';
+    deleteConfirmInput.disabled = false;
+    deleteConfirmInput.removeAttribute('aria-invalid');
+  }
+
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.disabled = true;
+    deleteConfirmBtn.textContent = deleteConfirmBtnDefaultText;
+  }
+
+  deleteCancelBtn && (deleteCancelBtn.disabled = false);
+  resetDeleteConfirmFeedback();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => deleteConfirmInput?.focus(), 40);
+  });
+}
+
+function closeDeleteConfirm(force = false) {
+  if (!deleteConfirmModal) return;
+  if (!isDeleteConfirmOpen()) return;
+  if (deleteConfirmState.isLoading && !force) return;
+
+  deleteConfirmModal.classList.remove('is-open');
+  deleteConfirmState.isOpen = false;
+
+  const finalize = () => {
+    deleteConfirmModal.hidden = true;
+    deleteConfirmState.isLoading = false;
+
+    if (deleteConfirmInput) {
+      deleteConfirmInput.value = '';
+      deleteConfirmInput.disabled = false;
+      deleteConfirmInput.removeAttribute('aria-invalid');
+    }
+
+    if (deleteConfirmBtn) {
+      deleteConfirmBtn.disabled = true;
+      deleteConfirmBtn.textContent = deleteConfirmBtnDefaultText;
+    }
+
+    if (deleteCancelBtn) {
+      deleteCancelBtn.disabled = false;
+    }
+
+    resetDeleteConfirmFeedback();
+  };
+
+  if (force) {
+    finalize();
+  } else {
+    setTimeout(finalize, 200);
+  }
+}
+
+function setDeleteConfirmLoading(isLoading) {
+  deleteConfirmState.isLoading = isLoading;
+
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.disabled =
+      isLoading || !deleteConfirmInput || !deleteKeywordMatch(deleteConfirmInput.value);
+    deleteConfirmBtn.textContent = isLoading
+      ? 'Suppression en cours…'
+      : deleteConfirmBtnDefaultText;
+  }
+
+  if (deleteConfirmInput) {
+    deleteConfirmInput.disabled = isLoading;
+  }
+
+  if (deleteCancelBtn) {
+    deleteCancelBtn.disabled = isLoading;
+  }
+}
+
+function handleDeleteConfirmInput(e) {
+  const value = e.target.value;
+  const match = deleteKeywordMatch(value);
+
+  if (!value.trim()) {
+    e.target.removeAttribute('aria-invalid');
+  } else {
+    e.target.setAttribute('aria-invalid', match ? 'false' : 'true');
+  }
+
+  if (deleteConfirmBtn && !deleteConfirmState.isLoading) {
+    deleteConfirmBtn.disabled = !match;
+  }
+}
+
+async function confirmDeleteAccount() {
+  if (!deleteConfirmModal) return;
+
+  setDeleteConfirmLoading(true);
+  showDeleteConfirmFeedback('⏳ Suppression en cours…', 'info');
+
+  try {
+    const response = await fetch('/api/users/me', {
+      method: 'DELETE'
+    });
+
+    let result = {};
+    try {
+      result = await response.json();
+    } catch (err) {
+      logger.warn('Delete response not JSON:', err);
+    }
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Erreur lors de la suppression');
+    }
+
+    showDeleteConfirmFeedback('✓ Compte supprimé. Déconnexion…', 'success');
+
+    setTimeout(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/';
+    }, 1200);
+  } catch (err) {
+    logger.error('Error deleting account:', err);
+    showDeleteConfirmFeedback(`❌ ${err.message || 'Erreur réseau'}`, 'error');
+    setDeleteConfirmLoading(false);
+  }
+}
+
 function showEmptyAnalytics() {
   const analyticsPanel = panels.analytics;
   if (!analyticsPanel) return;
@@ -271,25 +441,54 @@ function showLoadingSkeletons() {
 const focusableSelectors =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+function isFocusableElement(el) {
+  if (!el) return false;
+  if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
+  if (el.tabIndex === -1) return false;
+  if (el.closest('[hidden]')) return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function getFocusScope() {
+  if (isDeleteConfirmOpen() && deleteConfirmDialog) {
+    return deleteConfirmDialog;
+  }
+  return drawer;
+}
+
 function trapFocus(e) {
-  if (!drawerState.isOpen) return;
-  const focusables = Array.from(drawer.querySelectorAll(focusableSelectors));
+  if (!drawerState.isOpen || e.key !== 'Tab') return;
+
+  const scope = getFocusScope();
+  if (!scope) return;
+
+  const focusables = Array.from(scope.querySelectorAll(focusableSelectors)).filter(
+    isFocusableElement
+  );
+  if (!focusables.length) return;
+
   const firstFocusable = focusables[0];
   const lastFocusable = focusables[focusables.length - 1];
 
-  if (e.key === 'Tab') {
-    if (e.shiftKey && document.activeElement === firstFocusable) {
-      e.preventDefault();
-      lastFocusable?.focus();
-    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
-      e.preventDefault();
-      firstFocusable?.focus();
-    }
+  if (e.shiftKey && document.activeElement === firstFocusable) {
+    e.preventDefault();
+    lastFocusable?.focus();
+  } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+    e.preventDefault();
+    firstFocusable?.focus();
   }
 }
 
 function handleEscape(e) {
-  if (e.key === 'Escape' && drawerState.isOpen) {
+  if (e.key !== 'Escape') return;
+
+  if (isDeleteConfirmOpen()) {
+    closeDeleteConfirm();
+    return;
+  }
+
+  if (drawerState.isOpen) {
     closeProfileDrawer();
   }
 }
@@ -730,37 +929,8 @@ async function onUploadAvatar(file) {
   }
 }
 
-async function onDeleteAccount() {
-  const confirmation = window.confirm(
-    'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible. Toutes vos données seront perdues.'
-  );
-  if (!confirmation) return;
-
-  const doubleConfirm = window.prompt('Tapez "SUPPRIMER" pour confirmer :');
-  if (doubleConfirm !== 'SUPPRIMER') {
-    alert('Suppression annulée');
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/users/me', {
-      method: 'DELETE'
-    });
-
-    const result = await response.json();
-
-    if (response.ok) {
-      alert('Compte supprimé. Vous allez être déconnecté.');
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.href = '/';
-    } else {
-      alert(result.message || 'Erreur lors de la suppression');
-    }
-  } catch (err) {
-    logger.error('Error deleting account:', err);
-    alert('Erreur réseau');
-  }
+function onDeleteAccount() {
+  openDeleteConfirm();
 }
 
 // === Fetch Profile Data ===
@@ -1019,6 +1189,7 @@ async function openProfileDrawer(data) {
 function closeProfileDrawer() {
   if (!drawer || !drawerState.isOpen) return;
 
+  closeDeleteConfirm(true);
   drawer.classList.remove('is-open');
 
   setTimeout(() => {
@@ -1081,6 +1252,26 @@ function init() {
   locationForm?.addEventListener('submit', onSaveLocation);
   passwordForm?.addEventListener('submit', onChangePassword);
   deleteBtn?.addEventListener('click', onDeleteAccount);
+
+  deleteConfirmInput?.addEventListener('input', handleDeleteConfirmInput);
+  deleteConfirmInput?.addEventListener('keydown', (e) => {
+    if (
+      e.key === 'Enter' &&
+      deleteConfirmBtn &&
+      !deleteConfirmBtn.disabled &&
+      !deleteConfirmState.isLoading
+    ) {
+      e.preventDefault();
+      confirmDeleteAccount();
+    }
+  });
+
+  deleteConfirmBtn?.addEventListener('click', confirmDeleteAccount);
+  if (deleteConfirmModal) {
+    deleteConfirmModal.querySelectorAll('[data-confirm-close]').forEach((el) => {
+      el.addEventListener('click', () => closeDeleteConfirm());
+    });
+  }
 
   logger.info('Profile drawer initialized');
 }

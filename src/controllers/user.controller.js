@@ -39,6 +39,7 @@ import sanitizeHtml from 'sanitize-html';
 import User from '../models/user.model.js';
 import Ad from '../models/ad.model.js';
 import logger from '../config/logger.js';
+import redis from '../config/redis.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import { clearAuthCookies } from '../utils/generateTokens.js';
 import { optimizeAvatar } from '../services/image.service.js';
@@ -407,12 +408,62 @@ export async function updateFavorites(req, res) {
 }
 
 export async function deleteMe(req, res) {
-  await User.findByIdAndDelete(req.user._id);
-  clearAuthCookies(res);
+  try {
+    const userId = req.user._id;
 
-  return sendSuccess(res, {
-    message: 'Compte supprimé'
-  });
+    const ads = await Ad.find({ owner: userId }).select('_id');
+    const adIds = ads.map((ad) => ad._id);
+
+    if (adIds.length > 0) {
+      await Ad.updateMany(
+        { _id: { $in: adIds } },
+        {
+          $set: {
+            status: 'deleted',
+            favoritesCount: 0
+          }
+        }
+      );
+
+      const adIdVariants = [...adIds, ...adIds.map((id) => id.toString())];
+      await User.updateMany(
+        { favorites: { $in: adIdVariants } },
+        { $pull: { favorites: { $in: adIdVariants } } }
+      );
+
+      if (redis.isConnected) {
+        const cacheTasks = [
+          redis.delPattern('cache:ads:*'),
+          redis.delPattern('cache:ads:popular:*')
+        ];
+
+        adIds.forEach((id) => {
+          cacheTasks.push(redis.delPattern(`cache:ad:${id}:*`));
+        });
+
+        await Promise.allSettled(cacheTasks);
+      }
+    } else if (redis.isConnected) {
+      await Promise.allSettled([
+        redis.delPattern('cache:ads:*'),
+        redis.delPattern('cache:ads:popular:*')
+      ]);
+    }
+
+    await User.findByIdAndDelete(userId);
+    clearAuthCookies(res);
+
+    return sendSuccess(res, {
+      message: 'Compte supprimé'
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la suppression du compte', error);
+    return sendError(res, {
+      statusCode: 500,
+      code: 'DELETE_ACCOUNT_FAILED',
+      message: 'Impossible de supprimer le compte pour le moment.'
+    });
+  }
 }
 
 export async function getUserStats(req, res) {

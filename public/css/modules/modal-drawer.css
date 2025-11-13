@@ -405,6 +405,33 @@
   line-height: 1.45;
 }
 
+.mm-confirm__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.mm-confirm__input {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border-strong);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+  background: var(--color-surface-ghost, #fff);
+}
+
+.mm-confirm__input[aria-invalid="true"] {
+  border-color: var(--color-error-border, #fda4af);
+  background: var(--color-error-bg, #ffe4e6);
+}
+
+.mm-confirm__feedback {
+  margin: 0;
+}
+
 .mm-confirm__actions {
   display: flex;
   justify-content: flex-end;
