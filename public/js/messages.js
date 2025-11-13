@@ -57,6 +57,7 @@
   const pendingMessages = new Map();
   const pendingAudioUrls = new Map();
   const pendingRemoteRead = new Set();
+  const subscribedConversationIds = new Set();
   let activeAudioPlayer = null;
   let voiceCallManager = null;
   const voiceCallModals = {};
@@ -522,6 +523,8 @@
       }
     });
     pendingAudioUrls.clear();
+    pendingRemoteRead.clear();
+    subscribedConversationIds.clear();
     pendingSelectConversationId = null;
     if (readFlushTimer) {
       clearTimeout(readFlushTimer);
@@ -671,21 +674,20 @@
   function bindSocketEvents() {
     if (!socket) return;
 
-    // Helper pour rejoindre la conversation active
-    const rejoinActiveConversation = () => {
-      // ...existing code...
-      if (activeConversationId && socket?.connected) {
-        // ...existing code...
+    // Helper pour rétablir les rooms des conversations suivies
+    const rejoinConversationRooms = () => {
+      if (!socket?.connected || !subscribedConversationIds.size) return;
+      subscribedConversationIds.forEach((conversationId) => {
         socket.emit('conversation:join', {
-          conversationId: activeConversationId,
-          markAsRead: true
+          conversationId,
+          markAsRead: conversationId === activeConversationId
         });
-      }
+      });
     };
 
     socket.on('connect', () => {
       // ...existing code...
-      rejoinActiveConversation();
+      rejoinConversationRooms();
     });
     socket.on('error', (payload) => {
       console.warn('[chat:error]', payload);
@@ -740,6 +742,7 @@
       state.unreadTotal = countUnreadConversations(state.conversations);
       applySearch();
       updateUnreadBadge();
+      subscribeConversationsForRealtime(state.conversations);
       if (!state.conversations.length) {
         showConversationsEmpty({
           icon: '💬',
@@ -762,6 +765,16 @@
         selectConversationIfAvailable(pendingSelectConversationId);
       }
     }
+  }
+
+  function subscribeConversationsForRealtime(conversations) {
+    if (!Array.isArray(conversations) || !conversations.length) return;
+    conversations.forEach((conversation) => {
+      const conversationId = conversation?.id;
+      if (conversationId) {
+        joinConversation(conversationId);
+      }
+    });
   }
 
   async function fetchConversationById(conversationId) {
@@ -800,6 +813,7 @@
       upsertConversation(conversation);
       applySearch();
     }
+    joinConversation(conversationId);
 
     updateConversationPreview(conversationId, message);
     storeMessage(conversationId, message);
@@ -1039,6 +1053,7 @@
       if (state.conversationsLoaded && nextHasUnread) {
         state.unreadTotal += 1;
       }
+      joinConversation(conversation.id);
     }
     sortConversations(state.conversations);
     state.filteredConversations = [...state.conversations];
@@ -2956,14 +2971,13 @@
   }
 
   function joinConversation(conversationId, { markAsRead = false } = {}) {
-    // ...existing code...
+    if (!conversationId) return;
     ensureSocket();
-    if (socket?.connected) {
-      // ...existing code...
-      socket.emit('conversation:join', { conversationId, markAsRead });
-    } else {
-      console.warn('[DEBUG] Socket non connecté, impossible de join');
-    }
+    const alreadySubscribed = subscribedConversationIds.has(conversationId);
+    subscribedConversationIds.add(conversationId);
+    if (!socket?.connected) return;
+    if (alreadySubscribed && !markAsRead) return;
+    socket.emit('conversation:join', { conversationId, markAsRead });
   }
 
   function scheduleMarkRead(messageId) {
@@ -3228,6 +3242,7 @@
     }
     const conversation = enhanceConversation(rawConversation);
     upsertConversation(conversation);
+    joinConversation(conversation.id);
     applySearch();
     updateUnreadBadge();
 
