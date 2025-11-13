@@ -54,6 +54,30 @@ app.use(generalLimiter);
 const selfOrigins = [`http://localhost:${env.port}`, `http://127.0.0.1:${env.port}`];
 const allowedOrigins = Array.from(new Set([...env.clientOrigins, ...selfOrigins]));
 
+function normalizeOrigin(value) {
+  try {
+    const normalized = new URL(value);
+    return normalized.origin;
+  } catch (_error) {
+    return value;
+  }
+}
+
+const normalizedAllowedOrigins = new Set(allowedOrigins.map(normalizeOrigin));
+const allowedHostnames = new Set(
+  allowedOrigins
+    .map((value) => {
+      try {
+        const { hostname } = new URL(value);
+        return [hostname, hostname.replace(/^www\./, '')];
+      } catch (_error) {
+        return [];
+      }
+    })
+    .flat()
+    .filter(Boolean)
+);
+
 if (allowedOrigins.length) {
   app.use(
     cors({
@@ -61,7 +85,23 @@ if (allowedOrigins.length) {
         if (!origin) {
           return callback(null, true);
         }
-        if (allowedOrigins.includes(origin)) {
+
+        const normalizedOrigin = normalizeOrigin(origin);
+        const isExplicitlyAllowed = normalizedAllowedOrigins.has(normalizedOrigin);
+
+        let isHostnameAllowed = false;
+        if (!isExplicitlyAllowed) {
+          try {
+            const { hostname } = new URL(origin);
+            const normalizedHostname = hostname.replace(/^www\./, '');
+            isHostnameAllowed =
+              allowedHostnames.has(hostname) || allowedHostnames.has(normalizedHostname);
+          } catch (_error) {
+            isHostnameAllowed = false;
+          }
+        }
+
+        if (isExplicitlyAllowed || isHostnameAllowed) {
           return callback(null, true);
         }
 
