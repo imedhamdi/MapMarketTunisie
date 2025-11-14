@@ -219,10 +219,7 @@ app.use('/api', (req, res) => {
 });
 
 // Pages statiques dédiées (ex: vérification email)
-const staticPages = new Map([
-  ['/verify-email', 'verify-email.html'],
-  ['/reset-password', 'reset-password.html']
-]);
+const staticPages = new Map([['/verify-email', 'verify-email.html']]);
 
 for (const [route, file] of staticPages) {
   app.get(route, (_req, res) => {
