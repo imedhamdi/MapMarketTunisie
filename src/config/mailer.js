@@ -3,6 +3,17 @@ import logger from './logger.js';
 
 const MAILGUN_USER = 'api';
 
+function buildUrlWithToken(baseUrl, token) {
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.set('token', token);
+    return url.toString();
+  } catch (_error) {
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
+  }
+}
+
 function isMailgunConfigured() {
   return Boolean(env.mailgun.apiKey && env.mailgun.domain);
 }
@@ -64,7 +75,7 @@ async function sendMailgunMessage({ to, subject, text, html }) {
 }
 
 export async function sendResetPasswordEmail(to, token) {
-  const resetUrl = `${env.resetBaseUrl}?token=${encodeURIComponent(token)}`;
+  const resetUrl = buildUrlWithToken(env.resetBaseUrl, token);
   const text = `Bonjour,
 
 Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien ci-dessous (valide 30 minutes) :
@@ -91,7 +102,7 @@ Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
 }
 
 export async function sendEmailVerificationEmail(to, token, name = '') {
-  const verifyUrl = `${env.verifyEmailBaseUrl}?token=${encodeURIComponent(token)}`;
+  const verifyUrl = buildUrlWithToken(env.verifyEmailBaseUrl, token);
   const text = `Bonjour ${name || ''},
 
 Bienvenue sur MapMarket ! Pour activer votre compte, cliquez sur le lien ci-dessous :

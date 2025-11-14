@@ -69,7 +69,7 @@ const env = {
     baseUrl: process.env.MAILGUN_API_BASE_URL ?? 'https://api.mailgun.net/v3'
   },
 
-  resetBaseUrl: process.env.RESET_BASE_URL ?? 'http://localhost:5173/reset-password',
+  resetBaseUrl: process.env.RESET_BASE_URL ?? 'http://localhost:5173/?auth=reset',
   verifyEmailBaseUrl: process.env.VERIFY_EMAIL_BASE_URL ?? 'http://localhost:5173/verify-email',
 
   // Redis (cache optionnel)

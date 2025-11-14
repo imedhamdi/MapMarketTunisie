@@ -175,7 +175,7 @@ MAIL_FROM=MapMarket <noreply@mapmarket.fr>
 MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxx
 MAILGUN_DOMAIN=mapmarket.fr
 MAILGUN_API_BASE_URL=https://api.eu.mailgun.net/v3
-RESET_BASE_URL=http://localhost:5173/reset-password
+RESET_BASE_URL=http://localhost:5173/?auth=reset
 VERIFY_EMAIL_BASE_URL=http://localhost:5173/verify-email
 
 # Upload

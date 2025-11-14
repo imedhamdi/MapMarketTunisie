@@ -536,26 +536,32 @@
               <button type="button" id="backToLogin">← Retour à la connexion</button>
             </div>
           </form>
+
+          <form class="auth-form" id="resetForm" novalidate>
+            <div class="auth-group">
+              <label class="auth-label" for="resetPassword">Nouveau mot de passe</label>
+              <div class="auth-input-wrapper">
+                <input class="auth-input" id="resetPassword" type="password" autocomplete="new-password"
+                  placeholder="Minimum 8 caractères" minlength="8" required>
+              </div>
+            </div>
+
+            <div class="auth-group">
+              <label class="auth-label" for="resetPasswordConfirm">Confirmer le mot de passe</label>
+              <div class="auth-input-wrapper">
+                <input class="auth-input" id="resetPasswordConfirm" type="password" autocomplete="new-password"
+                  placeholder="Retapez votre mot de passe" minlength="8" required>
+              </div>
+            </div>
+
+            <button type="submit" class="auth-submit" id="resetSubmit">Mettre à jour mon mot de passe</button>
+
+            <div class="auth-forgot">
+              <button type="button" id="resetBackToLogin">← Retour à la connexion</button>
+            </div>
+          </form>
         </div>
         <div class="auth-feedback" id="authFeedback" aria-live="polite" aria-atomic="true"></div>
-        <div class="auth-verification" id="verificationNotice" hidden>
-          <div class="auth-verification-icon" aria-hidden="true">✉️</div>
-          <div class="auth-verification-body">
-            <p class="auth-verification-title" id="verificationTitle">Vérifiez votre boîte mail</p>
-            <p class="auth-verification-text" id="verificationText">
-              Nous avons envoyé un lien de confirmation à
-              <strong id="verificationEmail"></strong>.
-            </p>
-            <div class="auth-verification-actions">
-              <button type="button" class="auth-verification-btn" id="resendVerificationBtn">
-                Renvoyer le lien
-              </button>
-              <button type="button" class="auth-verification-link" id="verificationRefreshBtn">
-                J'ai déjà confirmé
-              </button>
-            </div>
-          </div>
-        </div>
 
       </div>
       <button class="auth-close" id="closeAuth" aria-label="Fermer">✕</button>

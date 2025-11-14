@@ -18,6 +18,8 @@ import seoRoutes from './routes/seo.routes.js';
 import apiV1Routes from './routes/index.js';
 import { sendError } from './utils/responses.js';
 import { HTTP_STATUS } from './config/constants.js';
+import { finalizeEmailVerification } from './services/emailVerification.service.js';
+import { setAuthCookies } from './utils/generateTokens.js';
 
 const app = express();
 
@@ -82,7 +84,7 @@ if (allowedOrigins.length) {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin) {
+        if (!origin || env.isDev) {
           return callback(null, true);
         }
 
@@ -218,14 +220,26 @@ app.use('/api', (req, res) => {
   });
 });
 
-// Pages statiques dédiées (ex: vérification email)
-const staticPages = new Map([['/verify-email', 'verify-email.html']]);
-
-for (const [route, file] of staticPages) {
-  app.get(route, (_req, res) => {
-    res.sendFile(path.join(publicDir, file));
-  });
-}
+app.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.redirect('/?verify=invalid');
+  }
+  try {
+    const { tokens } = await finalizeEmailVerification(token);
+    setAuthCookies(res, tokens);
+    return res.redirect('/?verify=success');
+  } catch (error) {
+    if (error?.code !== 'VERIFICATION_TOKEN_INVALID') {
+      logger.error('Email verification redirect failed', {
+        message: error?.message,
+        stack: error?.stack
+      });
+    }
+    const status = error?.code === 'VERIFICATION_TOKEN_INVALID' ? 'invalid' : 'error';
+    return res.redirect(`/?verify=${status}`);
+  }
+});
 
 // Servir le frontend pour toutes les autres routes
 app.get('*', (req, res) => {

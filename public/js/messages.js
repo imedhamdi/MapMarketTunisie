@@ -16,7 +16,7 @@
   };
 
   const SOCKET_PATH = '/ws/chat';
-  const API_BASE = window.__API_BASE__ || `${window.location.origin}/api/v1`;
+  const API_BASE = resolveApiBase();
   const CONVERSATION_LIMIT = 60;
   const MESSAGE_LIMIT = 80;
   const OLDER_MESSAGES_LIMIT = 50;

@@ -4,6 +4,7 @@ import sanitizeHtml from 'sanitize-html';
 import env from '../config/env.js';
 import { sendResetPasswordEmail, sendEmailVerificationEmail } from '../config/mailer.js';
 import User from '../models/user.model.js';
+import { finalizeEmailVerification } from '../services/emailVerification.service.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import {
   createResetToken,
@@ -200,33 +201,25 @@ export async function resetPassword(req, res) {
 
 export async function verifyEmail(req, res) {
   const { token } = req.body;
-  const hashedToken = hashToken(token);
 
-  const user = await User.findOne({
-    emailVerificationTokenHash: hashedToken,
-    emailVerificationTokenExp: { $gt: new Date() }
-  }).select('+emailVerificationTokenHash +emailVerificationTokenExp');
+  try {
+    const { user, tokens } = await finalizeEmailVerification(token);
+    setAuthCookies(res, tokens);
 
-  if (!user) {
-    return sendError(res, {
-      statusCode: 400,
-      code: 'VERIFICATION_TOKEN_INVALID',
-      message: 'Lien invalide ou expiré.'
+    return sendSuccess(res, {
+      message: 'Email confirmé 🎉',
+      data: { user: formatUser(user) }
     });
+  } catch (error) {
+    if (error?.code === 'VERIFICATION_TOKEN_INVALID') {
+      return sendError(res, {
+        statusCode: error.statusCode ?? 400,
+        code: error.code,
+        message: error.message
+      });
+    }
+    throw error;
   }
-
-  user.emailVerificationTokenHash = undefined;
-  user.emailVerificationTokenExp = undefined;
-  user.emailVerified = true;
-  await user.save();
-
-  const tokens = generateAuthTokens(user);
-  setAuthCookies(res, tokens);
-
-  return sendSuccess(res, {
-    message: 'Email confirmé 🎉',
-    data: { user: formatUser(user) }
-  });
 }
 
 export async function resendVerification(req, res) {

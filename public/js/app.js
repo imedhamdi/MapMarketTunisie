@@ -3421,20 +3421,21 @@
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
   const forgotForm = document.getElementById('forgotForm');
+  const resetForm = document.getElementById('resetForm');
   const loginEmailInput = document.getElementById('loginEmail');
+  const resetPasswordInput = document.getElementById('resetPassword');
+  const resetPasswordConfirmInput = document.getElementById('resetPasswordConfirm');
   const heroTitle = document.getElementById('heroTitle');
   const heroSubtitle = document.getElementById('heroSubtitle');
   const heroIcon = document.getElementById('heroIcon');
   const forgotTrigger = document.getElementById('forgotTrigger');
-  const verificationNotice = document.getElementById('verificationNotice');
-  const verificationTitle = document.getElementById('verificationTitle');
-  const verificationText = document.getElementById('verificationText');
-  const verificationEmailLabel = document.getElementById('verificationEmail');
-  const resendVerificationBtn = document.getElementById('resendVerificationBtn');
-  const verificationRefreshBtn = document.getElementById('verificationRefreshBtn');
+  const resetBackToLogin = document.getElementById('resetBackToLogin');
+  const resetSubmit = document.getElementById('resetSubmit');
   let pendingVerificationEmail = '';
+  let resendVerificationBtn = null;
   let verificationCooldownTimer = null;
   const VERIFICATION_COOLDOWN_MS = 60000;
+  let pendingResetToken = '';
   const backToLogin = document.getElementById('backToLogin');
   const passwordToggles = document.querySelectorAll('.password-toggle');
   const bottomNav = document.getElementById('bottomNav');
@@ -3493,6 +3494,11 @@
         sellerImg.src = avatarUrl;
       }
     }
+  };
+
+  // Backward compatible alias used by legacy scripts
+  window.updateUserAvatar = function (avatarFilename, bustCache = true) {
+    window.updateAllAvatars(avatarFilename, bustCache);
   };
 
   function buildApiUrl(path) {
@@ -3557,13 +3563,15 @@
     del: (path, options) => apiRequest(path, { ...(options || {}), method: 'DELETE' })
   };
 
-  function setAuthFeedback(message = '', type = 'info') {
+  function setAuthFeedback(message = '', type = 'info', options = {}) {
     if (!authFeedback) {
       return;
     }
+    stopVerificationCooldown();
     authFeedback.textContent = '';
     authFeedback.removeAttribute('data-type');
     authFeedback.classList.remove('is-visible');
+    resendVerificationBtn = null;
     if (!message) {
       scheduleAuthMeasure();
       return;
@@ -3581,6 +3589,33 @@
     text.className = 'auth-feedback-message';
     text.textContent = message;
     authFeedback.append(icon, text);
+
+    const action = options?.action;
+    if (action?.label) {
+      const actionsWrapper = document.createElement('div');
+      actionsWrapper.className = 'auth-feedback-actions';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'auth-feedback-action';
+      button.textContent = action.label;
+      button.dataset.label = action.label;
+      if (action.id) {
+        button.id = action.id;
+      }
+      if (action.disabled) {
+        button.disabled = true;
+      }
+      if (typeof action.onClick === 'function') {
+        button.addEventListener('click', (event) => {
+          action.onClick(event);
+        });
+      }
+      actionsWrapper.appendChild(button);
+      authFeedback.append(actionsWrapper);
+      if (action.id === 'resendVerificationBtn') {
+        resendVerificationBtn = button;
+      }
+    }
     authFeedback.dataset.type = type;
     authFeedback.classList.add('is-visible');
     authFeedback.classList.remove('auth-feedback-pop');
@@ -3771,7 +3806,7 @@
     authTrapActive = false;
   }
 
-  const forms = { login: loginForm, signup: signupForm, forgot: forgotForm };
+  const forms = { login: loginForm, signup: signupForm, forgot: forgotForm, reset: resetForm };
   let currentTab = 'login';
 
   const heroCopy = {
@@ -3789,6 +3824,11 @@
       title: 'Mot de passe oublié ?',
       subtitle: 'Pas de souci, nous allons vous aider à récupérer votre compte',
       icon: '🔑'
+    },
+    reset: {
+      title: 'Définissez un nouveau mot de passe',
+      subtitle: 'Choisissez un mot de passe sécurisé puis retrouvez votre compte',
+      icon: '🛡️'
     }
   };
 
@@ -4155,8 +4195,8 @@
   scheduleAuthMeasure();
   window.addEventListener('resize', scheduleAuthMeasure);
 
-  function openAuth(focusId = 'loginEmail') {
-    switchTab('login', { instant: true, force: true, resetSuccess: true });
+  function openAuth(focusId = 'loginEmail', initialTab = 'login') {
+    switchTab(initialTab, { instant: true, force: true, resetSuccess: true });
     clearFeedback();
     if (!authModal) {
       return;
@@ -4202,9 +4242,8 @@
   }
 
   function resetAuthForms() {
-    [loginForm, signupForm, forgotForm].forEach((form) => form.reset());
+    [loginForm, signupForm, forgotForm, resetForm].forEach((form) => form && form.reset());
     clearFeedback();
-    hideVerificationNotice();
     Object.values(forms).forEach((form) =>
       form.classList.remove(
         'active',
@@ -4236,47 +4275,30 @@
     clearSuccessMessage();
   }
 
-  function updateVerificationMessage(reason = 'signup') {
-    if (!verificationText) {
-      return;
+  function setPendingResetToken(token) {
+    pendingResetToken = typeof token === 'string' ? token.trim() : '';
+  }
+
+  function validateResetPasswords() {
+    const password = resetPasswordInput?.value?.trim() || '';
+    const confirmation = resetPasswordConfirmInput?.value?.trim() || '';
+    if (password.length < 8) {
+      setAuthFeedback('Le mot de passe doit contenir au moins 8 caractères.', 'error');
+      return false;
     }
-    const safeEmail = pendingVerificationEmail
-      ? `<strong>${escapeHtml(pendingVerificationEmail)}</strong>`
-      : '<strong>votre adresse email</strong>';
+    if (password !== confirmation) {
+      setAuthFeedback('Les deux mots de passe ne correspondent pas.', 'error');
+      return false;
+    }
+    return true;
+  }
+
+  function buildVerificationMessage(reason = 'signup') {
+    const label = pendingVerificationEmail || 'votre adresse email';
     if (reason === 'login') {
-      verificationText.innerHTML = `Votre adresse ${safeEmail} n'est pas encore confirmée. Vérifiez votre boîte mail ou demandez un nouveau lien.`;
-    } else {
-      verificationText.innerHTML = `Nous avons envoyé un lien de confirmation à ${safeEmail}. Il expire dans 24h.`;
+      return `Votre adresse ${label} n'est pas encore confirmée. Vérifiez votre boîte mail ou demandez un nouveau lien.`;
     }
-  }
-
-  function showVerificationNotice(email = '', { reason = 'signup' } = {}) {
-    if (!verificationNotice) {
-      return;
-    }
-    pendingVerificationEmail = (email || pendingVerificationEmail || '').trim();
-    if (verificationEmailLabel) {
-      verificationEmailLabel.textContent = pendingVerificationEmail || 'votre adresse email';
-    }
-    if (verificationTitle) {
-      verificationTitle.textContent =
-        reason === 'login' ? 'Activation requise avant connexion' : 'Vérifiez votre boîte mail';
-    }
-    verificationNotice.dataset.reason = reason;
-    updateVerificationMessage(reason);
-    verificationNotice.hidden = false;
-    scheduleAuthMeasure();
-  }
-
-  function hideVerificationNotice() {
-    if (!verificationNotice) {
-      return;
-    }
-    verificationNotice.hidden = true;
-    verificationNotice.dataset.reason = '';
-    pendingVerificationEmail = '';
-    stopVerificationCooldown();
-    scheduleAuthMeasure();
+    return `Nous avons envoyé un lien de confirmation à ${label}. Il expire dans 24h.`;
   }
 
   function startVerificationCooldown() {
@@ -4318,17 +4340,19 @@
   }
 
   function handlePendingVerification(email, { reason = 'signup', message } = {}) {
-    const safeEmail = (email || pendingVerificationEmail || '').trim();
-    if (loginEmailInput && safeEmail) {
-      loginEmailInput.value = safeEmail;
+    pendingVerificationEmail = (email || pendingVerificationEmail || '').trim();
+    if (loginEmailInput && pendingVerificationEmail) {
+      loginEmailInput.value = pendingVerificationEmail;
     }
-    showVerificationNotice(safeEmail, { reason });
     const feedbackType = reason === 'login' ? 'error' : 'success';
-    const defaultMessage =
-      reason === 'login'
-        ? "Votre adresse email n'est pas encore confirmée. Consultez vos emails pour activer votre compte."
-        : 'Votre compte est presque prêt ! Confirmez votre email pour finaliser votre inscription.';
-    setAuthFeedback(message || defaultMessage, feedbackType);
+    const resolvedMessage = message || buildVerificationMessage(reason);
+    setAuthFeedback(resolvedMessage, feedbackType, {
+      action: {
+        id: 'resendVerificationBtn',
+        label: 'Renvoyer le lien',
+        onClick: handleResendVerificationClick
+      }
+    });
     if (reason === 'signup') {
       showToast('Vérifiez votre boîte mail pour activer votre compte');
     }
@@ -4393,6 +4417,9 @@
       targetForm.classList.add('active');
       currentTab = tab;
       scheduleAuthMeasure();
+      if (tab === 'reset' && !pendingResetToken) {
+        setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
+      }
       return;
     }
 
@@ -4420,11 +4447,24 @@
 
     currentTab = tab;
     scheduleAuthMeasure();
+    if (tab === 'reset' && !pendingResetToken) {
+      setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
+    }
   }
 
   function updateTabUI(tab) {
+    const showTabs = tab !== 'reset';
+    const tabs = document.querySelector('.auth-tabs');
+    if (tabs) {
+      tabs.classList.toggle('hidden', !showTabs);
+    }
     loginTab.classList.toggle('active', tab === 'login');
     signupTab.classList.toggle('active', tab === 'signup');
+    if (!showTabs) {
+      tabIndicator.classList.add('hidden');
+      tabIndicator.classList.remove('signup');
+      return;
+    }
     if (tab === 'signup') {
       tabIndicator.classList.add('signup');
       tabIndicator.classList.remove('hidden');
@@ -4444,7 +4484,7 @@
   }
 
   function getSlideDirection(from, to) {
-    const order = ['login', 'signup', 'forgot'];
+    const order = ['login', 'signup', 'forgot', 'reset'];
     const fromIndex = order.indexOf(from);
     const toIndex = order.indexOf(to);
     if (fromIndex === -1 || toIndex === -1) {
@@ -4551,18 +4591,15 @@
     });
   }
 
-  if (resendVerificationBtn) {
-    resendVerificationBtn.addEventListener('click', () => {
-      handleResendVerificationClick();
-    });
-  }
-
-  if (verificationRefreshBtn) {
-    verificationRefreshBtn.addEventListener('click', () => {
-      hideVerificationNotice();
-      setAuthFeedback('Si vous avez confirmé, connectez-vous ci-dessous ✅', 'info');
-      switchTab('login', { force: true, resetSuccess: false, instant: true });
-      loginEmailInput?.focus();
+  if (resetBackToLogin) {
+    resetBackToLogin.addEventListener('click', () => {
+      switchTab('login', { force: true, resetSuccess: true });
+      setTimeout(() => {
+        const loginInput = document.getElementById('loginEmail');
+        if (loginInput) {
+          loginInput.focus();
+        }
+      }, 220);
     });
   }
 
@@ -4722,6 +4759,49 @@
       setLoading(button, false);
     }
   });
+
+  if (resetForm) {
+    resetForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFieldErrors();
+      clearSuccessMessage();
+      if (!pendingResetToken) {
+        setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
+        return;
+      }
+      if (!validateResetPasswords()) {
+        return;
+      }
+      setLoading(resetSubmit, true);
+      try {
+        const password = resetPasswordInput?.value?.trim() || '';
+        const response = await api.post('/api/auth/reset-password', {
+          token: pendingResetToken,
+          password
+        });
+        const user = response?.data?.user || null;
+        if (user) {
+          authStore.set(user);
+          applyFavoritesFromUser(user);
+        }
+        updateAuthUI();
+        setAuthFeedback(response?.message || 'Mot de passe mis à jour 🔐', 'success');
+        showToast('Mot de passe mis à jour');
+        setPendingResetToken('');
+        if (resetPasswordInput) {
+          resetPasswordInput.value = '';
+        }
+        if (resetPasswordConfirmInput) {
+          resetPasswordConfirmInput.value = '';
+        }
+        setTimeout(() => closeAuthFn(), 1400);
+      } catch (error) {
+        setAuthFeedback(extractAuthErrorMessage(error), 'error');
+      } finally {
+        setLoading(resetSubmit, false);
+      }
+    });
+  }
 
   function updateAuthUI() {
     const auth = authStore.get();
@@ -7965,12 +8045,47 @@
   try {
     const currentUrl = new URL(window.location.href);
     const authParam = currentUrl.searchParams.get('auth');
-    if (authParam === 'login' || authParam === 'signup') {
+    const tokenParam = currentUrl.searchParams.get('token');
+    const verifyParam = currentUrl.searchParams.get('verify');
+    if (tokenParam) {
+      setPendingResetToken(tokenParam);
+    }
+    if (verifyParam === 'success') {
+      showToast('Email confirmé 🎉 Bienvenue sur MapMarket.');
+    } else if (verifyParam === 'invalid') {
       setTimeout(() => {
-        openAuth(authParam === 'signup' ? 'signupName' : 'loginEmail');
-        switchTab(authParam, { force: true, resetSuccess: true, instant: true });
+        openAuth('loginEmail', 'login');
+        setAuthFeedback(
+          'Ce lien de confirmation est invalide ou expiré. Demandez un nouveau mail.',
+          'error'
+        );
+      }, 350);
+    } else if (verifyParam === 'error') {
+      showToast('Impossible de confirmer votre email pour le moment. Réessayez plus tard.');
+    }
+    let shouldReplace = false;
+    if (authParam === 'login' || authParam === 'signup' || authParam === 'reset') {
+      setTimeout(() => {
+        const focusTarget =
+          authParam === 'signup'
+            ? 'signupName'
+            : authParam === 'reset'
+              ? 'resetPassword'
+              : 'loginEmail';
+        const initialTab = authParam || 'login';
+        openAuth(focusTarget, initialTab);
       }, 350);
       currentUrl.searchParams.delete('auth');
+      if (tokenParam) {
+        currentUrl.searchParams.delete('token');
+      }
+      shouldReplace = true;
+    }
+    if (verifyParam) {
+      currentUrl.searchParams.delete('verify');
+      shouldReplace = true;
+    }
+    if (shouldReplace) {
       const cleanedSearch = currentUrl.searchParams.toString();
       const nextUrl = `${currentUrl.pathname}${cleanedSearch ? `?${cleanedSearch}` : ''}${
         currentUrl.hash

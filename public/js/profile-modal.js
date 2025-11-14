@@ -13,6 +13,126 @@ const logger = window.__APP_LOGGER__ || {
   }
 };
 
+const API_BASE = resolveApiBase();
+
+function resolveApiBase() {
+  const candidates = [window.__API_BASE__, window.API_BASE];
+  for (const candidate of candidates) {
+    const normalized = normalizeApiBase(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  const origin = window.location?.origin || '';
+  const fallback = origin ? `${origin}/api/v1` : '/api/v1';
+  return normalizeApiBase(fallback);
+}
+
+function normalizeApiBase(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  const hasProtocol = /^https?:\/\//i.test(withoutTrailingSlash);
+  const isRelative = withoutTrailingSlash.startsWith('/');
+  let base = withoutTrailingSlash;
+  if (!hasProtocol && !isRelative) {
+    base = `https://${base}`;
+  }
+  if (/\/api(\/v\d+)?$/i.test(base)) {
+    return base;
+  }
+  return `${base}/api/v1`;
+}
+
+function buildApiUrl(path = '') {
+  if (typeof path === 'string' && /^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalizedBase = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+  if (!path) {
+    return normalizedBase;
+  }
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+async function apiRequest(path, { method = 'GET', body, headers = {} } = {}) {
+  const url = buildApiUrl(path);
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const requestHeaders = isFormData
+    ? headers
+    : {
+        'Content-Type': 'application/json',
+        ...headers
+      };
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: requestHeaders,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+    });
+  } catch (networkError) {
+    const error = new Error('Serveur injoignable. Vérifiez votre connexion.');
+    error.code = 'NETWORK_ERROR';
+    error.cause = networkError;
+    throw error;
+  }
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (_error) {
+    payload = null;
+  }
+
+  if (!response.ok || payload?.status === 'error') {
+    const message = payload?.message || `Erreur HTTP ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return unwrapApiPayload(payload);
+}
+
+function unwrapApiPayload(payload) {
+  if (!payload) {
+    return null;
+  }
+  if (payload.data && typeof payload.data === 'object') {
+    return payload.data;
+  }
+  return payload;
+}
+
+function buildUserFromStore(authUser) {
+  if (!authUser) {
+    return null;
+  }
+  return {
+    id: authUser._id || authUser.id || '',
+    name: authUser.name || authUser.username || 'Utilisateur',
+    email: authUser.email || '',
+    role: authUser.role || 'user',
+    isActive: authUser.isActive !== false,
+    memberSince: authUser.createdAt || authUser.memberSince || new Date().toISOString(),
+    avatarUrl: authUser.avatar || authUser.avatarUrl || '',
+    location: {
+      city: authUser.location?.city || authUser.city || '',
+      radiusKm: authUser.location?.radiusKm || authUser.radiusKm || 0
+    }
+  };
+}
+
 // === State ===
 const drawerState = {
   isOpen: false,
@@ -117,6 +237,90 @@ const ANALYTICS_OVERVIEW_DEFAULTS = Object.freeze({
   averageViews: 0,
   inventoryValue: 0
 });
+
+const STATS_SUMMARY_DEFAULTS = Object.freeze({
+  totalAds: 0,
+  activeAds: 0,
+  draftAds: 0,
+  archivedAds: 0,
+  totalViews: 0,
+  totalFavorites: 0,
+  inventoryValue: 0,
+  averagePrice: 0,
+  averageViews: 0
+});
+
+const STATS_PRICE_DEFAULTS = Object.freeze({
+  min: 0,
+  max: 0,
+  average: 0,
+  total: 0
+});
+
+const STATS_ENGAGEMENT_DEFAULTS = Object.freeze({
+  totalViews: 0,
+  totalFavorites: 0,
+  averageViews: 0,
+  averageFavorites: 0,
+  activeRate: 0
+});
+
+function createEmptyStats() {
+  return {
+    summary: { ...STATS_SUMMARY_DEFAULTS },
+    engagement: { ...STATS_ENGAGEMENT_DEFAULTS },
+    price: { ...STATS_PRICE_DEFAULTS },
+    recentActivity: []
+  };
+}
+
+function normalizeStatsData(rawStats) {
+  if (!rawStats) {
+    return createEmptyStats();
+  }
+  const base = unwrapApiPayload(rawStats) || {};
+  const summary = {
+    ...STATS_SUMMARY_DEFAULTS,
+    ...(typeof base.summary === 'object' ? base.summary : {})
+  };
+  const engagementInput = typeof base.engagement === 'object' ? base.engagement : {};
+  const priceInput = typeof base.price === 'object' ? base.price : {};
+
+  return {
+    ...base,
+    summary,
+    engagement: {
+      ...STATS_ENGAGEMENT_DEFAULTS,
+      ...engagementInput,
+      totalViews: Number(engagementInput.totalViews ?? summary.totalViews) || 0,
+      totalFavorites: Number(engagementInput.totalFavorites ?? summary.totalFavorites) || 0,
+      averageViews: Number(engagementInput.averageViews ?? summary.averageViews) || 0,
+      averageFavorites: Number(engagementInput.averageFavorites) || 0,
+      activeRate: Number(engagementInput.activeRate) || 0
+    },
+    price: {
+      ...STATS_PRICE_DEFAULTS,
+      ...priceInput,
+      min: Number(priceInput.min) || 0,
+      max: Number(priceInput.max) || 0,
+      average: Number(priceInput.average) || 0,
+      total: Number(priceInput.total) || 0
+    },
+    recentActivity: Array.isArray(base.recentActivity) ? base.recentActivity : []
+  };
+}
+
+function shouldCacheStats(stats) {
+  if (!stats || !stats.summary) {
+    return false;
+  }
+  const summary = stats.summary;
+  return (
+    (Number(summary.totalAds) || 0) > 0 ||
+    (Number(summary.totalViews) || 0) > 0 ||
+    (Number(summary.totalFavorites) || 0) > 0
+  );
+}
 
 function createEmptyAnalytics() {
   return {
@@ -400,20 +604,7 @@ async function confirmDeleteAccount() {
   showDeleteConfirmFeedback('⏳ Suppression en cours…', 'info');
 
   try {
-    const response = await fetch('/api/users/me', {
-      method: 'DELETE'
-    });
-
-    let result = {};
-    try {
-      result = await response.json();
-    } catch (err) {
-      logger.warn('Delete response not JSON:', err);
-    }
-
-    if (!response.ok) {
-      throw new Error(result.message || 'Erreur lors de la suppression');
-    }
+    await apiRequest('/users/me', { method: 'DELETE' });
 
     showDeleteConfirmFeedback('✓ Compte supprimé. Déconnexion…', 'success');
 
@@ -746,33 +937,25 @@ async function onSaveInfo(e) {
 
   try {
     const formData = new FormData(infoForm);
-    const response = await fetch('/api/users/me', {
+    const payload = await apiRequest('/users/me', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         name: formData.get('name'),
         email: formData.get('email')
-      })
+      }
     });
 
-    const result = await response.json();
-
-    if (response.ok) {
-      showFeedback(infoFeedback, 'Informations mises à jour', 'success');
-      // Clear cache to force refresh on next load
-      clearProfileCache();
-      // Update local state
-      if (drawerState.data?.user) {
-        drawerState.data.user.name = result.user?.name || formData.get('name');
-        drawerState.data.user.email = result.user?.email || formData.get('email');
-        renderHeader(drawerState.data.user);
-      }
-    } else {
-      showFeedback(infoFeedback, result.message || 'Erreur lors de la mise à jour', 'error');
+    showFeedback(infoFeedback, 'Informations mises à jour', 'success');
+    clearProfileCache();
+    if (drawerState.data?.user) {
+      const updatedUser = payload?.user || {};
+      drawerState.data.user.name = updatedUser.name || formData.get('name');
+      drawerState.data.user.email = updatedUser.email || formData.get('email');
+      renderHeader(drawerState.data.user);
     }
   } catch (err) {
     logger.error('Error saving info:', err);
-    showFeedback(infoFeedback, 'Erreur réseau', 'error');
+    showFeedback(infoFeedback, err.message || 'Erreur réseau', 'error');
   } finally {
     infoSubmit.disabled = false;
     infoSubmit.textContent = 'Enregistrer';
@@ -788,34 +971,36 @@ async function onSaveLocation(e) {
 
   try {
     const formData = new FormData(locationForm);
-    const response = await fetch('/api/users/me', {
+    const payload = await apiRequest('/users/me', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        'location.city': formData.get('city'),
-        'location.radiusKm': parseInt(formData.get('radiusKm'), 10) || 0
-      })
+      body: {
+        location: {
+          city: formData.get('city') || '',
+          radiusKm: parseInt(formData.get('radiusKm'), 10) || 0
+        }
+      }
     });
 
-    const result = await response.json();
-
-    if (response.ok) {
-      showFeedback(locationFeedback, 'Localisation mise à jour', 'success');
-      // Clear cache to force refresh on next load
-      clearProfileCache();
-      // Update local state
-      if (drawerState.data?.user) {
-        drawerState.data.user.location = drawerState.data.user.location || {};
-        drawerState.data.user.location.city = formData.get('city');
-        drawerState.data.user.location.radiusKm = parseInt(formData.get('radiusKm'), 10);
-        renderOverview(drawerState.data);
-      }
-    } else {
-      showFeedback(locationFeedback, result.message || 'Erreur lors de la mise à jour', 'error');
+    showFeedback(locationFeedback, 'Localisation mise à jour', 'success');
+    clearProfileCache();
+    if (drawerState.data?.user) {
+      const updatedLocation = payload?.user?.location || payload?.location || {};
+      const fallbackCity = formData.get('city') ?? '';
+      const parsedRadius = parseInt(formData.get('radiusKm'), 10);
+      const fallbackRadius = Number.isFinite(parsedRadius) ? parsedRadius : 0;
+      const nextRadius = Number.isFinite(updatedLocation.radiusKm)
+        ? updatedLocation.radiusKm
+        : fallbackRadius;
+      drawerState.data.user.location = {
+        ...(drawerState.data.user.location || {}),
+        city: updatedLocation.city ?? fallbackCity,
+        radiusKm: nextRadius
+      };
+      renderOverview(drawerState.data);
     }
   } catch (err) {
     logger.error('Error saving location:', err);
-    showFeedback(locationFeedback, 'Erreur réseau', 'error');
+    showFeedback(locationFeedback, err.message || 'Erreur réseau', 'error');
   } finally {
     locationSubmit.disabled = false;
     locationSubmit.textContent = 'Enregistrer';
@@ -849,27 +1034,21 @@ async function onChangePassword(e) {
   passwordSubmit.textContent = 'Changement...';
 
   try {
-    const response = await fetch('/api/users/me/change-password', {
+    await apiRequest('/users/me/change-password', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentPassword, newPassword })
+      body: { currentPassword, newPassword }
     });
 
-    const result = await response.json();
-
-    if (response.ok) {
-      showFeedback(passwordFeedback, 'Mot de passe changé avec succès', 'success');
-      passwordForm.reset();
-    } else {
-      if (result.message?.includes('actuel')) {
-        showError(currentPasswordError, result.message);
-      } else {
-        showFeedback(passwordFeedback, result.message || 'Erreur lors du changement', 'error');
-      }
-    }
+    showFeedback(passwordFeedback, 'Mot de passe changé avec succès', 'success');
+    passwordForm.reset();
   } catch (err) {
     logger.error('Error changing password:', err);
-    showFeedback(passwordFeedback, 'Erreur réseau', 'error');
+    const message = err?.message || 'Erreur lors du changement';
+    if (message.includes('actuel')) {
+      showError(currentPasswordError, message);
+    } else {
+      showFeedback(passwordFeedback, message, 'error');
+    }
   } finally {
     passwordSubmit.disabled = false;
     passwordSubmit.textContent = 'Changer le mot de passe';
@@ -917,20 +1096,12 @@ async function onUploadAvatar(file) {
     const formData = new FormData();
     formData.append('avatar', file);
 
-    const response = await fetch('/api/users/me/avatar', {
+    const result = await apiRequest('/users/me/avatar', {
       method: 'POST',
       body: formData
     });
 
-    const result = await response.json();
-
-    // Handle error responses
-    if (!response.ok) {
-      throw new Error(result.message || "Échec de l'upload");
-    }
-
-    // Extract avatarUrl from new flat response structure
-    const avatarUrl = result.data?.avatarUrl || result.avatarUrl;
+    const avatarUrl = result?.avatarUrl;
 
     if (!avatarUrl) {
       throw new Error("URL d'avatar manquante dans la réponse");
@@ -998,176 +1169,83 @@ function onDeleteAccount() {
 // === Fetch Profile Data ===
 async function fetchProfileData() {
   try {
-    // Try to get user from authStore first (local data)
     const authUser = window.authStore?.get();
+    const cachedStats = getCacheData(CACHE_KEYS.STATS);
+    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
+    let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
+    let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
 
     if (authUser) {
       logger.info('Using authStore user data');
+      const user = buildUserFromStore(authUser);
 
-      // Build user object from authStore
-      const user = {
-        id: authUser._id || authUser.id || '',
-        name: authUser.name || authUser.username || 'Utilisateur',
-        email: authUser.email || '',
-        role: authUser.role || 'user',
-        isActive: authUser.isActive !== false,
-        memberSince: authUser.createdAt || authUser.memberSince || new Date().toISOString(),
-        avatarUrl: authUser.avatar || authUser.avatarUrl || '',
-        location: {
-          city: authUser.location?.city || authUser.city || '',
-          radiusKm: authUser.location?.radiusKm || authUser.radiusKm || 0
-        }
-      };
-
-      // Try to get from cache first
-      let stats = getCacheData(CACHE_KEYS.STATS);
-      let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
-      let analyticsNormalized = false;
-
-      // If not in cache, fetch from API
       if (!stats || !analytics) {
         const [statsRes, analyticsRes] = await Promise.allSettled([
-          !stats
-            ? fetch('/api/users/me/stats')
-                .then((r) => (r.ok ? r.json() : null))
-                .catch(() => null)
-            : Promise.resolve({ data: stats }),
-          !analytics
-            ? fetch('/api/users/me/analytics')
-                .then((r) => (r.ok ? r.json() : null))
-                .catch(() => null)
-            : Promise.resolve({ data: analytics })
+          !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
+          !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
         ]);
 
-        // API now returns flat structure in data field (no nested envelope)
         if (!stats) {
-          stats =
-            statsRes.status === 'fulfilled' && statsRes.value?.data
-              ? statsRes.value.data
-              : {
-                  summary: {
-                    activeAds: 0,
-                    draftAds: 0,
-                    archivedAds: 0,
-                    totalViews: 0,
-                    totalFavorites: 0,
-                    inventoryValue: 0,
-                    averagePrice: 0,
-                    totalAds: 0,
-                    averageViews: 0
-                  },
-                  recentActivity: []
-                };
-          // Save to cache
-          if (stats.summary.totalAds > 0 || stats.summary.totalViews > 0) {
+          const statsSource = statsRes.status === 'fulfilled' ? statsRes.value : null;
+          stats = statsSource ? normalizeStatsData(statsSource) : createEmptyStats();
+          if (shouldCacheStats(stats)) {
             saveCacheData(CACHE_KEYS.STATS, stats);
           }
         }
 
         if (!analytics) {
-          analytics = normalizeAnalyticsData(
-            analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
-              ? analyticsRes.value.data
-              : null
-          );
-          analyticsNormalized = true;
-          // Save to cache
+          const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
+          analytics = normalizeAnalyticsData(analyticsPayload);
           if (shouldCacheAnalytics(analytics)) {
             saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
           }
         }
       }
 
-      if (!analyticsNormalized) {
-        analytics = normalizeAnalyticsData(analytics);
-      }
-
-      return { user, stats, analytics };
+      return {
+        user,
+        stats: stats || createEmptyStats(),
+        analytics: analytics || createEmptyAnalytics()
+      };
     }
 
-    // Fallback: try API if no authStore
     logger.warn('No authStore data, trying API');
-
-    // Try to get from cache first
-    let stats = getCacheData(CACHE_KEYS.STATS);
-    let analytics = getCacheData(CACHE_KEYS.ANALYTICS);
-    let analyticsNormalized = false;
-
     const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
-      fetch('/api/users/me')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      !stats
-        ? fetch('/api/users/me/stats')
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null)
-        : Promise.resolve({ data: stats }),
-      !analytics
-        ? fetch('/api/users/me/analytics')
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null)
-        : Promise.resolve({ data: analytics })
+      apiRequest('/users/me'),
+      !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
+      !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
     ]);
 
-    const apiUser = userRes.status === 'fulfilled' && userRes.value ? userRes.value : null;
+    const apiUserPayload = userRes.status === 'fulfilled' ? userRes.value : null;
+    const apiUser = apiUserPayload?.user || apiUserPayload;
+
+    if (!apiUser) {
+      throw new Error('Utilisateur introuvable');
+    }
 
     if (!stats) {
-      stats =
-        statsRes.status === 'fulfilled' && statsRes.value?.data
-          ? statsRes.value.data
-          : {
-              summary: {
-                activeAds: 0,
-                draftAds: 0,
-                archivedAds: 0,
-                totalViews: 0,
-                totalFavorites: 0,
-                inventoryValue: 0,
-                averagePrice: 0,
-                totalAds: 0,
-                averageViews: 0
-              },
-              recentActivity: []
-            };
-      // Save to cache
-      if (stats.summary.totalAds > 0 || stats.summary.totalViews > 0) {
+      const statsSource = statsRes.status === 'fulfilled' ? statsRes.value : null;
+      stats = statsSource ? normalizeStatsData(statsSource) : createEmptyStats();
+      if (shouldCacheStats(stats)) {
         saveCacheData(CACHE_KEYS.STATS, stats);
       }
     }
 
     if (!analytics) {
-      analytics = normalizeAnalyticsData(
-        analyticsRes.status === 'fulfilled' && analyticsRes.value?.data
-          ? analyticsRes.value.data
-          : null
-      );
-      analyticsNormalized = true;
-      // Save to cache
+      const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
+      analytics = normalizeAnalyticsData(analyticsPayload);
       if (shouldCacheAnalytics(analytics)) {
         saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
       }
     }
 
-    if (!analyticsNormalized) {
-      analytics = normalizeAnalyticsData(analytics);
-    }
-
     return {
-      user: apiUser?.user || {
-        id: '',
-        name: 'Utilisateur',
-        email: '',
-        role: 'user',
-        isActive: true,
-        memberSince: new Date().toISOString(),
-        avatarUrl: '',
-        location: { city: '', radiusKm: 0 }
-      },
-      stats,
-      analytics
+      user: apiUser,
+      stats: stats || createEmptyStats(),
+      analytics: analytics || createEmptyAnalytics()
     };
-  } catch (err) {
-    logger.error('Error fetching profile data:', err);
+  } catch (error) {
+    logger.error('[ProfileModal] Error fetching profile data:', error);
     return null;
   }
 }

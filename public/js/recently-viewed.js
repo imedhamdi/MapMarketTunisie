@@ -7,11 +7,53 @@
   'use strict';
 
   // ========== CONFIGURATION ==========
+  const API_BASE = resolveApiBase();
   const SECTION_ID = 'recentlyViewedSection';
   const TRACK_ID = 'recentlyViewedTrack';
   const BTN_PREV_ID = 'recentlyViewedPrev';
   const BTN_NEXT_ID = 'recentlyViewedNext';
   const SCROLL_STEP = 320; // Largeur approx. d'une carte + gap (ajuster si besoin)
+
+  function resolveApiBase() {
+    const candidates = [window.__API_BASE__, window.API_BASE];
+    for (const candidate of candidates) {
+      const normalized = normalizeApiBase(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+    const origin = window.location?.origin || '';
+    return origin ? `${origin}/api/v1` : '/api/v1';
+  }
+
+  function normalizeApiBase(value) {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    let base = value.trim();
+    if (!base) {
+      return null;
+    }
+    const hasProtocol = /^https?:\/\//i.test(base);
+    const isRelative = base.startsWith('/');
+    if (!hasProtocol && !isRelative) {
+      base = `https://${base}`;
+    }
+    base = base.replace(/\/+$/, '');
+    if (/\/api(\/v\d+)?$/i.test(base)) {
+      return base;
+    }
+    return `${base}/api/v1`;
+  }
+
+  function buildApiUrl(path) {
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+    const normalizedBase = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${normalizedBase}${normalizedPath}`;
+  }
 
   // ========== SÉLECTEURS SCOPÉS ==========
   const section = document.getElementById(SECTION_ID);
@@ -183,7 +225,7 @@
     // ...existing code...
 
     try {
-      const response = await fetch('/api/users/me/recently-viewed', {
+      const response = await fetch(buildApiUrl('/users/me/recently-viewed'), {
         credentials: 'include'
       });
 
@@ -227,7 +269,7 @@
 
     try {
       // ...existing code...
-      const response = await fetch('/api/users/me/recently-viewed', {
+      const response = await fetch(buildApiUrl('/users/me/recently-viewed'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
