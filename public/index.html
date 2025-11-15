@@ -1402,7 +1402,7 @@
 
   <!-- PROFILE MODAL -->
   <!-- Profile Drawer (nouveau pattern unifié) -->
-  <div id="profileDrawer" class="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="profileTitle" hidden>
+  <div id="profileDrawer" class="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="profileTitle" aria-describedby="profileA11yHelp" hidden>
     <div class="profile-overlay" data-close></div>
     <aside class="profile-panel">
       <!-- Header fixe avec avatar + identité + tabs -->
@@ -1412,6 +1412,12 @@
             <p class="profile-header__eyebrow">Espace personnel</p>
             <p class="profile-header__subtitle">Gérez votre présence sur MapMarket</p>
           </div>
+          <button class="profile-close" type="button" aria-label="Fermer le profil" title="Fermer" data-close>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div class="profile-identity-card">
@@ -1464,9 +1470,24 @@
           </div>
         </div>
 
-        <nav id="profileTabs" class="profile-tabs" role="tablist">
-          <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">Profil</button>
-          <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">Analytique</button>
+        <nav id="profileTabs" class="profile-tabs" role="tablist" aria-label="Navigation du profil">
+          <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="icon icon-tab">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Profil</span>
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="icon icon-tab">
+              <path d="M3 3v18h18"></path>
+              <rect x="7" y="12" width="3" height="6"></rect>
+              <rect x="12" y="9" width="3" height="9"></rect>
+              <rect x="17" y="6" width="3" height="12"></rect>
+            </svg>
+            <span>Analytique</span>
+          </button>
+          <span class="sr-only" id="profileSteps">Étapes: 1/2 Profil, 2/2 Analytique</span>
         </nav>
       </header>
 
@@ -1485,6 +1506,7 @@
                 <div class="profile-form-group">
                   <label for="profileNameInput">Nom</label>
                   <input type="text" id="profileNameInput" name="name" autocomplete="name" required />
+                  <span class="profile-form-hint" id="profileNameHint">Utilisez votre nom public. Minimum 2 caractères.</span>
                 </div>
                 <div class="profile-form-group">
                   <label for="profileEmailInput">Email</label>
@@ -1492,7 +1514,10 @@
                   <p class="profile-field-lock" role="note"><span aria-hidden="true">🔒</span> Adresse vérifiée. Contactez l’équipe support pour la modifier.</p>
                 </div>
                 <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
-                <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
+                <div class="profile-actions">
+                  <button type="button" class="profile-btn profile-btn--ghost" id="profileCancelBtn" aria-label="Annuler et fermer">Annuler</button>
+                  <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
+                </div>
               </form>
             </article>
 
@@ -1593,6 +1618,8 @@
         </div>
       </div>
     </div>
+    <!-- Aide accessibilité pour le lecteur d'écran -->
+    <p id="profileA11yHelp" class="sr-only">Ce panneau latéral est un dialogue modal. Utilisez la touche Echap pour fermer. La navigation au clavier est cyclique dans le panneau.</p>
   </div>
 
   <!-- Profile Modal Script -->
