@@ -780,7 +780,6 @@ function setActiveTab(tabName) {
       panel.classList.toggle('profile-panel--active', isActive);
     }
   });
-
 }
 
 function onTabClick(e) {
