@@ -131,7 +131,14 @@ app.use(
           'https://*.tile.openstreetmap.org',
           'https://tile.openstreetmap.org',
           'https://via.placeholder.com',
-          'https://unpkg.com'
+          'https://unpkg.com',
+          'https://mapmarket-images.s3.eu-west-3.amazonaws.com'
+        ],
+        mediaSrc: [
+          "'self'",
+          'data:',
+          'blob:',
+          'https://mapmarket-images.s3.eu-west-3.amazonaws.com'
         ],
         connectSrc: [
           "'self'",

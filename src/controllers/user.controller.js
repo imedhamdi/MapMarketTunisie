@@ -285,7 +285,7 @@ export async function updateLocation(req, res) {
 }
 
 export async function updateAvatar(req, res) {
-  if (!req.file) {
+  if (!req.file || !req.file.buffer) {
     return sendError(res, {
       statusCode: 400,
       code: 'NO_FILE',
@@ -294,9 +294,7 @@ export async function updateAvatar(req, res) {
   }
 
   try {
-    // Optimiser l'avatar avec Sharp
-    const avatarDir = 'uploads/avatars';
-    const optimized = await optimizeAvatar(req.file.path, avatarDir, req.user._id);
+    const optimized = await optimizeAvatar(req.file.buffer, req.user._id);
 
     // Mettre à jour l'utilisateur avec les URLs
     const user = await User.findByIdAndUpdate(
@@ -811,55 +809,7 @@ export const changePassword = async (req, res) => {
  * Upload/update user avatar
  */
 export async function uploadAvatar(req, res) {
-  try {
-    const userId = req.user?._id;
-    if (!userId) {
-      return sendError(res, {
-        statusCode: 401,
-        code: 'UNAUTHORIZED',
-        message: 'Non authentifié'
-      });
-    }
-
-    // Check if file was uploaded
-    if (!req.file) {
-      return sendError(res, {
-        statusCode: 400,
-        code: 'NO_FILE',
-        message: 'Aucun fichier fourni'
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return sendError(res, {
-        statusCode: 404,
-        code: 'USER_NOT_FOUND',
-        message: 'Utilisateur non trouvé'
-      });
-    }
-
-    // Update user avatar with the filename
-    user.avatar = req.file.filename;
-    await user.save();
-
-    // Return avatarUrl (full path) for direct frontend usage
-    const avatarUrl = `/uploads/avatars/${user.avatar}`;
-
-    return sendSuccess(res, {
-      message: 'Avatar mis à jour avec succès',
-      data: {
-        avatarUrl
-      }
-    });
-  } catch (error) {
-    logger.error("Erreur lors de l'upload de l'avatar", { error: error.message });
-    return sendError(res, {
-      statusCode: 500,
-      code: 'SERVER_ERROR',
-      message: "Erreur lors de l'upload de l'avatar"
-    });
-  }
+  return updateAvatar(req, res);
 }
 
 /**

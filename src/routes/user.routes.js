@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { Router } from 'express';
 import multer from 'multer';
 
@@ -27,19 +26,8 @@ import { uploadLimiter } from '../middlewares/rateLimit.js';
 import { cacheUser, invalidateUserCache } from '../middlewares/cache.js';
 
 const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, path.resolve('uploads/avatars'));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    const userId = req.user?._id ?? 'anonymous';
-    cb(null, `user-${userId}-${Date.now()}${ext}`);
-  }
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 2 * 1024 * 1024
   },

@@ -1,25 +1,19 @@
 import { randomBytes } from 'node:crypto';
-import { writeFile, rm, mkdir } from 'node:fs/promises';
-import path from 'node:path';
 import sharp from 'sharp';
 
 import logger from '../config/logger.js';
-
-const baseDir = path.resolve('uploads/chat');
-const thumbnailsDir = path.join(baseDir, 'thumbnails');
-
-async function ensureDir() {
-  await mkdir(baseDir, { recursive: true });
-  await mkdir(thumbnailsDir, { recursive: true });
-}
+import storage from '../services/storage.service.js';
 
 export async function storeAttachment({ buffer, mimetype, originalName, size, userId }) {
-  await ensureDir();
   const ext = mimetype.split('/')[1] || 'bin';
-  const key = `${Date.now()}-${randomBytes(6).toString('hex')}-${userId}.${ext}`;
-  const keyBase = key.replace(/\.[^/.]+$/, '');
-  const filePath = path.join(baseDir, key);
-  await writeFile(filePath, buffer);
+  const baseName = `${Date.now()}-${randomBytes(6).toString('hex')}-${userId}`;
+  const key = `chat/${userId}/attachments/${baseName}.${ext}`;
+  const keyBase = `chat/${userId}/attachments/${baseName}`;
+
+  const uploaded = await storage.uploadBuffer(buffer, {
+    key,
+    contentType: mimetype
+  });
 
   let thumbnailUrl = null;
   let width = null;
@@ -32,14 +26,18 @@ export async function storeAttachment({ buffer, mimetype, originalName, size, us
     height = metadata.height ?? null;
 
     const thumbName = `${keyBase}-thumb.webp`;
-    const thumbPath = path.join(thumbnailsDir, thumbName);
-    await image
+    const thumbBuffer = await image
       .clone()
       .resize(320, 320, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 80 })
-      .toFile(thumbPath);
+      .toBuffer();
 
-    thumbnailUrl = `/uploads/chat/thumbnails/${thumbName}`;
+    const thumbUpload = await storage.uploadBuffer(thumbBuffer, {
+      key: thumbName,
+      contentType: 'image/webp'
+    });
+
+    thumbnailUrl = thumbUpload.url;
   } catch (error) {
     logger.warn('Impossible de générer la miniature de la pièce jointe', {
       error: error.message
@@ -47,11 +45,11 @@ export async function storeAttachment({ buffer, mimetype, originalName, size, us
   }
 
   return {
-    key,
+    key: uploaded.key,
     mime: mimetype,
     size,
     originalName,
-    url: `/uploads/chat/${key}`,
+    url: uploaded.url,
     thumbnailUrl,
     width,
     height
@@ -59,14 +57,9 @@ export async function storeAttachment({ buffer, mimetype, originalName, size, us
 }
 
 async function deleteAttachment(key) {
-  const filePath = path.join(baseDir, key);
-  try {
-    await rm(filePath);
-  } catch (_e) {
-    // ignore if already gone
-  }
-  const thumbPath = path.join(thumbnailsDir, `${key.replace(/\.[^/.]+$/, '')}-thumb.webp`);
-  await rm(thumbPath).catch(() => {});
+  await storage.deleteObject(key);
+  const thumbKey = `${key.replace(/\.[^/.]+$/, '')}-thumb.webp`;
+  await storage.deleteObject(thumbKey);
 }
 
 export async function deleteAttachmentForUser(key, _userId) {

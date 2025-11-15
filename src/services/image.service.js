@@ -4,13 +4,10 @@
  */
 
 import sharp from 'sharp';
-import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { unlink, mkdir } from 'node:fs/promises';
 
 import logger from '../config/logger.js';
-
-const ADS_UPLOAD_DIR = path.resolve('uploads/ads');
+import storage from './storage.service.js';
 
 function isDataUri(value) {
   return typeof value === 'string' && value.startsWith('data:image/');
@@ -35,53 +32,67 @@ function parseDataUri(value) {
  * @param {string} userId - ID de l'utilisateur
  * @returns {Promise<Object>} - Chemins des fichiers générés
  */
-export async function optimizeAvatar(inputPath, outputDir, userId) {
-  const baseName = `avatar-${userId}`;
+export async function optimizeAvatar(input, userId) {
+  const baseName = `avatar-${userId}-${Date.now()}`;
 
   try {
     const results = {
       sizes: {}
     };
 
-    // Générer avatar en plusieurs tailles
-    const image = sharp(inputPath);
+    const image = sharp(input);
 
-    // Avatar standard (200x200)
-    const standardPath = path.join(outputDir, `${baseName}.jpg`);
-    await image
-      .clone()
-      .resize(200, 200, { fit: 'cover', position: 'center' })
-      .jpeg({ quality: 85 })
-      .toFile(standardPath);
-    results.standard = standardPath;
-    results.sizes.standard = '/uploads/avatars/' + path.basename(standardPath);
+    const variants = [
+      {
+        id: 'standard',
+        size: 200,
+        format: 'jpeg',
+        quality: 85,
+        suffix: '',
+        contentType: 'image/jpeg'
+      },
+      {
+        id: 'thumbnail',
+        size: 50,
+        format: 'jpeg',
+        quality: 80,
+        suffix: '-thumb',
+        contentType: 'image/jpeg'
+      },
+      {
+        id: 'webp',
+        size: 200,
+        format: 'webp',
+        quality: 85,
+        suffix: '',
+        contentType: 'image/webp'
+      }
+    ];
 
-    // Avatar thumbnail (50x50)
-    const thumbPath = path.join(outputDir, `${baseName}-thumb.jpg`);
-    await image
-      .clone()
-      .resize(50, 50, { fit: 'cover', position: 'center' })
-      .jpeg({ quality: 80 })
-      .toFile(thumbPath);
-    results.thumbnail = thumbPath;
-    results.sizes.thumbnail = '/uploads/avatars/' + path.basename(thumbPath);
+    for (const variant of variants) {
+      const pipeline = image
+        .clone()
+        .resize(variant.size, variant.size, { fit: 'cover', position: 'center' });
 
-    // WebP pour navigateurs modernes
-    const webpPath = path.join(outputDir, `${baseName}.webp`);
-    await image
-      .clone()
-      .resize(200, 200, { fit: 'cover', position: 'center' })
-      .webp({ quality: 85 })
-      .toFile(webpPath);
-    results.webp = webpPath;
-    results.sizes.webp = '/uploads/avatars/' + path.basename(webpPath);
+      if (variant.format === 'webp') {
+        pipeline.webp({ quality: variant.quality });
+      } else {
+        pipeline.jpeg({ quality: variant.quality });
+      }
+
+      const buffer = await pipeline.toBuffer();
+      const extension = variant.format === 'jpeg' ? 'jpg' : 'webp';
+      const key = `avatars/${userId}/${baseName}${variant.suffix}.${extension}`;
+
+      const uploaded = await storage.uploadBuffer(buffer, {
+        key,
+        contentType: variant.contentType
+      });
+      results[variant.id] = uploaded.url;
+      results.sizes[variant.id] = uploaded.url;
+    }
 
     logger.info('Avatar optimisé', { userId, paths: results.sizes });
-
-    // Supprimer l'original
-    if (inputPath !== standardPath) {
-      await unlink(inputPath).catch(() => {});
-    }
 
     return results;
   } catch (error) {
@@ -108,8 +119,6 @@ export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
       webpThumbnails: []
     };
   }
-
-  await mkdir(ADS_UPLOAD_DIR, { recursive: true });
 
   const results = {
     images: [],
@@ -139,24 +148,30 @@ export async function processAdImages(images = [], { prefix = 'ad' } = {}) {
         const baseImage = sharp(buffer).rotate();
 
         for (const variant of variants) {
-          const jpgName = `${baseName}-${variant.label}.jpg`;
-          const jpgPath = path.join(ADS_UPLOAD_DIR, jpgName);
-          await baseImage
+          const jpgBuffer = await baseImage
             .clone()
             .resize(variant.size, variant.size, { fit: 'cover', position: 'center' })
             .jpeg({ quality: 85 })
-            .toFile(jpgPath);
+            .toBuffer();
 
-          const webpName = `${baseName}-${variant.label}.webp`;
-          const webpPath = path.join(ADS_UPLOAD_DIR, webpName);
-          await baseImage
+          const jpgUpload = await storage.uploadBuffer(jpgBuffer, {
+            key: `ads/${baseName}-${variant.label}.jpg`,
+            contentType: 'image/jpeg'
+          });
+
+          const webpBuffer = await baseImage
             .clone()
             .resize(variant.size, variant.size, { fit: 'cover', position: 'center' })
             .webp({ quality: 85 })
-            .toFile(webpPath);
+            .toBuffer();
 
-          results[variant.key].push(`/uploads/ads/${jpgName}`);
-          results[variant.webpKey].push(`/uploads/ads/${webpName}`);
+          const webpUpload = await storage.uploadBuffer(webpBuffer, {
+            key: `ads/${baseName}-${variant.label}.webp`,
+            contentType: 'image/webp'
+          });
+
+          results[variant.key].push(jpgUpload.url);
+          results[variant.webpKey].push(webpUpload.url);
         }
 
         continue;

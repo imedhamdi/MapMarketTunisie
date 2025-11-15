@@ -112,6 +112,18 @@ const env = {
     typing: {
       debounceMs: Number(process.env.CHAT_TYPING_DEBOUNCE_MS ?? 3000)
     }
+  },
+
+  aws: {
+    region: process.env.AWS_REGION ?? '',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
+    s3: {
+      bucket: process.env.AWS_S3_BUCKET_NAME ?? '',
+      baseUrl: process.env.AWS_S3_BASE_URL ?? '',
+      endpoint: process.env.AWS_S3_ENDPOINT ?? '',
+      forcePathStyle: process.env.AWS_S3_FORCE_PATH_STYLE === 'true'
+    }
   }
 };
 

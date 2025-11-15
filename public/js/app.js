@@ -3443,20 +3443,34 @@
 
   const API_BASE = window.API_BASE || window.location.origin;
 
+  function withCacheBust(url, bustCache) {
+    if (!bustCache) {
+      return url;
+    }
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${Date.now()}`;
+  }
+
   // Utility function to get avatar URL with proper path and cache busting
   window.getAvatarUrl = function (avatarFilename, bustCache = false) {
     if (!avatarFilename) {
-      return '/uploads/avatars/default.jpg';
+      return withCacheBust('/uploads/avatars/default.jpg', bustCache);
     }
 
-    // If it's already a full path, use it as is
-    if (avatarFilename.startsWith('/uploads/avatars/')) {
-      return bustCache ? `${avatarFilename}?t=${Date.now()}` : avatarFilename;
+    const normalized = String(avatarFilename).trim();
+
+    // Already a full URL (S3, CDN, etc.)
+    if (/^https?:\/\//i.test(normalized)) {
+      return withCacheBust(normalized, bustCache);
     }
 
-    // Otherwise, build the path
-    const url = `/uploads/avatars/${avatarFilename}`;
-    return bustCache ? `${url}?t=${Date.now()}` : url;
+    // Already served from /uploads
+    if (normalized.startsWith('/uploads/avatars/')) {
+      return withCacheBust(normalized, bustCache);
+    }
+
+    // Otherwise, build the legacy path
+    return withCacheBust(`/uploads/avatars/${normalized}`, bustCache);
   };
 
   // Global function to update all avatar instances

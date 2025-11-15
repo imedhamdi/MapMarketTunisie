@@ -15,6 +15,15 @@ const logger = window.__APP_LOGGER__ || {
 
 const API_BASE = resolveApiBase();
 
+function appendCacheBuster(url) {
+  if (!url) {
+    return url;
+  }
+  const normalized = String(url);
+  const separator = normalized.includes('?') ? '&' : '?';
+  return `${normalized}${separator}t=${Date.now()}`;
+}
+
 function resolveApiBase() {
   const candidates = [window.__API_BASE__, window.API_BASE];
   for (const candidate of candidates) {
@@ -114,6 +123,15 @@ function unwrapApiPayload(payload) {
   return payload;
 }
 
+// === Utils ===
+function debounce(fn, delay = 300) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(null, args), delay);
+  };
+}
+
 function buildUserFromStore(authUser) {
   if (!authUser) {
     return null;
@@ -187,6 +205,7 @@ const infoFeedback = document.getElementById('profileInfoFeedback');
 const infoSubmit = document.getElementById('profileInfoSubmit');
 const nameInput = document.getElementById('profileNameInput');
 const emailInput = document.getElementById('profileEmailInput');
+const cancelBtn = document.getElementById('profileCancelBtn');
 
 const passwordForm = document.getElementById('profilePasswordForm');
 const passwordFeedback = document.getElementById('profilePasswordFeedback');
@@ -217,6 +236,11 @@ const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
 });
 
 const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
+
+// === UX/Behavior ===
+let analyticsLoaded = false;
+let initialFormValues = null;
+let hasUnsavedChanges = false;
 
 // Cache TTL: 5 minutes
 const CACHE_TTL = 5 * 60 * 1000;
@@ -757,6 +781,14 @@ function setActiveTab(tabName) {
       panel.classList.toggle('profile-panel--active', isActive);
     }
   });
+
+  // Lazy-load analytics when activating the tab the first time
+  if (tabName === 'analytics' && !analyticsLoaded) {
+    showLoadingSkeletons();
+    loadAnalyticsData().finally(() => {
+      analyticsLoaded = true;
+    });
+  }
 }
 
 function onTabClick(e) {
@@ -919,6 +951,12 @@ function renderSettings(user) {
   if (!user) return;
   if (nameInput) nameInput.value = user.name || '';
   if (emailInput) emailInput.value = user.email || '';
+  // capture initial values for dirty-checking
+  initialFormValues = {
+    name: nameInput?.value || '',
+    email: emailInput?.value || ''
+  };
+  hasUnsavedChanges = false;
 }
 
 // === Form Handlers ===
@@ -931,11 +969,16 @@ async function onSaveInfo(e) {
 
   try {
     const formData = new FormData(infoForm);
+    // sanitize/normalize
+    const name = String(formData.get('name') || '')
+      .trim()
+      .replace(/\s{2,}/g, ' ');
+    const email = String(formData.get('email') || '').trim();
     const payload = await apiRequest('/users/me', {
       method: 'PATCH',
       body: {
-        name: formData.get('name'),
-        email: formData.get('email')
+        name,
+        email
       }
     });
 
@@ -943,10 +986,13 @@ async function onSaveInfo(e) {
     clearProfileCache();
     if (drawerState.data?.user) {
       const updatedUser = payload?.user || {};
-      drawerState.data.user.name = updatedUser.name || formData.get('name');
-      drawerState.data.user.email = updatedUser.email || formData.get('email');
+      drawerState.data.user.name = updatedUser.name || name;
+      drawerState.data.user.email = updatedUser.email || email;
       renderHeader(drawerState.data.user);
     }
+    // reset dirty state
+    initialFormValues = { name: nameInput?.value || '', email: emailInput?.value || '' };
+    hasUnsavedChanges = false;
   } catch (err) {
     logger.error('Error saving info:', err);
     showFeedback(infoFeedback, err.message || 'Erreur réseau', 'error');
@@ -1057,7 +1103,7 @@ async function onUploadAvatar(file) {
     }
 
     // 3. Cache-busting - Update all avatar images with timestamp
-    const cacheBustedUrl = `${avatarUrl}?t=${Date.now()}`;
+    const cacheBustedUrl = appendCacheBuster(avatarUrl);
 
     if (avatarImg) {
       // Clean up blob URL
@@ -1115,23 +1161,40 @@ function onDeleteAccount() {
   openDeleteConfirm();
 }
 
+// === Unsaved changes helpers ===
+function computeUnsavedChanges() {
+  if (!initialFormValues) return false;
+  const current = {
+    name: nameInput?.value || '',
+    email: emailInput?.value || ''
+  };
+  return current.name !== initialFormValues.name || current.email !== initialFormValues.email;
+}
+
+function canCloseDrawer() {
+  hasUnsavedChanges = computeUnsavedChanges();
+  if (hasUnsavedChanges) {
+    return window.confirm('Vous avez des modifications non enregistrées. Fermer quand même ?');
+  }
+  return true;
+}
+
 // === Fetch Profile Data ===
 async function fetchProfileData() {
   try {
     const authUser = window.authStore?.get();
     const cachedStats = getCacheData(CACHE_KEYS.STATS);
-    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
+    // Defer analytics load until user opens the tab
     let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
-    let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
+    const analytics = null;
 
     if (authUser) {
       logger.info('Using authStore user data');
       const user = buildUserFromStore(authUser);
 
-      if (!stats || !analytics) {
-        const [statsRes, analyticsRes] = await Promise.allSettled([
-          !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
-          !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
+      if (!stats) {
+        const [statsRes] = await Promise.allSettled([
+          !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats)
         ]);
 
         if (!stats) {
@@ -1142,13 +1205,7 @@ async function fetchProfileData() {
           }
         }
 
-        if (!analytics) {
-          const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
-          analytics = normalizeAnalyticsData(analyticsPayload);
-          if (shouldCacheAnalytics(analytics)) {
-            saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
-          }
-        }
+        // analytics will be loaded on demand
       }
 
       return {
@@ -1159,10 +1216,9 @@ async function fetchProfileData() {
     }
 
     logger.warn('No authStore data, trying API');
-    const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
+    const [userRes, statsRes] = await Promise.allSettled([
       apiRequest('/users/me'),
-      !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
-      !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
+      !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats)
     ]);
 
     const apiUserPayload = userRes.status === 'fulfilled' ? userRes.value : null;
@@ -1180,13 +1236,7 @@ async function fetchProfileData() {
       }
     }
 
-    if (!analytics) {
-      const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
-      analytics = normalizeAnalyticsData(analyticsPayload);
-      if (shouldCacheAnalytics(analytics)) {
-        saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
-      }
-    }
+    // analytics will be loaded on demand in the analytics tab
 
     return {
       user: apiUser,
@@ -1196,6 +1246,22 @@ async function fetchProfileData() {
   } catch (error) {
     logger.error('[ProfileModal] Error fetching profile data:', error);
     return null;
+  }
+}
+
+async function loadAnalyticsData() {
+  try {
+    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
+    let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
+    if (!analytics) {
+      const payload = await apiRequest('/users/me/analytics');
+      analytics = normalizeAnalyticsData(payload);
+      if (shouldCacheAnalytics(analytics)) saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+    }
+    renderAnalytics(analytics);
+  } catch (err) {
+    logger.error('Failed to load analytics:', err);
+    showEmptyAnalytics();
   }
 }
 
@@ -1236,7 +1302,7 @@ async function openProfileDrawer(data) {
   // Render
   renderHeader(profileData.user);
   renderOverview(profileData);
-  renderAnalytics(profileData.analytics);
+  // Defer analytics rendering until the tab is opened
   renderSettings(profileData.user);
 
   // Restore last active tab
@@ -1272,6 +1338,8 @@ async function openProfileDrawer(data) {
 
 function closeProfileDrawer() {
   if (!drawer || !drawerState.isOpen) return;
+  // Prevent closing if there are unsaved changes unless confirmed
+  if (computeUnsavedChanges && !canCloseDrawer()) return;
 
   closeDeleteConfirm(true);
   drawer.classList.remove('is-open');
@@ -1333,7 +1401,61 @@ function init() {
 
   // Forms
   infoForm?.addEventListener('submit', onSaveInfo);
+  // realtime validation for name
+  nameInput?.addEventListener('input', () => {
+    const v = nameInput.value.trim();
+    if (v.length > 0 && v.length < 2) {
+      showFeedback(infoFeedback, 'Le nom doit contenir au moins 2 caractères', 'info');
+    } else {
+      showFeedback(infoFeedback, '', 'info');
+    }
+    hasUnsavedChanges = computeUnsavedChanges();
+  });
+  // track dirty state
+  infoForm?.addEventListener('input', () => {
+    hasUnsavedChanges = computeUnsavedChanges();
+  });
+  // autosave draft (localStorage) with debounce
+  const saveDraft = debounce(() => {
+    if (!infoForm) return;
+    const data = { name: nameInput?.value || '' };
+    try {
+      localStorage.setItem('profile_info_draft', JSON.stringify(data));
+    } catch {}
+  }, 800);
+  infoForm?.addEventListener('input', saveDraft);
+  // restore draft on init if present and not readonly
+  try {
+    const draftRaw = localStorage.getItem('profile_info_draft');
+    if (draftRaw) {
+      const draft = JSON.parse(draftRaw);
+      if (draft && typeof draft.name === 'string' && nameInput && !nameInput.value) {
+        nameInput.value = draft.name;
+      }
+    }
+  } catch {}
+  cancelBtn?.addEventListener('click', closeProfileDrawer);
   passwordForm?.addEventListener('submit', onChangePassword);
+  // realtime password validation
+  const pwNew = document.getElementById('profileNewPassword');
+  const pwConfirm = document.getElementById('profileConfirmPassword');
+  pwNew?.addEventListener('input', () => {
+    const v = pwNew.value;
+    if (v && v.length < 8) {
+      showError(newPasswordError, 'Minimum 8 caractères');
+    } else {
+      newPasswordError?.classList.remove('visible');
+      newPasswordError.textContent = '';
+    }
+  });
+  pwConfirm?.addEventListener('input', () => {
+    if (pwConfirm.value && pwNew && pwConfirm.value !== pwNew.value) {
+      showError(confirmPasswordError, 'Les mots de passe ne correspondent pas');
+    } else {
+      confirmPasswordError?.classList.remove('visible');
+      confirmPasswordError.textContent = '';
+    }
+  });
   deleteBtn?.addEventListener('click', onDeleteAccount);
 
   deleteConfirmInput?.addEventListener('input', handleDeleteConfirmInput);

@@ -1,12 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const audioDir = path.resolve('uploads/chat/audio');
-
-async function ensureAudioDir() {
-  await mkdir(audioDir, { recursive: true });
-}
+import storage from '../services/storage.service.js';
 
 function resolveExtension(mimetype, originalName) {
   if (mimetype && mimetype.includes('/')) {
@@ -38,18 +33,21 @@ export async function storeVoiceMessage({
   duration = null,
   waveform
 }) {
-  await ensureAudioDir();
   const ext = resolveExtension(mimetype, originalName);
-  const key = `${Date.now()}-${randomBytes(6).toString('hex')}-${userId}.${ext}`;
-  const filePath = path.join(audioDir, key);
-  await writeFile(filePath, buffer);
+  const baseName = `${Date.now()}-${randomBytes(6).toString('hex')}-${userId}`;
+  const key = `chat/${userId}/audio/${baseName}.${ext}`;
+  const uploaded = await storage.uploadBuffer(buffer, {
+    key,
+    contentType: mimetype || `audio/${ext}`,
+    cacheControl: 'public, max-age=86400'
+  });
   const numericDuration = Number(duration);
   const normalizedDuration = Number.isFinite(numericDuration)
     ? Math.max(0, Math.min(600, Math.round(numericDuration * 10) / 10))
     : null;
   return {
-    key,
-    url: `/uploads/chat/audio/${key}`,
+    key: uploaded.key,
+    url: uploaded.url,
     mime: mimetype || `audio/${ext}`,
     size,
     originalName,
