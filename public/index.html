@@ -1407,37 +1407,65 @@
     <aside class="profile-panel">
       <!-- Header fixe avec avatar + identité + tabs -->
       <header id="profileHeader" class="profile-header">
-        <button class="profile-close" data-close aria-label="Fermer le profil">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-        
-        <div class="profile-id">
-          <button class="profile-avatar" id="profileAvatarBtn" aria-label="Changer l'avatar" type="button">
-            <img id="profileAvatarImg" src="/uploads/avatars/default.jpg" alt="Avatar utilisateur" loading="lazy" />
-            <span class="profile-avatar-overlay" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
-              </svg>
-            </span>
-            <input id="profileAvatarInput" type="file" accept="image/*" hidden />
-          </button>
-          <div class="profile-meta">
-            <h2 id="profileTitle" class="profile-name">Mon profil</h2>
-            <p class="profile-email" id="profileEmail">email@example.com</p>
-            <p class="profile-memberSince" id="profileMemberSince">Membre depuis —</p>
-            <div class="profile-chips">
-              <span class="profile-chip" id="profileLocationChip">📍 —</span>
-              <span class="profile-chip" id="profileAdsCountChip">📋 0 annonces</span>
+        <div class="profile-header__top">
+          <div>
+            <p class="profile-header__eyebrow">Espace personnel</p>
+            <p class="profile-header__subtitle">Gérez votre présence sur MapMarket</p>
+          </div>
+        </div>
+
+        <div class="profile-identity-card">
+          <div class="profile-id">
+            <button class="profile-avatar" id="profileAvatarBtn" aria-label="Changer l'avatar" type="button">
+              <img id="profileAvatarImg" src="/uploads/avatars/default.jpg" alt="Avatar utilisateur" loading="lazy" />
+              <span class="profile-avatar-overlay" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+              </span>
+              <input id="profileAvatarInput" type="file" accept="image/*" hidden />
+            </button>
+            <div class="profile-meta">
+              <div class="profile-meta__primary">
+                <h2 id="profileTitle" class="profile-name">Mon profil</h2>
+                <span class="profile-badge" id="profileRoleBadge" hidden>Premium</span>
+              </div>
+              <p class="profile-email" id="profileEmail">email@example.com</p>
+              <p class="profile-memberSince" id="profileMemberSince">Membre depuis —</p>
+              <div class="profile-meta__chips">
+                <span class="profile-meta-chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 10c0 6-9 13-9 13S3 16 3 10a9 9 0 1 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span id="profileLocationChip">—</span>
+                </span>
+                <span class="profile-meta-chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <path d="M16 2v4"></path>
+                    <path d="M8 2v4"></path>
+                    <path d="M3 10h18"></path>
+                  </svg>
+                  <span id="profileAdsCountChip">0 annonces</span>
+                </span>
+              </div>
             </div>
+            <button class="profile-icon-btn profile-icon-btn--danger profile-id__delete" id="profileDeleteBtn" aria-label="Supprimer mon compte">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
         <nav id="profileTabs" class="profile-tabs" role="tablist">
-          <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">Aperçu</button>
+          <button role="tab" aria-selected="true" aria-controls="profilePanelOverview" id="tab-overview" data-tab="overview">Profil</button>
           <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">Analytique</button>
         </nav>
       </header>
@@ -1465,26 +1493,6 @@
                 </div>
                 <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
                 <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
-              </form>
-            </article>
-
-            <article class="profile-card profile-card--form">
-              <div class="profile-card-head">
-                <span class="profile-card-kicker">Zone d’activité</span>
-                <h3 class="profile-section-title">Localisation</h3>
-                <p class="profile-section-subtitle">Affinez la zone sur laquelle vous recevez des alertes.</p>
-              </div>
-              <form id="profileLocationForm" class="profile-form">
-                <div class="profile-form-group">
-                  <label for="profileCityInput">Ville</label>
-                  <input type="text" id="profileCityInput" name="city" autocomplete="address-level2" placeholder="Ex: Tunis" />
-                </div>
-                <div class="profile-form-group">
-                  <label for="profileRadiusInput">Rayon (km)</label>
-                  <input type="number" id="profileRadiusInput" name="radiusKm" min="1" max="200" step="1" />
-                </div>
-                <p class="profile-form-feedback" id="profileLocationFeedback" role="status" aria-live="polite"></p>
-                <button type="submit" class="profile-btn" id="profileLocationSubmit">Mettre à jour</button>
               </form>
             </article>
 
@@ -1516,14 +1524,6 @@
               </form>
             </article>
 
-            <article class="profile-card profile-danger profile-card--full">
-              <div class="profile-card-head">
-                <span class="profile-card-kicker">Action irréversible</span>
-                <h3 class="profile-section-title">Zone de danger</h3>
-                <p class="profile-section-subtitle profile-danger-text">La suppression de votre compte est définitive. Toutes vos données seront perdues.</p>
-              </div>
-              <button type="button" class="profile-btn profile-btn-danger" id="profileDeleteBtn">Supprimer le compte</button>
-            </article>
           </div>
         </div>
 

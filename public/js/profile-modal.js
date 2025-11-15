@@ -188,12 +188,6 @@ const infoSubmit = document.getElementById('profileInfoSubmit');
 const nameInput = document.getElementById('profileNameInput');
 const emailInput = document.getElementById('profileEmailInput');
 
-const locationForm = document.getElementById('profileLocationForm');
-const locationFeedback = document.getElementById('profileLocationFeedback');
-const locationSubmit = document.getElementById('profileLocationSubmit');
-const cityInput = document.getElementById('profileCityInput');
-const radiusInput = document.getElementById('profileRadiusInput');
-
 const passwordForm = document.getElementById('profilePasswordForm');
 const passwordFeedback = document.getElementById('profilePasswordFeedback');
 const passwordSubmit = document.getElementById('profilePasswordSubmit');
@@ -758,7 +752,9 @@ function setActiveTab(tabName) {
 
   Object.entries(panels).forEach(([key, panel]) => {
     if (panel) {
-      panel.hidden = key !== tabName;
+      const isActive = key === tabName;
+      panel.hidden = !isActive;
+      panel.classList.toggle('profile-panel--active', isActive);
     }
   });
 }
@@ -923,8 +919,6 @@ function renderSettings(user) {
   if (!user) return;
   if (nameInput) nameInput.value = user.name || '';
   if (emailInput) emailInput.value = user.email || '';
-  if (cityInput) cityInput.value = user.location?.city || '';
-  if (radiusInput) radiusInput.value = user.location?.radiusKm || '';
 }
 
 // === Form Handlers ===
@@ -959,51 +953,6 @@ async function onSaveInfo(e) {
   } finally {
     infoSubmit.disabled = false;
     infoSubmit.textContent = 'Enregistrer';
-  }
-}
-
-async function onSaveLocation(e) {
-  e.preventDefault();
-  if (!locationSubmit) return;
-
-  locationSubmit.disabled = true;
-  locationSubmit.textContent = 'Enregistrement...';
-
-  try {
-    const formData = new FormData(locationForm);
-    const payload = await apiRequest('/users/me', {
-      method: 'PATCH',
-      body: {
-        location: {
-          city: formData.get('city') || '',
-          radiusKm: parseInt(formData.get('radiusKm'), 10) || 0
-        }
-      }
-    });
-
-    showFeedback(locationFeedback, 'Localisation mise à jour', 'success');
-    clearProfileCache();
-    if (drawerState.data?.user) {
-      const updatedLocation = payload?.user?.location || payload?.location || {};
-      const fallbackCity = formData.get('city') ?? '';
-      const parsedRadius = parseInt(formData.get('radiusKm'), 10);
-      const fallbackRadius = Number.isFinite(parsedRadius) ? parsedRadius : 0;
-      const nextRadius = Number.isFinite(updatedLocation.radiusKm)
-        ? updatedLocation.radiusKm
-        : fallbackRadius;
-      drawerState.data.user.location = {
-        ...(drawerState.data.user.location || {}),
-        city: updatedLocation.city ?? fallbackCity,
-        radiusKm: nextRadius
-      };
-      renderOverview(drawerState.data);
-    }
-  } catch (err) {
-    logger.error('Error saving location:', err);
-    showFeedback(locationFeedback, err.message || 'Erreur réseau', 'error');
-  } finally {
-    locationSubmit.disabled = false;
-    locationSubmit.textContent = 'Enregistrer';
   }
 }
 
@@ -1384,7 +1333,6 @@ function init() {
 
   // Forms
   infoForm?.addEventListener('submit', onSaveInfo);
-  locationForm?.addEventListener('submit', onSaveLocation);
   passwordForm?.addEventListener('submit', onChangePassword);
   deleteBtn?.addEventListener('click', onDeleteAccount);
 
