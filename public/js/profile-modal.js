@@ -238,7 +238,6 @@ const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
 const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
 
 // === UX/Behavior ===
-let analyticsLoaded = false;
 let initialFormValues = null;
 let hasUnsavedChanges = false;
 
@@ -782,13 +781,6 @@ function setActiveTab(tabName) {
     }
   });
 
-  // Lazy-load analytics when activating the tab the first time
-  if (tabName === 'analytics' && !analyticsLoaded) {
-    showLoadingSkeletons();
-    loadAnalyticsData().finally(() => {
-      analyticsLoaded = true;
-    });
-  }
 }
 
 function onTabClick(e) {
@@ -1184,17 +1176,18 @@ async function fetchProfileData() {
   try {
     const authUser = window.authStore?.get();
     const cachedStats = getCacheData(CACHE_KEYS.STATS);
-    // Defer analytics load until user opens the tab
+    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
     let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
-    const analytics = null;
+    let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
 
     if (authUser) {
       logger.info('Using authStore user data');
       const user = buildUserFromStore(authUser);
 
-      if (!stats) {
-        const [statsRes] = await Promise.allSettled([
-          !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats)
+      if (!stats || !analytics) {
+        const [statsRes, analyticsRes] = await Promise.allSettled([
+          !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
+          !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
         ]);
 
         if (!stats) {
@@ -1205,7 +1198,13 @@ async function fetchProfileData() {
           }
         }
 
-        // analytics will be loaded on demand
+        if (!analytics) {
+          const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
+          analytics = normalizeAnalyticsData(analyticsPayload);
+          if (shouldCacheAnalytics(analytics)) {
+            saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+          }
+        }
       }
 
       return {
@@ -1216,9 +1215,10 @@ async function fetchProfileData() {
     }
 
     logger.warn('No authStore data, trying API');
-    const [userRes, statsRes] = await Promise.allSettled([
+    const [userRes, statsRes, analyticsRes] = await Promise.allSettled([
       apiRequest('/users/me'),
-      !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats)
+      !stats ? apiRequest('/users/me/stats') : Promise.resolve(stats),
+      !analytics ? apiRequest('/users/me/analytics') : Promise.resolve(analytics)
     ]);
 
     const apiUserPayload = userRes.status === 'fulfilled' ? userRes.value : null;
@@ -1236,7 +1236,13 @@ async function fetchProfileData() {
       }
     }
 
-    // analytics will be loaded on demand in the analytics tab
+    if (!analytics) {
+      const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
+      analytics = normalizeAnalyticsData(analyticsPayload);
+      if (shouldCacheAnalytics(analytics)) {
+        saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+      }
+    }
 
     return {
       user: apiUser,
@@ -1246,22 +1252,6 @@ async function fetchProfileData() {
   } catch (error) {
     logger.error('[ProfileModal] Error fetching profile data:', error);
     return null;
-  }
-}
-
-async function loadAnalyticsData() {
-  try {
-    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
-    let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
-    if (!analytics) {
-      const payload = await apiRequest('/users/me/analytics');
-      analytics = normalizeAnalyticsData(payload);
-      if (shouldCacheAnalytics(analytics)) saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
-    }
-    renderAnalytics(analytics);
-  } catch (err) {
-    logger.error('Failed to load analytics:', err);
-    showEmptyAnalytics();
   }
 }
 
@@ -1302,7 +1292,7 @@ async function openProfileDrawer(data) {
   // Render
   renderHeader(profileData.user);
   renderOverview(profileData);
-  // Defer analytics rendering until the tab is opened
+  renderAnalytics(profileData.analytics);
   renderSettings(profileData.user);
 
   // Restore last active tab
