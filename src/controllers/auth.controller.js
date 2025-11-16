@@ -2,16 +2,15 @@ import jwt from 'jsonwebtoken';
 import sanitizeHtml from 'sanitize-html';
 
 import env from '../config/env.js';
-import { sendResetPasswordEmail, sendEmailVerificationEmail } from '../config/mailer.js';
+import { sendTemporaryPasswordEmail, sendEmailVerificationEmail } from '../config/mailer.js';
 import User from '../models/user.model.js';
 import { finalizeEmailVerification } from '../services/emailVerification.service.js';
 import { sendSuccess, sendError, formatUser } from '../utils/responses.js';
 import {
-  createResetToken,
   createVerificationToken,
-  hashToken,
   hashPassword,
-  comparePassword
+  comparePassword,
+  generateTemporaryPassword
 } from '../utils/crypto.js';
 import { generateAuthTokens, setAuthCookies, clearAuthCookies } from '../utils/generateTokens.js';
 
@@ -148,54 +147,22 @@ export async function logout(_req, res) {
 
 export async function forgotPassword(req, res) {
   const { email } = req.body;
-  const user = await User.findOne({ email }).select('+resetTokenHash +resetTokenExp');
+  const user = await User.findOne({ email }).select('+password');
 
   if (user) {
-    const { token, hash, expiresAt } = createResetToken();
-    user.resetTokenHash = hash;
-    user.resetTokenExp = expiresAt;
+    const temporaryPassword = generateTemporaryPassword(8);
+    user.password = await hashPassword(temporaryPassword);
     await user.save({ validateBeforeSave: false });
 
     try {
-      await sendResetPasswordEmail(user.email, token);
+      await sendTemporaryPasswordEmail(user.email, temporaryPassword, user.name);
     } catch (error) {
-      console.error('Erreur envoi email reset', error);
+      console.error('Erreur envoi email mot de passe temporaire', error);
     }
   }
 
   return sendSuccess(res, {
-    message: 'Si un compte existe, un lien a été envoyé ✉️'
-  });
-}
-
-export async function resetPassword(req, res) {
-  const { token, password } = req.body;
-  const hashedToken = hashToken(token);
-
-  const user = await User.findOne({
-    resetTokenHash: hashedToken,
-    resetTokenExp: { $gt: new Date() }
-  }).select('+resetTokenHash +resetTokenExp');
-
-  if (!user) {
-    return sendError(res, {
-      statusCode: 400,
-      code: 'RESET_TOKEN_INVALID',
-      message: 'Lien invalide ou expiré.'
-    });
-  }
-
-  user.password = await hashPassword(password);
-  user.resetTokenHash = undefined;
-  user.resetTokenExp = undefined;
-  await user.save();
-
-  const tokens = generateAuthTokens(user);
-  setAuthCookies(res, tokens);
-
-  return sendSuccess(res, {
-    message: 'Mot de passe mis à jour 🔐',
-    data: { user: formatUser(user) }
+    message: 'Si un compte existe, un mot de passe temporaire a été envoyé ✉️'
   });
 }
 

@@ -74,31 +74,36 @@ async function sendMailgunMessage({ to, subject, text, html }) {
   }
 }
 
-export async function sendResetPasswordEmail(to, token) {
-  const resetUrl = buildUrlWithToken(env.resetBaseUrl, token);
-  const text = `Bonjour,
+export async function sendTemporaryPasswordEmail(to, password, name = '') {
+  const text = `Bonjour ${name || ''},
 
-Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien ci-dessous (valide 30 minutes) :
+Nous avons généré un nouveau mot de passe temporaire pour votre compte MapMarket :
 
-${resetUrl}
+${password}
 
-Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+Utilisez-le dès votre prochaine connexion, puis personnalisez votre mot de passe depuis l'onglet « Mon profil » pour sécuriser votre compte.
+
+Si vous n'êtes pas à l'origine de cette demande, changez immédiatement votre mot de passe depuis « Mon profil ».
 
 – L'équipe MapMarket`;
   const html = `<!doctype html>
 <html lang="fr">
 <body style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
-  <p>Bonjour,</p>
-  <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous (valide 30 minutes) :</p>
-  <p style="margin:24px 0">
-    <a href="${resetUrl}" style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none">Réinitialiser mon mot de passe</a>
-  </p>
-  <p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+  <p>Bonjour ${name || ''},</p>
+  <p>Voici votre nouveau mot de passe temporaire pour <strong>MapMarket</strong> :</p>
+  <p style="margin:24px 0;font-size:20px;font-weight:bold;letter-spacing:1px">${password}</p>
+  <p>Connectez-vous avec ce mot de passe, puis changez-le immédiatement depuis l'onglet <strong>« Mon profil »</strong> &gt; Sécurité.</p>
+  <p style="font-size:14px;color:#555">Si vous n'êtes pas à l'origine de cette demande, mettez à jour votre mot de passe depuis « Mon profil » sans attendre.</p>
   <p>– L'équipe MapMarket</p>
 </body>
 </html>`;
 
-  await sendMailgunMessage({ to, subject: 'Réinitialisation de votre mot de passe', text, html });
+  await sendMailgunMessage({
+    to,
+    subject: 'Votre mot de passe temporaire MapMarket',
+    text,
+    html
+  });
 }
 
 export async function sendEmailVerificationEmail(to, token, name = '') {

@@ -29,8 +29,6 @@ export function formatUser(user) {
   }
   const plain = user.toObject ? user.toObject({ versionKey: false }) : { ...user };
   delete plain.password;
-  delete plain.resetTokenHash;
-  delete plain.resetTokenExp;
   delete plain.emailVerificationTokenHash;
   delete plain.emailVerificationTokenExp;
   if (Array.isArray(plain.favorites)) {

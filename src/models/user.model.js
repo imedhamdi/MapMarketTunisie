@@ -57,9 +57,7 @@ const UserSchema = new Schema(
         viewedAt: { type: Date, default: Date.now }
       }
     ],
-    memberSince: { type: Date, default: Date.now },
-    resetTokenHash: { type: String, select: false },
-    resetTokenExp: { type: Date, select: false }
+    memberSince: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );

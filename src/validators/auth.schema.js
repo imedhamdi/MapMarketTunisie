@@ -31,11 +31,6 @@ export const forgotPasswordSchema = Joi.object({
   email: emailField.required()
 });
 
-export const resetPasswordSchema = Joi.object({
-  token: Joi.string().trim().required(),
-  password: passwordField.required()
-});
-
 export const verifyEmailSchema = Joi.object({
   token: Joi.string().trim().required()
 });

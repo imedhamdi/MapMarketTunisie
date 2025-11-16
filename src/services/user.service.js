@@ -317,58 +317,6 @@ class UserService {
 
     return true;
   }
-
-  /**
-   * Définir le token de réinitialisation du mot de passe
-   */
-  async setResetToken(userId, tokenHash, expiresAt) {
-    const startTime = Date.now();
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw createError.notFound('Utilisateur introuvable.');
-    }
-
-    user.resetTokenHash = tokenHash;
-    user.resetTokenExp = expiresAt;
-    await user.save({ validateBeforeSave: false });
-
-    logger.logDB('setResetToken', 'users', Date.now() - startTime);
-
-    return user;
-  }
-
-  /**
-   * Récupérer un utilisateur par token de réinitialisation
-   */
-  async getUserByResetToken(tokenHash) {
-    const startTime = Date.now();
-
-    const user = await User.findOne({
-      resetTokenHash: tokenHash,
-      resetTokenExp: { $gt: new Date() }
-    }).select('+resetTokenHash +resetTokenExp');
-
-    logger.logDB('getUserByResetToken', 'users', Date.now() - startTime);
-
-    return user;
-  }
-
-  /**
-   * Effacer le token de réinitialisation
-   */
-  async clearResetToken(userId) {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return;
-    }
-
-    user.resetTokenHash = undefined;
-    user.resetTokenExp = undefined;
-    await user.save();
-  }
 }
 
 export default new UserService();

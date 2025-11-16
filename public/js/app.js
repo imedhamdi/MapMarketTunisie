@@ -3421,21 +3421,15 @@
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
   const forgotForm = document.getElementById('forgotForm');
-  const resetForm = document.getElementById('resetForm');
   const loginEmailInput = document.getElementById('loginEmail');
-  const resetPasswordInput = document.getElementById('resetPassword');
-  const resetPasswordConfirmInput = document.getElementById('resetPasswordConfirm');
   const heroTitle = document.getElementById('heroTitle');
   const heroSubtitle = document.getElementById('heroSubtitle');
   const heroIcon = document.getElementById('heroIcon');
   const forgotTrigger = document.getElementById('forgotTrigger');
-  const resetBackToLogin = document.getElementById('resetBackToLogin');
-  const resetSubmit = document.getElementById('resetSubmit');
   let pendingVerificationEmail = '';
   let resendVerificationBtn = null;
   let verificationCooldownTimer = null;
   const VERIFICATION_COOLDOWN_MS = 60000;
-  let pendingResetToken = '';
   const backToLogin = document.getElementById('backToLogin');
   const passwordToggles = document.querySelectorAll('.password-toggle');
   const bottomNav = document.getElementById('bottomNav');
@@ -3820,7 +3814,7 @@
     authTrapActive = false;
   }
 
-  const forms = { login: loginForm, signup: signupForm, forgot: forgotForm, reset: resetForm };
+  const forms = { login: loginForm, signup: signupForm, forgot: forgotForm };
   let currentTab = 'login';
 
   const heroCopy = {
@@ -3836,13 +3830,8 @@
     },
     forgot: {
       title: 'Mot de passe oublié ?',
-      subtitle: 'Pas de souci, nous allons vous aider à récupérer votre compte',
+      subtitle: 'Recevez un mot de passe temporaire pour récupérer votre accès',
       icon: '🔑'
-    },
-    reset: {
-      title: 'Définissez un nouveau mot de passe',
-      subtitle: 'Choisissez un mot de passe sécurisé puis retrouvez votre compte',
-      icon: '🛡️'
     }
   };
 
@@ -4256,7 +4245,7 @@
   }
 
   function resetAuthForms() {
-    [loginForm, signupForm, forgotForm, resetForm].forEach((form) => form && form.reset());
+    [loginForm, signupForm, forgotForm].forEach((form) => form && form.reset());
     clearFeedback();
     Object.values(forms).forEach((form) =>
       form.classList.remove(
@@ -4287,24 +4276,6 @@
   function clearFeedback() {
     clearFieldErrors();
     clearSuccessMessage();
-  }
-
-  function setPendingResetToken(token) {
-    pendingResetToken = typeof token === 'string' ? token.trim() : '';
-  }
-
-  function validateResetPasswords() {
-    const password = resetPasswordInput?.value?.trim() || '';
-    const confirmation = resetPasswordConfirmInput?.value?.trim() || '';
-    if (password.length < 8) {
-      setAuthFeedback('Le mot de passe doit contenir au moins 8 caractères.', 'error');
-      return false;
-    }
-    if (password !== confirmation) {
-      setAuthFeedback('Les deux mots de passe ne correspondent pas.', 'error');
-      return false;
-    }
-    return true;
   }
 
   function buildVerificationMessage(reason = 'signup') {
@@ -4431,9 +4402,6 @@
       targetForm.classList.add('active');
       currentTab = tab;
       scheduleAuthMeasure();
-      if (tab === 'reset' && !pendingResetToken) {
-        setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
-      }
       return;
     }
 
@@ -4461,13 +4429,10 @@
 
     currentTab = tab;
     scheduleAuthMeasure();
-    if (tab === 'reset' && !pendingResetToken) {
-      setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
-    }
   }
 
   function updateTabUI(tab) {
-    const showTabs = tab !== 'reset';
+    const showTabs = true;
     const tabs = document.querySelector('.auth-tabs');
     if (tabs) {
       tabs.classList.toggle('hidden', !showTabs);
@@ -4498,7 +4463,7 @@
   }
 
   function getSlideDirection(from, to) {
-    const order = ['login', 'signup', 'forgot', 'reset'];
+    const order = ['login', 'signup', 'forgot'];
     const fromIndex = order.indexOf(from);
     const toIndex = order.indexOf(to);
     if (fromIndex === -1 || toIndex === -1) {
@@ -4595,18 +4560,6 @@
 
   if (backToLogin) {
     backToLogin.addEventListener('click', () => {
-      switchTab('login', { force: true, resetSuccess: true });
-      setTimeout(() => {
-        const loginInput = document.getElementById('loginEmail');
-        if (loginInput) {
-          loginInput.focus();
-        }
-      }, 220);
-    });
-  }
-
-  if (resetBackToLogin) {
-    resetBackToLogin.addEventListener('click', () => {
       switchTab('login', { force: true, resetSuccess: true });
       setTimeout(() => {
         const loginInput = document.getElementById('loginEmail');
@@ -4758,8 +4711,11 @@
     try {
       const email = document.getElementById('forgotEmail').value.trim();
       const response = await api.post('/api/auth/forgot-password', { email });
-      setAuthFeedback(response?.message || 'Si un compte existe, un lien a été envoyé.', 'success');
-      showToast('Email de réinitialisation envoyé');
+      setAuthFeedback(
+        response?.message || 'Si un compte existe, un mot de passe temporaire a été envoyé.',
+        'success'
+      );
+      showToast('Mot de passe temporaire envoyé');
       switchTab('login', { force: true, resetSuccess: false, instant: false });
       setTimeout(() => {
         const loginInput = document.getElementById('loginEmail');
@@ -4773,49 +4729,6 @@
       setLoading(button, false);
     }
   });
-
-  if (resetForm) {
-    resetForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      clearFieldErrors();
-      clearSuccessMessage();
-      if (!pendingResetToken) {
-        setAuthFeedback('Lien de réinitialisation invalide ou expiré.', 'error');
-        return;
-      }
-      if (!validateResetPasswords()) {
-        return;
-      }
-      setLoading(resetSubmit, true);
-      try {
-        const password = resetPasswordInput?.value?.trim() || '';
-        const response = await api.post('/api/auth/reset-password', {
-          token: pendingResetToken,
-          password
-        });
-        const user = response?.data?.user || null;
-        if (user) {
-          authStore.set(user);
-          applyFavoritesFromUser(user);
-        }
-        updateAuthUI();
-        setAuthFeedback(response?.message || 'Mot de passe mis à jour 🔐', 'success');
-        showToast('Mot de passe mis à jour');
-        setPendingResetToken('');
-        if (resetPasswordInput) {
-          resetPasswordInput.value = '';
-        }
-        if (resetPasswordConfirmInput) {
-          resetPasswordConfirmInput.value = '';
-        }
-        setTimeout(() => closeAuthFn(), 1400);
-      } catch (error) {
-        setAuthFeedback(extractAuthErrorMessage(error), 'error');
-      } finally {
-        setLoading(resetSubmit, false);
-      }
-    });
-  }
 
   function updateAuthUI() {
     const auth = authStore.get();
@@ -8059,11 +7972,7 @@
   try {
     const currentUrl = new URL(window.location.href);
     const authParam = currentUrl.searchParams.get('auth');
-    const tokenParam = currentUrl.searchParams.get('token');
     const verifyParam = currentUrl.searchParams.get('verify');
-    if (tokenParam) {
-      setPendingResetToken(tokenParam);
-    }
     if (verifyParam === 'success') {
       showToast('Email confirmé 🎉 Bienvenue sur MapMarket.');
     } else if (verifyParam === 'invalid') {
@@ -8078,21 +7987,18 @@
       showToast('Impossible de confirmer votre email pour le moment. Réessayez plus tard.');
     }
     let shouldReplace = false;
-    if (authParam === 'login' || authParam === 'signup' || authParam === 'reset') {
+    if (authParam === 'login' || authParam === 'signup' || authParam === 'forgot') {
       setTimeout(() => {
         const focusTarget =
           authParam === 'signup'
             ? 'signupName'
-            : authParam === 'reset'
-              ? 'resetPassword'
+            : authParam === 'forgot'
+              ? 'forgotEmail'
               : 'loginEmail';
         const initialTab = authParam || 'login';
         openAuth(focusTarget, initialTab);
       }, 350);
       currentUrl.searchParams.delete('auth');
-      if (tokenParam) {
-        currentUrl.searchParams.delete('token');
-      }
       shouldReplace = true;
     }
     if (verifyParam) {

@@ -17,8 +17,6 @@ services:
         value: 4000
       - key: CLIENT_ORIGIN
         value: https://mapmarket-tunisie.onrender.com
-      - key: RESET_BASE_URL
-        value: https://mapmarket-tunisie.onrender.com/reset-password
 
       # --- MongoDB --- (MONGO_URI obligatoire en prod selon env.js)
       - key: MONGO_URI
@@ -63,8 +61,6 @@ services:
         value: mapmarket.fr
       - key: MAILGUN_API_BASE_URL
         value: https://api.eu.mailgun.net/v3
-      - key: RESET_BASE_URL
-        value: https://mapmarket.fr/?auth=reset
       - key: VERIFY_EMAIL_BASE_URL
         value: https://mapmarket.fr/verify-email
 

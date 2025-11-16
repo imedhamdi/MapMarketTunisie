@@ -6,7 +6,6 @@ import {
   refresh,
   logout,
   forgotPassword,
-  resetPassword,
   verifyEmail,
   resendVerification,
   getMe
@@ -18,7 +17,6 @@ import {
   signupSchema,
   loginSchema,
   forgotPasswordSchema,
-  resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationSchema
 } from '../validators/auth.schema.js';
@@ -35,7 +33,6 @@ router.post(
   validate(forgotPasswordSchema),
   forgotPassword
 );
-router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 router.post('/verify-email', validate(verifyEmailSchema), verifyEmail);
 router.post('/resend-verification', validate(resendVerificationSchema), resendVerification);
 router.get('/me', optionalAuth, getMe);
