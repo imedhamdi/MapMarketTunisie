@@ -567,7 +567,23 @@ export async function initChatSocket(httpServer) {
         }
 
         // Terminer l'appel dans la base de données
-        await callService.endCall(callId, reason);
+        const { message, conversationId: logConversationId } = await callService.endCall(
+          callId,
+          reason,
+          { triggeredBy: userId }
+        );
+
+        const serializedLog = message?.toObject ? message.toObject() : message;
+        const targetConversationId =
+          logConversationId ||
+          conversationId ||
+          (message?.conversationId ? message.conversationId.toString() : null);
+        if (serializedLog && targetConversationId) {
+          io.to(`conversation:${targetConversationId}`).emit('message:new', {
+            conversationId: targetConversationId,
+            message: serializedLog
+          });
+        }
 
         // Notifier tous les participants
         io.to(`conversation:${conversationId}`).emit('call:ended', {
@@ -596,7 +612,22 @@ export async function initChatSocket(httpServer) {
         }
 
         // Marquer l'appel comme rejeté
-        await callService.rejectCall(callId);
+        const { message, conversationId: logConversationId } = await callService.rejectCall(
+          callId,
+          { triggeredBy: userId }
+        );
+
+        const serializedLog = message?.toObject ? message.toObject() : message;
+        const targetConversationId =
+          logConversationId ||
+          conversationId ||
+          (message?.conversationId ? message.conversationId.toString() : null);
+        if (serializedLog && targetConversationId) {
+          io.to(`conversation:${targetConversationId}`).emit('message:new', {
+            conversationId: targetConversationId,
+            message: serializedLog
+          });
+        }
 
         // Notifier l'initiateur
         io.to(`conversation:${conversationId}`).emit('call:rejected', {
@@ -624,7 +655,23 @@ export async function initChatSocket(httpServer) {
         }
 
         // Terminer l'appel avec raison "cancelled"
-        await callService.endCall(callId, 'cancelled');
+        const { message, conversationId: logConversationId } = await callService.endCall(
+          callId,
+          'cancelled',
+          { triggeredBy: userId }
+        );
+
+        const serializedLog = message?.toObject ? message.toObject() : message;
+        const targetConversationId =
+          logConversationId ||
+          conversationId ||
+          (message?.conversationId ? message.conversationId.toString() : null);
+        if (serializedLog && targetConversationId) {
+          io.to(`conversation:${targetConversationId}`).emit('message:new', {
+            conversationId: targetConversationId,
+            message: serializedLog
+          });
+        }
 
         // Notifier l'autre participant
         io.to(`conversation:${conversationId}`).emit('call:cancelled', {

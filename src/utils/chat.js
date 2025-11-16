@@ -140,6 +140,18 @@ export function formatConversationForUser(conversation, userId) {
                       : (rawLastMessage.audioDuration ?? null)
                 }
               : { duration: rawLastMessage.audioDuration ?? null }
+            : null,
+        call:
+          rawLastMessage.call && rawLastMessage.call.callId
+            ? {
+                ...rawLastMessage.call,
+                callId: normalizeIdValue(rawLastMessage.call.callId),
+                initiator: normalizeIdValue(rawLastMessage.call.initiator),
+                startedAt: rawLastMessage.call.startedAt
+                  ? new Date(rawLastMessage.call.startedAt)
+                  : null,
+                endedAt: rawLastMessage.call.endedAt ? new Date(rawLastMessage.call.endedAt) : null
+              }
             : null
       }
     : null;

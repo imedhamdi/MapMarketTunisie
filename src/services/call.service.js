@@ -2,8 +2,26 @@ import Call from '../models/call.model.js';
 import Conversation from '../models/conversation.model.js';
 import { createError } from '../utils/asyncHandler.js';
 import logger from '../config/logger.js';
+import messageService from './message.service.js';
 
 class CallService {
+  determineCallOutcome(call) {
+    if (!call) return 'failed';
+    if (call.status === 'missed' || call.endReason === 'timeout') {
+      return 'missed';
+    }
+    if (call.status === 'rejected' || call.endReason === 'rejected') {
+      return 'rejected';
+    }
+    if (call.endReason === 'cancelled') {
+      return 'cancelled';
+    }
+    if (call.status === 'failed' || call.endReason === 'error' || call.endReason === 'network') {
+      return 'failed';
+    }
+    return 'completed';
+  }
+
   /**
    * Créer un nouvel appel
    */
@@ -31,6 +49,38 @@ class CallService {
     } catch (error) {
       logger.error('CallService.createCall error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Enregistrer un résumé d'appel dans la conversation
+   */
+  async recordCallMessage(call) {
+    if (!call) return { message: null, conversationId: null };
+    try {
+      const conversationId =
+        call.conversation?._id?.toString?.() ?? call.conversation?.toString?.();
+      if (!conversationId) {
+        return { message: null, conversationId: null };
+      }
+      const payload = {
+        callId: call._id,
+        type: call.type,
+        status: this.determineCallOutcome(call),
+        reason: call.endReason || null,
+        duration: call.duration || 0,
+        startedAt: call.startedAt || null,
+        endedAt: call.endedAt || null,
+        initiator: call.initiator
+      };
+      const message = await messageService.createMessage(conversationId, call.initiator, '', {
+        type: 'call',
+        call: payload
+      });
+      return { message, conversationId };
+    } catch (error) {
+      logger.error('CallService.recordCallMessage error:', error);
+      return { message: null, conversationId: null };
     }
   }
 
@@ -70,11 +120,16 @@ class CallService {
   /**
    * Terminer un appel
    */
-  async endCall(callId, endReason = 'completed') {
+  async endCall(callId, endReason = 'completed', { triggeredBy = null } = {}) {
     try {
       const call = await Call.findById(callId);
       if (!call) {
         throw createError('Appel introuvable', 404);
+      }
+      if (call.status === 'ended' && call.endReason) {
+        const conversationId =
+          call.conversation?._id?.toString?.() ?? call.conversation?.toString?.();
+        return { call, message: null, conversationId, triggeredBy };
       }
 
       const endedAt = new Date();
@@ -89,12 +144,13 @@ class CallService {
         updateData.duration = Math.floor((endedAt - call.startedAt) / 1000);
       }
 
-      const updatedCall = await Call.findByIdAndUpdate(callId, updateData, { new: true }).populate(
-        'participants',
-        'username avatar'
-      );
+      const updatedCall = await Call.findByIdAndUpdate(callId, updateData, {
+        new: true
+      }).populate('participants', 'username avatar');
 
-      return updatedCall;
+      const { message, conversationId } = await this.recordCallMessage(updatedCall);
+
+      return { call: updatedCall, message, conversationId, triggeredBy };
     } catch (error) {
       logger.error('CallService.endCall error:', error);
       throw error;
@@ -145,7 +201,7 @@ class CallService {
   /**
    * Marquer un appel comme manqué
    */
-  async markAsMissed(callId) {
+  async markAsMissed(callId, { triggeredBy = null } = {}) {
     try {
       const call = await Call.findByIdAndUpdate(
         callId,
@@ -157,7 +213,9 @@ class CallService {
         { new: true }
       ).populate('participants', 'username avatar');
 
-      return call;
+      const { message, conversationId } = await this.recordCallMessage(call);
+
+      return { call, message, conversationId, triggeredBy };
     } catch (error) {
       logger.error('CallService.markAsMissed error:', error);
       throw error;
@@ -167,7 +225,7 @@ class CallService {
   /**
    * Rejeter un appel
    */
-  async rejectCall(callId) {
+  async rejectCall(callId, { triggeredBy = null } = {}) {
     try {
       const call = await Call.findByIdAndUpdate(
         callId,
@@ -179,7 +237,9 @@ class CallService {
         { new: true }
       ).populate('participants', 'username avatar');
 
-      return call;
+      const { message, conversationId } = await this.recordCallMessage(call);
+
+      return { call, message, conversationId, triggeredBy };
     } catch (error) {
       logger.error('CallService.rejectCall error:', error);
       throw error;

@@ -15,6 +15,23 @@ const AudioMetadataSchema = new Schema(
   { _id: false }
 );
 
+const CallSummarySchema = new Schema(
+  {
+    callId: { type: Schema.Types.ObjectId, ref: 'Call' },
+    type: { type: String, enum: ['audio', 'video'], default: 'audio' },
+    status: {
+      type: String,
+      enum: ['completed', 'cancelled', 'rejected', 'missed', 'failed']
+    },
+    reason: { type: String, default: null },
+    duration: { type: Number, default: 0 },
+    startedAt: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
+    initiator: { type: Schema.Types.ObjectId, ref: 'User' }
+  },
+  { _id: false }
+);
+
 const MessageSchema = new Schema(
   {
     conversationId: {
@@ -37,7 +54,7 @@ const MessageSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ['text', 'audio'],
+      enum: ['text', 'audio', 'call'],
       default: 'text',
       index: true
     },
@@ -70,6 +87,7 @@ const MessageSchema = new Schema(
       type: AudioMetadataSchema,
       default: null
     },
+    call: { type: CallSummarySchema, default: null },
     status: {
       type: String,
       enum: ['sent', 'delivered', 'read'],

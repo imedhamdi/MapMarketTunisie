@@ -9,6 +9,24 @@ const VoiceCallConsentSchema = new Schema(
   { _id: false }
 );
 
+const LastMessageCallSchema = new Schema(
+  {
+    callId: { type: Schema.Types.ObjectId, ref: 'Call', default: null },
+    status: {
+      type: String,
+      enum: ['completed', 'cancelled', 'rejected', 'missed', 'failed', null],
+      default: null
+    },
+    duration: { type: Number, default: null },
+    reason: { type: String, default: null },
+    startedAt: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
+    initiator: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    type: { type: String, enum: ['audio', 'video', null], default: null }
+  },
+  { _id: false }
+);
+
 /**
  * Modèle de conversation - Une conversation par annonce et par paire d'utilisateurs
  */
@@ -43,10 +61,11 @@ const ConversationSchema = new Schema(
       text: { type: String, default: '' },
       type: {
         type: String,
-        enum: ['text', 'audio'],
+        enum: ['text', 'audio', 'call'],
         default: 'text'
       },
       audioDuration: { type: Number, default: null },
+      call: { type: LastMessageCallSchema, default: null },
       sender: { type: Schema.Types.ObjectId, ref: 'User' },
       timestamp: { type: Date, default: Date.now }
     },

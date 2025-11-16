@@ -1024,6 +1024,15 @@
     const createdAt = raw.createdAt ? new Date(raw.createdAt) : new Date();
     const deliveredAt = raw.deliveredAt ? new Date(raw.deliveredAt) : null;
     const readAt = raw.readAt ? new Date(raw.readAt) : null;
+    const callData = raw.call
+      ? {
+          ...raw.call,
+          callId: raw.call.callId ? String(raw.call.callId) : null,
+          initiator: raw.call.initiator ? String(raw.call.initiator) : null,
+          startedAt: raw.call.startedAt ? new Date(raw.call.startedAt) : null,
+          endedAt: raw.call.endedAt ? new Date(raw.call.endedAt) : null
+        }
+      : null;
     return {
       id: String(raw.id || raw._id),
       clientTempId: raw.clientTempId || null,
@@ -1041,6 +1050,7 @@
         : null,
       attachments: Array.isArray(raw.attachments) ? raw.attachments : [],
       status: raw.status || 'sent',
+      call: callData,
       createdAt,
       deliveredAt,
       readAt
@@ -1641,13 +1651,16 @@
 
   function createMessageElement(message) {
     const isMine = message.sender === state.userId;
+    const isCallMessage = message.type === 'call' && message.call;
     const row = document.createElement('div');
     row.className = 'message-row';
     row.dataset.messageId = message.id;
     if (message.clientTempId) {
       row.dataset.clientId = message.clientTempId;
     }
-    if (isMine) {
+    if (isCallMessage) {
+      row.classList.add('message-row--call');
+    } else if (isMine) {
       row.classList.add('message-row--own');
     }
     const statusValue = message.status || 'sent';
@@ -1659,7 +1672,8 @@
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    if (isMine) bubble.classList.add('message-bubble--own');
+    if (isMine && !isCallMessage) bubble.classList.add('message-bubble--own');
+    if (isCallMessage) bubble.classList.add('message-bubble--call');
 
     const content = document.createElement('div');
     content.className = 'message-bubble__content';
@@ -1705,23 +1719,25 @@
       bubble.appendChild(attachments);
     }
 
-    const meta = document.createElement('div');
-    meta.className = 'message-bubble__meta';
+    if (!isCallMessage) {
+      const meta = document.createElement('div');
+      meta.className = 'message-bubble__meta';
 
-    const time = document.createElement('time');
-    time.className = 'message-bubble__time';
-    time.dateTime = message.createdAt.toISOString();
-    time.textContent = formatTime(message.createdAt);
-    meta.appendChild(time);
+      const time = document.createElement('time');
+      time.className = 'message-bubble__time';
+      time.dateTime = message.createdAt.toISOString();
+      time.textContent = formatTime(message.createdAt);
+      meta.appendChild(time);
 
-    if (isMine) {
-      const status = document.createElement('span');
-      status.className = 'message-bubble__status';
-      renderMessageStatus(status, message);
-      meta.appendChild(status);
+      if (isMine) {
+        const status = document.createElement('span');
+        status.className = 'message-bubble__status';
+        renderMessageStatus(status, message);
+        meta.appendChild(status);
+      }
+
+      bubble.appendChild(meta);
     }
-
-    bubble.appendChild(meta);
 
     row.appendChild(bubble);
 
@@ -1730,14 +1746,46 @@
 
   function renderMessageContent(container, message) {
     if (!container || !message) return;
-    const isAudio = (message.type || message.audio ? 'audio' : 'text') === 'audio' && message.audio;
+    const isCall = message.type === 'call' && message.call;
+    const isAudio =
+      !isCall && (message.type || message.audio ? 'audio' : 'text') === 'audio' && message.audio;
     container.classList.toggle('message-bubble__content--audio', Boolean(isAudio));
+    container.classList.toggle('message-bubble__content--call', Boolean(isCall));
     container.innerHTML = '';
+    if (isCall) {
+      container.appendChild(createCallSummary(message));
+      return;
+    }
     if (isAudio) {
       container.appendChild(createMessageAudioPlayer(message));
       return;
     }
     container.innerHTML = formatMessageText(message.text);
+  }
+
+  function createCallSummary(message) {
+    const call = message.call;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-call';
+    const iconName = getCallIconName(call?.status);
+    const icon = createIconElement(iconName, 'message-call__icon');
+    wrapper.appendChild(icon);
+
+    const body = document.createElement('div');
+    body.className = 'message-call__body';
+
+    const title = document.createElement('div');
+    title.className = 'message-call__title';
+    title.textContent = formatCallTitle(call);
+    body.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'message-call__meta';
+    meta.textContent = formatCallMeta(call, message.createdAt);
+    body.appendChild(meta);
+
+    wrapper.appendChild(body);
+    return wrapper;
   }
 
   function createMessageAudioPlayer(message) {
@@ -1783,15 +1831,12 @@
     const times = document.createElement('div');
     times.className = 'message-audio__times';
 
-    const currentTime = document.createElement('span');
-    currentTime.className = 'message-audio__time';
-    currentTime.textContent = '00:00';
-    times.appendChild(currentTime);
-
-    const duration = document.createElement('span');
-    duration.className = 'message-audio__duration';
-    duration.textContent = hasDuration ? formatDuration(providedDuration) : '--:--';
-    times.appendChild(duration);
+    const timeIndicator = document.createElement('span');
+    timeIndicator.className = 'message-audio__time';
+    timeIndicator.textContent = hasDuration
+      ? formatAudioTimeDisplay(0, providedDuration)
+      : formatDuration(0);
+    times.appendChild(timeIndicator);
 
     body.appendChild(times);
 
@@ -1809,8 +1854,7 @@
       playButton,
       progressBar: trackProgress,
       track,
-      currentTimeLabel: currentTime,
-      durationLabel: duration,
+      timeLabel: timeIndicator,
       audioElement: audioPlayer,
       initialDuration: hasDuration ? providedDuration : null
     });
@@ -1823,8 +1867,7 @@
     playButton,
     progressBar,
     track,
-    currentTimeLabel,
-    durationLabel,
+    timeLabel,
     audioElement,
     initialDuration
   }) {
@@ -1839,18 +1882,6 @@
       );
     };
 
-    const updateProgress = () => {
-      if (!currentTimeLabel || !progressBar) return;
-      currentTimeLabel.textContent = formatDuration(audioElement.currentTime || 0);
-      const duration = getAudioDuration();
-      if (!duration) {
-        progressBar.style.width = '0%';
-        return;
-      }
-      const percent = clamp((audioElement.currentTime / duration) * 100, 0, 100);
-      progressBar.style.width = `${percent}%`;
-    };
-
     const getAudioDuration = () => {
       if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
         knownDuration = audioElement.duration;
@@ -1858,15 +1889,27 @@
       return knownDuration && knownDuration > 0 ? knownDuration : audioElement.duration;
     };
 
-    const ensureDurationLabel = () => {
+    const updateTimeLabel = (durationOverride) => {
+      if (!timeLabel) return;
+      const duration = durationOverride ?? getAudioDuration();
+      const durationValue = Number.isFinite(duration) && duration > 0 ? duration : null;
+      const currentSeconds = audioElement.currentTime || 0;
+      timeLabel.textContent = durationValue
+        ? formatAudioTimeDisplay(currentSeconds, durationValue)
+        : formatDuration(currentSeconds);
+    };
+
+    const updateProgress = () => {
+      if (!progressBar) return;
       const duration = getAudioDuration();
-      if (
-        durationLabel &&
-        duration &&
-        (!initialDuration || durationLabel.textContent === '--:--')
-      ) {
-        durationLabel.textContent = formatDuration(duration);
+      if (!duration || duration <= 0) {
+        progressBar.style.width = '0%';
+        updateTimeLabel(duration);
+        return;
       }
+      const percent = clamp((audioElement.currentTime / duration) * 100, 0, 100);
+      progressBar.style.width = `${percent}%`;
+      updateTimeLabel(duration);
     };
 
     const updateVisualWidth = () => {
@@ -1903,14 +1946,11 @@
     });
 
     audioElement.addEventListener('loadedmetadata', () => {
-      ensureDurationLabel();
       updateVisualWidth();
       updateProgress();
     });
 
-    audioElement.addEventListener('timeupdate', () => {
-      updateProgress();
-    });
+    audioElement.addEventListener('timeupdate', updateProgress);
 
     audioElement.addEventListener('play', () => {
       ensureSingleAudioPlayback(audioElement);
@@ -1923,6 +1963,7 @@
         activeAudioPlayer = null;
       }
       setButtonState(false);
+      updateTimeLabel();
     });
 
     audioElement.addEventListener('ended', () => {
@@ -2039,12 +2080,17 @@
 
   function updateMessageElement(element, message) {
     const statusValue = message.status || 'sent';
+    const isCall = message.type === 'call' && message.call;
+    const isMine = message.sender === state.userId;
     element.classList.toggle('message-row--pending', statusValue === 'sending');
     element.classList.toggle('message-row--error', statusValue === 'failed');
+    element.classList.toggle('message-row--own', !isCall && isMine);
+    element.classList.toggle('message-row--call', isCall);
     element.dataset.messageId = message.id;
     const bubble = element.querySelector('.message-bubble');
     if (!bubble) return;
-    bubble.classList.toggle('message-bubble--own', message.sender === state.userId);
+    bubble.classList.toggle('message-bubble--own', !isCall && isMine);
+    bubble.classList.toggle('message-bubble--call', isCall);
 
     const content = bubble.querySelector('.message-bubble__content');
     if (content) {
@@ -2094,22 +2140,28 @@
 
     const metaBlock = bubble.querySelector('.message-bubble__meta');
     let status = bubble.querySelector('.message-bubble__status');
-    if (message.sender === state.userId) {
-      if (!status && metaBlock) {
-        status = document.createElement('span');
-        status.className = 'message-bubble__status';
-        metaBlock.appendChild(status);
+    if (isCall) {
+      if (status) status.remove();
+      const meta = bubble.querySelector('.message-bubble__meta');
+      if (meta) meta.remove();
+    } else {
+      if (message.sender === state.userId) {
+        if (!status && metaBlock) {
+          status = document.createElement('span');
+          status.className = 'message-bubble__status';
+          metaBlock.appendChild(status);
+        }
+        if (status) {
+          renderMessageStatus(status, message);
+        }
+      } else if (status) {
+        status.remove();
       }
-      if (status) {
-        renderMessageStatus(status, message);
+      const time = bubble.querySelector('.message-bubble__time');
+      if (time) {
+        time.dateTime = message.createdAt.toISOString();
+        time.textContent = formatTime(message.createdAt);
       }
-    } else if (status) {
-      status.remove();
-    }
-    const time = bubble.querySelector('.message-bubble__time');
-    if (time) {
-      time.dateTime = message.createdAt.toISOString();
-      time.textContent = formatTime(message.createdAt);
     }
   }
 
@@ -2160,7 +2212,8 @@
       attachments: Array.isArray(message.attachments) ? message.attachments : [],
       text: message.text || '',
       type: message.type || (message.audio ? 'audio' : 'text'),
-      audio: message.audio || null
+      audio: message.audio || null,
+      call: message.call || null
     };
     conversation.lastMessagePreview = preview;
     conversation.lastMessageAt = message.createdAt;
@@ -3204,6 +3257,9 @@
 
   function getMessagePreview(message) {
     if (!message) return '';
+    if (message.type === 'call' && message.call) {
+      return formatCallPreview(message.call);
+    }
     if ((message.type === 'audio' || message.audio) && message.audio) {
       const duration = message.audio.duration;
       return duration ? `Message vocal · ${formatDuration(duration)}` : 'Message vocal';
@@ -3266,6 +3322,76 @@
     const mm = minutes.toString().padStart(2, '0');
     const ss = secs.toString().padStart(2, '0');
     return `${mm}:${ss}`;
+  }
+
+  function formatAudioTimeDisplay(currentSeconds, durationSeconds) {
+    const current = formatDuration(currentSeconds);
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      return current;
+    }
+    return `${current} / ${formatDuration(durationSeconds)}`;
+  }
+
+  function formatCallPreview(call) {
+    const direction = getCallDirectionLabel(call?.initiator);
+    const status = formatCallStatusLabel(call?.status);
+    const duration = Number(call?.duration) > 0 ? formatDuration(call.duration) : null;
+    const parts = [`${direction} ${status}`.trim(), duration].filter(Boolean);
+    return parts.join(' · ');
+  }
+
+  function getCallDirectionLabel(initiatorId) {
+    if (!initiatorId || !state.userId) return 'Appel sortant';
+    return initiatorId === state.userId ? 'Appel sortant' : 'Appel entrant';
+  }
+
+  function formatCallStatusLabel(status) {
+    switch (status) {
+      case 'missed':
+        return 'manqué';
+      case 'rejected':
+        return 'rejeté';
+      case 'cancelled':
+        return 'annulé';
+      case 'failed':
+        return 'échoué';
+      case 'completed':
+      default:
+        return 'terminé';
+    }
+  }
+
+  function formatCallTitle(call) {
+    const directionLabel = getCallDirectionLabel(call?.initiator);
+    const statusLabel = formatCallStatusLabel(call?.status);
+    return `${directionLabel} ${statusLabel}`.trim();
+  }
+
+  function formatCallMeta(call, fallbackDate) {
+    const parts = [];
+    if (Number(call?.duration) > 0) {
+      parts.push(formatDuration(call.duration));
+    }
+    const date = call?.endedAt instanceof Date ? call.endedAt : fallbackDate;
+    if (date) {
+      parts.push(formatCallDateTime(date));
+    }
+    return parts.join(' · ') || formatCallStatusLabel(call?.status);
+  }
+
+  function formatCallDateTime(date) {
+    if (!(date instanceof Date)) return '';
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function getCallIconName(status) {
+    if (!status || status === 'completed') return 'phone';
+    return 'phone-off';
   }
 
   function formatRelativeTime(date) {
@@ -3385,6 +3511,15 @@
 
   // ==================== VOICE CALL FUNCTIONS ====================
 
+  function playRemoteAudioStream() {
+    const remoteEl = voiceCallModals.remoteAudio || document.getElementById('voiceCallRemoteAudio');
+    if (remoteEl?.srcObject) {
+      remoteEl.play().catch((e) => {
+        messagesDebugWarn('[Messages] Impossible de lire le flux audio', e);
+      });
+    }
+  }
+
   function setupVoiceCallManager() {
     messagesDebugLog('[Messages] setupVoiceCallManager appelé');
     if (!window.VoiceCallManager) {
@@ -3398,18 +3533,6 @@
     messagesDebugLog("[Messages] Création d'une nouvelle instance VoiceCallManager");
     voiceCallManager = new window.VoiceCallManager();
 
-    // Référence à l'élément audio distant
-    const remoteEl = voiceCallModals.remoteAudio || document.getElementById('voiceCallRemoteAudio');
-
-    // Fonction safePlay pour forcer la lecture après action utilisateur
-    const safePlay = () => {
-      if (remoteEl?.srcObject) {
-        remoteEl.play().catch((e) => {
-          messagesDebugWarn('[Messages] safePlay: erreur lecture', e);
-        });
-      }
-    };
-
     // Configurer les callbacks
     voiceCallManager.onStateChange = handleCallStateChange;
     voiceCallManager.onError = handleCallError;
@@ -3419,7 +3542,7 @@
     if (voiceCallModals.answerBtn) {
       voiceCallModals.answerBtn.addEventListener('click', () => {
         voiceCallManager.answerCall();
-        safePlay(); // Forcer la lecture après action utilisateur
+        playRemoteAudioStream(); // Forcer la lecture après action utilisateur
       });
     }
 
@@ -3557,7 +3680,7 @@
     voiceCallManager.initiateCall(activeConversationId, remoteUserId, remoteUsername);
 
     // Forcer la lecture après action utilisateur
-    safePlay();
+    playRemoteAudioStream();
   }
 
   async function handleCallConsentToggle(event) {

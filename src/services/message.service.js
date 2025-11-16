@@ -10,7 +10,7 @@ async function createMessage(
   conversationId,
   userId,
   text,
-  { attachments = [], clientTempId = null, type = 'text', audio = null } = {}
+  { attachments = [], clientTempId = null, type = 'text', audio = null, call = null } = {}
 ) {
   const convo = await Conversation.findById(conversationId);
   if (!convo) throw createError.notFound('Conversation introuvable');
@@ -21,6 +21,9 @@ async function createMessage(
   if (type === 'audio' && !audio) {
     throw createError.badRequest('Métadonnées audio manquantes');
   }
+  if (type === 'call' && !call) {
+    throw createError.badRequest('Métadonnées d’appel manquantes');
+  }
   const recipient = otherParticipant(convo, userId);
   const message = await Message.create({
     conversationId,
@@ -30,17 +33,20 @@ async function createMessage(
     attachments,
     clientTempId,
     type,
-    audio: type === 'audio' ? audio : null
+    audio: type === 'audio' ? audio : null,
+    call: type === 'call' ? call : null
   });
   // update conversation last message + unread count for recipient
+  const now = new Date();
   convo.lastMessage = {
     text: text || '',
     sender: userId,
-    timestamp: new Date(),
+    timestamp: now,
     type,
-    audioDuration: type === 'audio' ? (audio?.duration ?? null) : null
+    audioDuration: type === 'audio' ? (audio?.duration ?? null) : null,
+    call: type === 'call' ? call : null
   };
-  convo.lastMessageAt = new Date();
+  convo.lastMessageAt = now;
   convo.incrementUnread(recipient);
   // ensure conversation is visible for both participants after a new message
   convo.unhideForUser(recipient);
