@@ -29,11 +29,19 @@ function formatConsentEntry(entry) {
   };
 }
 
+function isAdStatusUnavailable(status) {
+  if (!status) return false;
+  const normalized = typeof status === 'string' ? status.toLowerCase() : status;
+  return normalized && normalized !== 'active';
+}
+
 export function formatConversationForUser(conversation, userId) {
   if (!conversation) return null;
   const obj = conversation.toObject ? conversation.toObject() : conversation;
   const unread = conversation.getUnreadCount ? conversation.getUnreadCount(userId) : 0;
   const adDoc = obj.adId && obj.adId._id ? obj.adId : obj.ad && obj.ad._id ? obj.ad : null;
+  const adIdValue =
+    adDoc?._id?.toString?.() ?? (typeof obj.adId === 'string' ? obj.adId : obj.adId?.toString?.());
   let ad = null;
   if (adDoc) {
     const thumbnails = Array.isArray(adDoc.thumbnails) ? adDoc.thumbnails : [];
@@ -60,12 +68,16 @@ export function formatConversationForUser(conversation, userId) {
     } else if (candidateCover && typeof candidateCover === 'object' && candidateCover.url) {
       cover = candidateCover.url;
     }
+    const status = adDoc.status || null;
+    const isDeleted = isAdStatusUnavailable(status);
     ad = {
       id: adDoc._id?.toString?.() ?? null,
       title: adDoc.title || '',
       price: adDoc.price ?? null,
       locationText: adDoc.locationText || '',
       ownerName: adDoc.owner?.name || '',
+      status,
+      isDeleted,
       thumbnail: cover,
       cover,
       thumbnails,
@@ -76,8 +88,6 @@ export function formatConversationForUser(conversation, userId) {
       media
     };
   }
-  const adIdValue =
-    adDoc?._id?.toString?.() ?? (typeof obj.adId === 'string' ? obj.adId : obj.adId?.toString?.());
 
   // Build otherParticipant object (the user opposite of current userId)
   let otherParticipant = null;

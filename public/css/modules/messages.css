@@ -985,6 +985,15 @@
   pointer-events: none;
 }
 
+.chat-panel__ad-thumb--disabled,
+.chat-panel__ad-thumb[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
+  border-color: var(--messages-border);
+  pointer-events: none;
+  filter: grayscale(0.65);
+}
+
 .chat-panel__ad-thumb--placeholder {
   display: flex;
   align-items: center;
@@ -1030,6 +1039,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.chat-panel__status {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  font-weight: 600;
 }
 
 /* Amélioration: Badge de statut dans le subtitle */

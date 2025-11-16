@@ -149,6 +149,18 @@
     return null;
   }
 
+  function normalizeAdStatus(status) {
+    if (status === null || status === undefined) return '';
+    return String(status).trim().toLowerCase();
+  }
+
+  function isAdUnavailable(ad) {
+    if (!ad) return false;
+    if (ad.isDeleted) return true;
+    const normalized = normalizeAdStatus(ad.status);
+    return normalized ? normalized !== 'active' : false;
+  }
+
   function gatherConversationAdImages(ad) {
     if (!ad) return [];
     const urls = [];
@@ -261,6 +273,7 @@
     dom.chatCallBtn = document.getElementById('chatCallBtn');
     dom.chatTitle = document.getElementById('chatTitle');
     dom.chatSubtitle = document.getElementById('chatSubtitle');
+    dom.chatAdStatus = document.getElementById('chatAdStatus');
     dom.chatBanner = document.getElementById('chatSecurityBanner');
     dom.chatBannerClose = document.getElementById('chatBannerClose');
     dom.messagesWrapper = document.querySelector('.chat-panel__messages-wrapper');
@@ -1478,19 +1491,34 @@
       dom.messagesLayout?.classList.remove('messages-layout--detail');
     }
     dom.chatTitle.textContent = conversation.title || 'Conversation';
-    const sellerName = conversation.ad?.ownerName || '';
-    const adTitle = conversation.ad?.title || '';
-    const city = conversation.ad?.locationText || '';
-    const priceLabel = formatPriceLabel(conversation.ad?.price);
+    const ad = conversation.ad || null;
+    const isAdDeleted = isAdUnavailable(ad);
+    const sellerName = ad?.ownerName || '';
+    const adTitle = ad?.title || '';
+    const city = ad?.locationText || '';
+    const priceLabel = formatPriceLabel(ad?.price);
     const subtitleParts = [sellerName, city, priceLabel].filter(Boolean);
     dom.chatSubtitle.textContent = subtitleParts.join(' • ') || sellerName || adTitle || '';
+    if (dom.chatAdStatus) {
+      if (isAdDeleted) {
+        dom.chatAdStatus.textContent = 'Annonce supprimée';
+        dom.chatAdStatus.removeAttribute('hidden');
+      } else {
+        dom.chatAdStatus.setAttribute('hidden', 'true');
+      }
+    }
 
     // Gérer la miniature de l'annonce
-    if (dom.chatAdThumb && conversation.ad) {
-      const adImage = getConversationAdPrimaryImage(conversation.ad);
+    if (dom.chatAdThumb && ad) {
+      const adImage = getConversationAdPrimaryImage(ad);
 
-      dom.chatAdThumb.title = `Voir l'annonce : ${adTitle}`;
-      dom.chatAdThumb.setAttribute('aria-label', `Voir l'annonce : ${adTitle}`);
+      if (isAdDeleted) {
+        dom.chatAdThumb.title = 'Annonce supprimée';
+        dom.chatAdThumb.setAttribute('aria-label', 'Annonce supprimée');
+      } else {
+        dom.chatAdThumb.title = `Voir l'annonce : ${adTitle}`;
+        dom.chatAdThumb.setAttribute('aria-label', `Voir l'annonce : ${adTitle}`);
+      }
       dom.chatAdThumb.innerHTML = '';
 
       if (adImage) {
@@ -1510,8 +1538,19 @@
         `;
       }
       dom.chatAdThumb.hidden = false;
+      dom.chatAdThumb.disabled = isAdDeleted;
+      if (isAdDeleted) {
+        dom.chatAdThumb.setAttribute('aria-disabled', 'true');
+        dom.chatAdThumb.classList.add('chat-panel__ad-thumb--disabled');
+      } else {
+        dom.chatAdThumb.removeAttribute('aria-disabled');
+        dom.chatAdThumb.classList.remove('chat-panel__ad-thumb--disabled');
+      }
     } else if (dom.chatAdThumb) {
       dom.chatAdThumb.hidden = true;
+      dom.chatAdThumb.disabled = false;
+      dom.chatAdThumb.removeAttribute('aria-disabled');
+      dom.chatAdThumb.classList.remove('chat-panel__ad-thumb--disabled');
     }
 
     dom.chatDelete.hidden = false;
@@ -1543,8 +1582,15 @@
     if (dom.chatSubtitle) {
       dom.chatSubtitle.textContent = 'Vos messages apparaîtront ici.';
     }
+    if (dom.chatAdStatus) {
+      dom.chatAdStatus.textContent = 'Annonce supprimée';
+      dom.chatAdStatus.setAttribute('hidden', 'true');
+    }
     if (dom.chatAdThumb) {
       dom.chatAdThumb.hidden = true;
+      dom.chatAdThumb.disabled = false;
+      dom.chatAdThumb.removeAttribute('aria-disabled');
+      dom.chatAdThumb.classList.remove('chat-panel__ad-thumb--disabled');
     }
     if (dom.chatDelete) {
       dom.chatDelete.hidden = true;
@@ -2178,7 +2224,9 @@
   function handleAdThumbClick() {
     if (!activeConversationId) return;
     const conversation = findConversation(activeConversationId);
+    if (dom.chatAdThumb?.disabled) return;
     if (!conversation?.ad) return;
+    if (isAdUnavailable(conversation.ad)) return;
     const fallback = buildAdFallbackFromConversation(conversation);
     const adIdRaw = conversation.ad.id || conversation.adId || fallback?.id;
     const adId = adIdRaw ? String(adIdRaw) : null;

@@ -5,7 +5,7 @@ import { formatConversationForUser } from '../utils/chat.js';
 import messageService from './message.service.js';
 
 const AD_SUMMARY_FIELDS =
-  'title price locationText owner thumbnails previews images photos pictures media cover coverUrl previewUrl';
+  'title price locationText owner thumbnails previews images photos pictures media cover coverUrl previewUrl status';
 
 function normalizeId(id) {
   return typeof id === 'object' && id !== null ? id.toString() : id;
