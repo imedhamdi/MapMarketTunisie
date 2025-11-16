@@ -1235,6 +1235,24 @@
   max-width: 100%;
 }
 
+.message-day-separator {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 6px;
+}
+
+.message-day-separator__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--messages-text-secondary);
+  padding: 4px 16px;
+  border-radius: var(--radius-xl);
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  text-transform: capitalize;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
 .message-avatar {
   display: flex;
   align-items: center;

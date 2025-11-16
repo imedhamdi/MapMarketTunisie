@@ -1643,7 +1643,14 @@
       }
       fragment.appendChild(dom.loadMoreButton);
     }
+    let lastDateKey = null;
     messages.forEach((message) => {
+      const messageDate = message.createdAt instanceof Date ? message.createdAt : new Date(message.createdAt);
+      const dayKey = messageDate ? messageDate.toDateString() : '';
+      if (dayKey && dayKey !== lastDateKey) {
+        fragment.appendChild(createMessageDateSeparator(messageDate));
+        lastDateKey = dayKey;
+      }
       fragment.appendChild(createMessageElement(message));
     });
     dom.chatMessages.replaceChildren(fragment);
@@ -1742,6 +1749,16 @@
     row.appendChild(bubble);
 
     return row;
+  }
+
+  function createMessageDateSeparator(date) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-day-separator';
+    const badge = document.createElement('span');
+    badge.className = 'message-day-separator__label';
+    badge.textContent = formatMessageDayLabel(date);
+    wrapper.appendChild(badge);
+    return wrapper;
   }
 
   function renderMessageContent(container, message) {
@@ -3253,6 +3270,21 @@
     if (!text) return '';
     const escaped = escapeHtml(text);
     return escaped.replace(/\n/g, '<br>');
+  }
+
+  function formatMessageDayLabel(date) {
+    if (!date) return '';
+    const target = date instanceof Date ? date : new Date(date);
+    const today = new Date();
+    if (target.toDateString() === today.toDateString()) return 'Aujourd’hui';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (target.toDateString() === yesterday.toDateString()) return 'Hier';
+    return target.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'short'
+    });
   }
 
   function getMessagePreview(message) {
