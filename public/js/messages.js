@@ -1645,7 +1645,8 @@
     }
     let lastDateKey = null;
     messages.forEach((message) => {
-      const messageDate = message.createdAt instanceof Date ? message.createdAt : new Date(message.createdAt);
+      const messageDate =
+        message.createdAt instanceof Date ? message.createdAt : new Date(message.createdAt);
       const dayKey = messageDate ? messageDate.toDateString() : '';
       if (dayKey && dayKey !== lastDateKey) {
         fragment.appendChild(createMessageDateSeparator(messageDate));
