@@ -1760,7 +1760,7 @@
 
 /* État focus - Style Messenger moderne */
 .chat-panel__input-row:focus-within {
-  border-color: var(--messages-accent);
+  border-color: #ff93a9;
   box-shadow: 0 6px 20px rgba(255, 77, 109, 0.12),
               0 0 0 4px var(--messages-accent-light),
               inset 0 1px 2px rgba(15, 23, 42, 0.01);

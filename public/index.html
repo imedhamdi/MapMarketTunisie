@@ -1478,6 +1478,14 @@
             </svg>
             <span>Profil</span>
           </button>
+          <button role="tab" aria-selected="false" aria-controls="profilePanelListings" id="tab-listings" data-tab="listings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="icon icon-tab">
+              <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+              <path d="M7 8h10"></path>
+              <path d="M7 12h4"></path>
+            </svg>
+            <span>Annonces</span>
+          </button>
           <button role="tab" aria-selected="false" aria-controls="profilePanelAnalytics" id="tab-analytics" data-tab="analytics">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="icon icon-tab">
               <path d="M3 3v18h18"></path>
@@ -1487,7 +1495,7 @@
             </svg>
             <span>Analytique</span>
           </button>
-          <span class="sr-only" id="profileSteps">Étapes: 1/2 Profil, 2/2 Analytique</span>
+          <span class="sr-only" id="profileSteps">Étapes: 1/3 Profil, 2/3 Annonces, 3/3 Analytique</span>
         </nav>
       </header>
 
@@ -1552,7 +1560,23 @@
           </div>
         </div>
 
-        <!-- Panel 2: Analytique -->
+        <!-- Panel 2: Annonces -->
+        <div id="profilePanelListings" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-listings" hidden>
+          <div class="profile-card profile-card--listings">
+            <div class="profile-card-head">
+              <span class="profile-card-kicker">Annonces</span>
+              <h3 class="profile-section-title">Vos annonces récentes</h3>
+              <p class="profile-section-subtitle">Un aperçu rapide de vos publications actives et à jour.</p>
+            </div>
+            <div class="profile-listings-grid" id="profileListingsGrid" role="list">
+              <div class="profile-empty-state" id="profileListingsEmpty">
+                <p>Aucune annonce publiée pour le moment.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Analytique -->
         <div id="profilePanelAnalytics" class="profile-panel-content" role="tabpanel" aria-labelledby="tab-analytics" hidden>
           <!-- KPIs -->
           <div class="profile-kpis" id="profileKpis">

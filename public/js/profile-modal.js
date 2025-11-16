@@ -171,6 +171,7 @@ const closeBtn = drawer?.querySelector('.profile-close');
 const tabs = drawer?.querySelectorAll('[role="tab"]');
 const panels = {
   overview: document.getElementById('profilePanelOverview'),
+  listings: document.getElementById('profilePanelListings'),
   analytics: document.getElementById('profilePanelAnalytics')
 };
 
@@ -198,6 +199,7 @@ const kpisEls = {
 const categoryChart = document.getElementById('analyticsCategoryChart');
 const topAds = document.getElementById('analyticsTopAds');
 const geoList = document.getElementById('analyticsGeoList');
+const listingsGrid = document.getElementById('profileListingsGrid');
 
 // Editable forms (Overview tab)
 const infoForm = document.getElementById('profileInfoForm');
@@ -225,9 +227,8 @@ const deleteConfirmBtnDefaultText = deleteConfirmBtn?.textContent || 'Supprimer 
 
 // === Formatters ===
 const numberFormatter = new Intl.NumberFormat('fr-FR');
-const currencyFormatter = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR',
+const currencyFormatter = new Intl.NumberFormat('fr-TN', {
+  minimumFractionDigits: 0,
   maximumFractionDigits: 0
 });
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
@@ -236,6 +237,16 @@ const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
 });
 
 const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
+const DEFAULT_AD_THUMBNAIL = '/icons/placeholder.svg';
+const AD_STATUS_LABELS = Object.freeze({
+  active: 'En ligne',
+  published: 'En ligne',
+  draft: 'Brouillon',
+  pending: 'En attente',
+  paused: 'En pause',
+  archived: 'Archivée',
+  inactive: 'Inactive'
+});
 
 // === UX/Behavior ===
 let initialFormValues = null;
@@ -395,6 +406,20 @@ function shouldCacheAnalytics(analytics) {
 }
 
 // === Helpers ===
+function escapeHtml(value = '') {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return value.replace(/[&<>"']/g, (char) => map[char] || char);
+}
+
 function resolveAvatarSrc(rawValue) {
   if (typeof window.getAvatarUrl === 'function') {
     return window.getAvatarUrl(rawValue);
@@ -403,6 +428,38 @@ function resolveAvatarSrc(rawValue) {
   if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) return rawValue;
   if (rawValue.startsWith('/')) return rawValue;
   return `/uploads/avatars/${rawValue}`;
+}
+
+function resolveAdThumbnail(rawValue) {
+  if (!rawValue) return DEFAULT_AD_THUMBNAIL;
+  if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) return rawValue;
+  if (rawValue.startsWith('/')) return rawValue;
+  return `/uploads/${rawValue}`;
+}
+
+function formatCurrencyDisplay(value) {
+  const numericValue = Number(value);
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return `${currencyFormatter.format(safeValue)} DT`;
+}
+
+function formatAdPrice(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return formatCurrencyDisplay(value);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.replace(/€/g, 'DT').trim();
+  }
+  return '—';
+}
+
+function getAdStatusLabel(status) {
+  if (!status) return '—';
+  const normalized = status.toLowerCase();
+  if (AD_STATUS_LABELS[normalized]) {
+    return AD_STATUS_LABELS[normalized];
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 // === Cache Helpers ===
@@ -839,6 +896,80 @@ function renderOverview(data) {
     const activeAds = stats.summary.activeAds || 0;
     adsCountChip.textContent = `📋 ${activeAds} annonce${activeAds > 1 ? 's' : ''}`;
   }
+
+  renderListings(stats);
+}
+
+function renderListings(stats) {
+  if (!listingsGrid) return;
+
+  const listings = Array.isArray(stats?.recentActivity) ? stats.recentActivity : [];
+  if (!listings.length) {
+    listingsGrid.innerHTML = `
+      <div class="profile-empty-state">
+        <p>Aucune annonce publiée pour le moment.</p>
+      </div>
+    `;
+    return;
+  }
+
+  listingsGrid.innerHTML = listings
+    .map((ad) => {
+      const rawTitle =
+        typeof ad.title === 'string' && ad.title.trim() ? ad.title.trim() : 'Annonce sans titre';
+      const safeTitle = escapeHtml(rawTitle);
+      const status = (ad.status || '').toLowerCase();
+      const statusLabel = escapeHtml(getAdStatusLabel(status));
+      const price = escapeHtml(formatAdPrice(ad.price));
+      const views = numberFormatter.format(Number(ad.views) || 0);
+      const favorites = numberFormatter.format(Number(ad.favorites) || 0);
+      const thumbnail = resolveAdThumbnail(ad.thumbnail);
+      const statusAttr = status || 'active';
+
+      const isArchived = status === 'archived' || status === 'inactive';
+      const actionsMarkup = isArchived
+        ? `
+            <button type="button" class="profile-listing-restore">
+              ↺ Remettre en ligne
+            </button>
+          `
+        : `
+            <div class="profile-listing-actions" role="group" aria-label="Actions sur l'annonce">
+              <button type="button" class="profile-listing-action" aria-label="Voir l'annonce">
+                <span aria-hidden="true">👁️</span>
+              </button>
+              <button type="button" class="profile-listing-action" aria-label="Modifier l'annonce">
+                <span aria-hidden="true">✏️</span>
+              </button>
+              <button type="button" class="profile-listing-action profile-listing-action--danger" aria-label="Supprimer l'annonce">
+                <span aria-hidden="true">🗑️</span>
+              </button>
+            </div>
+          `;
+
+      return `
+        <article class="profile-listing-card" role="listitem" data-status="${statusAttr}">
+          <div class="profile-listing-thumb">
+            <img src="${thumbnail}" alt="Miniature de ${safeTitle}" loading="lazy" decoding="async" />
+          </div>
+          <div class="profile-listing-body">
+            <div class="profile-listing-meta">
+              <span class="profile-listing-status" data-status="${statusAttr}">${statusLabel}</span>
+              <span class="profile-listing-price">${price}</span>
+            </div>
+            <p class="profile-listing-title" title="${safeTitle}">${safeTitle}</p>
+            <div class="profile-listing-bottom">
+              <div class="profile-listing-stats">
+                <span aria-label="Vues">👁️ ${views}</span>
+                <span aria-label="Favoris">❤️ ${favorites}</span>
+              </div>
+              ${actionsMarkup}
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
 }
 
 function renderAnalytics(analytics) {
@@ -873,7 +1004,7 @@ function renderAnalytics(analytics) {
     kpisEls.averageViews.textContent = numberFormatter.format(overview.averageViews || 0);
   }
   if (kpisEls.inventoryValue) {
-    kpisEls.inventoryValue.textContent = currencyFormatter.format(overview.inventoryValue || 0);
+    kpisEls.inventoryValue.textContent = formatCurrencyDisplay(overview.inventoryValue || 0);
   }
 
   // Category performance
