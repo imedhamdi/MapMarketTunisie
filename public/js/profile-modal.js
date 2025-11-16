@@ -164,6 +164,23 @@ const deleteConfirmState = {
   isLoading: false
 };
 
+function getCurrentUserId() {
+  const storeUser = window.authStore?.get?.();
+  if (storeUser && (storeUser._id || storeUser.id)) {
+    return storeUser._id || storeUser.id;
+  }
+  if (drawerState.data?.user?.id) {
+    return drawerState.data.user.id;
+  }
+  return null;
+}
+
+function getScopedCacheKey(baseKey) {
+  const userId = getCurrentUserId();
+  if (!userId) return null;
+  return `${baseKey}_${userId}`;
+}
+
 // === DOM Elements ===
 const drawer = document.getElementById('profileDrawer');
 const overlay = drawer?.querySelector('.profile-overlay');
@@ -502,8 +519,16 @@ function getCacheData(key) {
 
 function clearProfileCache() {
   try {
+    const statsKey = getScopedCacheKey(CACHE_KEYS.STATS);
+    const analyticsKey = getScopedCacheKey(CACHE_KEYS.ANALYTICS);
+
+    if (statsKey) localStorage.removeItem(statsKey);
+    if (analyticsKey) localStorage.removeItem(analyticsKey);
+
+    // Cleanup legacy keys without user scope
     localStorage.removeItem(CACHE_KEYS.STATS);
     localStorage.removeItem(CACHE_KEYS.ANALYTICS);
+
     logger.info('✓ Profile cache cleared');
   } catch (err) {
     logger.error('❌ Error clearing cache:', err);
@@ -1305,8 +1330,10 @@ function canCloseDrawer() {
 async function fetchProfileData() {
   try {
     const authUser = window.authStore?.get();
-    const cachedStats = getCacheData(CACHE_KEYS.STATS);
-    const cachedAnalytics = getCacheData(CACHE_KEYS.ANALYTICS);
+    const statsCacheKey = getScopedCacheKey(CACHE_KEYS.STATS);
+    const analyticsCacheKey = getScopedCacheKey(CACHE_KEYS.ANALYTICS);
+    const cachedStats = statsCacheKey ? getCacheData(statsCacheKey) : null;
+    const cachedAnalytics = analyticsCacheKey ? getCacheData(analyticsCacheKey) : null;
     let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
     let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
 
@@ -1323,16 +1350,16 @@ async function fetchProfileData() {
         if (!stats) {
           const statsSource = statsRes.status === 'fulfilled' ? statsRes.value : null;
           stats = statsSource ? normalizeStatsData(statsSource) : createEmptyStats();
-          if (shouldCacheStats(stats)) {
-            saveCacheData(CACHE_KEYS.STATS, stats);
+          if (shouldCacheStats(stats) && statsCacheKey) {
+            saveCacheData(statsCacheKey, stats);
           }
         }
 
         if (!analytics) {
           const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
           analytics = normalizeAnalyticsData(analyticsPayload);
-          if (shouldCacheAnalytics(analytics)) {
-            saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+          if (shouldCacheAnalytics(analytics) && analyticsCacheKey) {
+            saveCacheData(analyticsCacheKey, analytics);
           }
         }
       }
@@ -1361,16 +1388,16 @@ async function fetchProfileData() {
     if (!stats) {
       const statsSource = statsRes.status === 'fulfilled' ? statsRes.value : null;
       stats = statsSource ? normalizeStatsData(statsSource) : createEmptyStats();
-      if (shouldCacheStats(stats)) {
-        saveCacheData(CACHE_KEYS.STATS, stats);
+      if (shouldCacheStats(stats) && statsCacheKey) {
+        saveCacheData(statsCacheKey, stats);
       }
     }
 
     if (!analytics) {
       const analyticsPayload = analyticsRes.status === 'fulfilled' ? analyticsRes.value : null;
       analytics = normalizeAnalyticsData(analyticsPayload);
-      if (shouldCacheAnalytics(analytics)) {
-        saveCacheData(CACHE_KEYS.ANALYTICS, analytics);
+      if (shouldCacheAnalytics(analytics) && analyticsCacheKey) {
+        saveCacheData(analyticsCacheKey, analytics);
       }
     }
 
