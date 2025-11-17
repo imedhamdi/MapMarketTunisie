@@ -513,6 +513,19 @@
   z-index: 1;
 }
 
+.messages-layout > .mm-empty.mm-empty--sidebar {
+  position: static;
+  background: transparent;
+  max-width: none;
+  z-index: 0;
+  margin: 0;
+  padding: 20px;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  text-align: center;
+}
+
 .mm-empty.mm-empty-filter {
   justify-content: center;
   min-height: 160px;

@@ -1115,15 +1115,14 @@
     dom.conversationsList.innerHTML = '';
     if (!state.filteredConversations.length) {
       if (!state.loadingConversations) {
-        showConversationsEmpty(
-          state.searchTerm
-            ? {
-                icon: getIconMarkup('search'),
-                title: 'Aucun résultat',
-                text: 'Aucune conversation ne correspond à votre recherche.'
-              }
-            : undefined
-        );
+        const emptyContent = state.searchTerm
+          ? {
+              icon: getIconMarkup('search'),
+              title: 'Aucun résultat',
+              text: 'Aucune conversation ne correspond à votre recherche.'
+            }
+          : undefined;
+        showConversationsEmpty(emptyContent, { hideSidebar: !state.searchTerm });
       }
       return;
     }
@@ -1367,7 +1366,7 @@
     }
   }
 
-  function showConversationsEmpty(content) {
+  function showConversationsEmpty(content, options = {}) {
     if (!dom.conversationsEmpty) return;
     // Nouveau markup .mm-empty + rétrocompatibilité ancien.
     const icon =
@@ -1387,17 +1386,20 @@
     if (content?.text && text) text.textContent = content.text;
     dom.conversationsEmpty.hidden = false;
 
-    // Cacher chatPanel et messagesSidebar quand il n'y a pas de conversations
+    // Cacher chatPanel et (par défaut) la sidebar quand il n'y a pas de conversations
     if (dom.chatPanel) {
       dom.chatPanel.style.display = 'none';
     }
+    const hideSidebar = options.hideSidebar !== false;
     if (dom.sidebar) {
-      dom.sidebar.style.display = 'none';
+      dom.sidebar.style.display = hideSidebar ? 'none' : '';
     }
+    dom.conversationsEmpty?.classList.toggle('mm-empty--sidebar', !hideSidebar);
   }
 
   function hideConversationsEmpty() {
     if (dom.conversationsEmpty) {
+      dom.conversationsEmpty.classList.remove('mm-empty--sidebar');
       dom.conversationsEmpty.hidden = true;
     }
 
