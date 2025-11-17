@@ -1,5 +1,8 @@
 import { sendSuccess, sendError } from '../utils/responses.js';
-import { addNewsletterContact, NewsletterEmailExistsError } from '../services/newsletter.service.js';
+import {
+  addNewsletterContact,
+  NewsletterEmailExistsError
+} from '../services/newsletter.service.js';
 
 export async function subscribeNewsletter(req, res) {
   const { email } = req.body;
