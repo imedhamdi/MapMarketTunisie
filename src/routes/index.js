@@ -5,6 +5,7 @@ import userRoutes from './user.routes.js';
 import adRoutes from './ad.routes.js';
 import geocodeRoutes from './geocode.routes.js';
 import chatRoutes from './chat.routes.js';
+import newsletterRoutes from './newsletter.routes.js';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/users', userRoutes);
 router.use('/ads', adRoutes);
 router.use('/geocode', geocodeRoutes);
 router.use('/chat', chatRoutes);
+router.use('/newsletter', newsletterRoutes);
 
 export default router;

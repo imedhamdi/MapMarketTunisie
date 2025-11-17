@@ -936,6 +936,12 @@
   background: var(--color-surface-alt, #f8fafc);
 }
 
+.profile-kpis .profile-empty-state {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(520px, 100%);
+}
+
 .profile-empty-state svg {
   width: 72px;
   height: 72px;

@@ -7664,7 +7664,7 @@
     const newsletterEmail = document.getElementById('newsletterEmail');
     const newsletterBtn = newsletterForm?.querySelector('.mm-news__btn');
     if (newsletterForm) {
-      newsletterForm.addEventListener('submit', (event) => {
+      newsletterForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!newsletterEmail?.checkValidity()) {
           newsletterEmail?.reportValidity?.();
@@ -7674,13 +7674,21 @@
         if (newsletterBtn) {
           newsletterBtn.disabled = true;
         }
-        setTimeout(() => {
-          showToast('Merci ! Vous recevrez prochainement nos actualités.');
+        try {
+          const emailValue = newsletterEmail?.value?.trim();
+          const payload = await api.post('/api/newsletter', { email: emailValue });
+          showToast(payload?.message || 'Merci ! Vous recevrez prochainement nos actualités.');
           newsletterForm.reset();
+        } catch (error) {
+          const message =
+            error?.message || 'Une erreur est survenue. Réessayez dans quelques instants.';
+          showToast(message);
+          newsletterEmail?.focus?.();
+        } finally {
           if (newsletterBtn) {
             newsletterBtn.disabled = false;
           }
-        }, 600);
+        }
       });
     }
 
