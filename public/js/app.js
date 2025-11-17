@@ -4980,7 +4980,6 @@
       renderPhotoList();
       postStatus.textContent = '';
       postDraftBanner.hidden = true;
-      postAddressManuallyEdited = false;
       initPostMap();
       buildAttributesForm(postCategory.value);
       const draft = loadDraft();
@@ -5362,7 +5361,7 @@
       postMapInstance = L.map('postMap', {
         center: [36.8065, 10.1815],
         zoom: 12,
-        scrollWheelZoom: false
+        scrollWheelZoom: true
       });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
@@ -5446,8 +5445,6 @@
     }
   }
 
-  let postAddressManuallyEdited = false; // Track si l'utilisateur a modifié manuellement
-
   async function updateCityFromCoords(lat, lng) {
     const postAddress = document.getElementById('postAddress');
     if (!postAddress) {
@@ -5460,11 +5457,6 @@
     }
 
     reverseGeocodeTimer = setTimeout(async () => {
-      // Ne pas écraser si l'utilisateur a modifié manuellement le champ
-      if (postAddressManuallyEdited) {
-        return;
-      }
-
       const city = await reverseGeocode(lat, lng);
       if (city) {
         postAddress.value = city;
@@ -5973,11 +5965,6 @@
   });
 
   postUseLocation?.addEventListener('click', () => requestUserLocation());
-
-  // Détecter si l'utilisateur modifie manuellement le champ adresse
-  document.getElementById('postAddress')?.addEventListener('input', () => {
-    postAddressManuallyEdited = true;
-  });
 
   postModal?.addEventListener('click', (event) => {
     if (event.target === postModal) {
