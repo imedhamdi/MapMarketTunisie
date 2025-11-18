@@ -225,7 +225,6 @@ const infoSubmit = document.getElementById('profileInfoSubmit');
 const nameInput = document.getElementById('profileNameInput');
 const cancelBtn = document.getElementById('profileCancelBtn');
 const nameEditBtn = document.getElementById('profileNameEditBtn');
-const profileActions = document.querySelector('.profile-actions');
 
 const passwordForm = document.getElementById('profilePasswordForm');
 const passwordFeedback = document.getElementById('profilePasswordFeedback');
@@ -1126,11 +1125,11 @@ function toggleNameEdit() {
     isNameEditing = true;
     nameInput.removeAttribute('readonly');
     nameInput.focus();
-    
+
     // Switch icons
     if (editIcon) editIcon.style.display = 'none';
     if (saveIcon) saveIcon.style.display = 'block';
-    
+
     // Update button attributes
     nameEditBtn.setAttribute('aria-label', 'Enregistrer le nom');
     nameEditBtn.setAttribute('title', 'Enregistrer');
@@ -1140,9 +1139,6 @@ function toggleNameEdit() {
 async function saveNameInline() {
   if (!nameInput || !nameEditBtn) return;
 
-  const editIcon = nameEditBtn.querySelector('.profile-input-icon--edit');
-  const saveIcon = nameEditBtn.querySelector('.profile-input-icon--save');
-  
   const newName = nameInput.value.trim();
 
   // Validation
@@ -1170,21 +1166,21 @@ async function saveNameInline() {
 
     showFeedback(infoFeedback, '✓ Nom mis à jour avec succès', 'success');
     clearProfileCache();
-    
+
     if (drawerState.data?.user) {
       const updatedUser = payload?.user || {};
       drawerState.data.user.name = updatedUser.name || newName;
       renderHeader(drawerState.data.user);
     }
-    
+
     // Update initial values
     initialFormValues = { name: newName };
     hasUnsavedChanges = false;
-    
+
     // Exit edit mode after showing success message
     setTimeout(() => {
       exitNameEditMode();
-      
+
       // Clear success message after additional delay
       setTimeout(() => {
         if (infoFeedback && infoFeedback.classList.contains('success')) {
@@ -1192,7 +1188,6 @@ async function saveNameInline() {
         }
       }, 2000);
     }, 2000);
-    
   } catch (err) {
     logger.error('Error saving name:', err);
     showFeedback(infoFeedback, `❌ ${err.message || 'Erreur réseau'}`, 'error');
@@ -1209,15 +1204,15 @@ function exitNameEditMode() {
 
   isNameEditing = false;
   nameInput.setAttribute('readonly', 'readonly');
-  
+
   // Switch icons back
   if (editIcon) editIcon.style.display = 'block';
   if (saveIcon) saveIcon.style.display = 'none';
-  
+
   // Update button attributes
   nameEditBtn.setAttribute('aria-label', 'Modifier le nom');
   nameEditBtn.setAttribute('title', 'Modifier');
-  
+
   // Only clear feedback if it's not a success message
   if (infoFeedback && !infoFeedback.classList.contains('success')) {
     showFeedback(infoFeedback, '', 'info');
@@ -1241,18 +1236,18 @@ function togglePasswordEdit() {
     isPasswordEditing = true;
     currentPasswordInput.removeAttribute('readonly');
     currentPasswordInput.focus();
-    
+
     // Show new password and confirm fields
     if (newPasswordGroup) newPasswordGroup.style.display = 'flex';
     if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'flex';
-    
+
     // Show cancel button
     if (passwordCancelBtn) passwordCancelBtn.style.display = 'flex';
-    
+
     // Switch icons
     if (editIcon) editIcon.style.display = 'none';
     if (saveIcon) saveIcon.style.display = 'block';
-    
+
     // Update button attributes
     passwordEditBtn.setAttribute('aria-label', 'Enregistrer le mot de passe');
     passwordEditBtn.setAttribute('title', 'Enregistrer');
@@ -1260,7 +1255,9 @@ function togglePasswordEdit() {
 }
 
 async function savePasswordInline() {
-  if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput || !passwordEditBtn) return;
+  if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput || !passwordEditBtn) {
+    return;
+  }
 
   clearErrors();
 
@@ -1294,14 +1291,14 @@ async function savePasswordInline() {
 
     showFeedback(passwordFeedback, '✓ Mot de passe changé avec succès', 'success');
     clearProfileCache();
-    
+
     // Reset form and exit edit mode after showing success message
     passwordForm.reset();
-    
+
     // Delay exit to show success message
     setTimeout(() => {
       exitPasswordEditMode();
-      
+
       // Clear success message after additional delay
       setTimeout(() => {
         if (passwordFeedback && passwordFeedback.classList.contains('success')) {
@@ -1309,7 +1306,6 @@ async function savePasswordInline() {
         }
       }, 2000);
     }, 2000);
-    
   } catch (err) {
     logger.error('Error changing password:', err);
     const message = err?.message || 'Erreur réseau';
@@ -1333,25 +1329,25 @@ function exitPasswordEditMode() {
 
   isPasswordEditing = false;
   currentPasswordInput.setAttribute('readonly', 'readonly');
-  
+
   // Hide new password and confirm fields
   if (newPasswordGroup) newPasswordGroup.style.display = 'none';
   if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'none';
-  
+
   // Hide cancel button
   if (passwordCancelBtn) passwordCancelBtn.style.display = 'none';
-  
+
   // Switch icons back
   if (editIcon) editIcon.style.display = 'block';
   if (saveIcon) saveIcon.style.display = 'none';
-  
+
   // Update button attributes
   passwordEditBtn.setAttribute('aria-label', 'Modifier le mot de passe');
   passwordEditBtn.setAttribute('title', 'Modifier');
-  
+
   // Clear errors only (keep success feedback if present)
   clearErrors();
-  
+
   // Only clear feedback if it's not a success message
   if (passwordFeedback && !passwordFeedback.classList.contains('success')) {
     showFeedback(passwordFeedback, '', 'info');
@@ -1360,13 +1356,13 @@ function exitPasswordEditMode() {
 
 function cancelPasswordEdit() {
   if (!passwordForm) return;
-  
+
   // Reset form
   passwordForm.reset();
-  
+
   // Clear any errors
   clearErrors();
-  
+
   // Exit edit mode
   exitPasswordEditMode();
 }
@@ -1761,10 +1757,10 @@ function init() {
 
   // Forms
   infoForm?.addEventListener('submit', onSaveInfo);
-  
+
   // Name edit button (inline editing)
   nameEditBtn?.addEventListener('click', toggleNameEdit);
-  
+
   // Allow Enter key to save when editing name
   nameInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && isNameEditing) {
@@ -1778,7 +1774,7 @@ function init() {
       exitNameEditMode();
     }
   });
-  
+
   // realtime validation for name
   nameInput?.addEventListener('input', () => {
     const v = nameInput.value.trim();
@@ -1813,13 +1809,13 @@ function init() {
     }
   } catch {}
   cancelBtn?.addEventListener('click', closeProfileDrawer);
-  
+
   // Password edit button (inline editing)
   passwordEditBtn?.addEventListener('click', togglePasswordEdit);
-  
+
   // Password cancel button
   passwordCancelBtn?.addEventListener('click', cancelPasswordEdit);
-  
+
   // Allow Enter key in password fields
   currentPasswordInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && isPasswordEditing) {
@@ -1834,21 +1830,21 @@ function init() {
       cancelPasswordEdit();
     }
   });
-  
+
   newPasswordInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && isPasswordEditing) {
       e.preventDefault();
       confirmPasswordInput?.focus();
     }
   });
-  
+
   confirmPasswordInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && isPasswordEditing) {
       e.preventDefault();
       savePasswordInline();
     }
   });
-  
+
   // realtime password validation
   const pwNew = document.getElementById('profileNewPassword');
   const pwConfirm = document.getElementById('profileConfirmPassword');
