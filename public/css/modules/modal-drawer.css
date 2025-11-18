@@ -1348,6 +1348,14 @@ main.container {
     font-size: 20px;
   }
 
+  .details-share {
+    top: 14px;
+    right: 70px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
   .details-meta.details-meta-stats {
     right: 12px;
     bottom: 12px;
@@ -1444,6 +1452,34 @@ main.container {
   transition: transform .28s ease, background .3s ease, color .3s ease;
 }
 
+.details-share {
+  position: absolute;
+  top: 22px;
+  right: 82px;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: none;
+  background: rgba(var(--color-surface-rgb), .9);
+  box-shadow: 0 16px 32px rgba(var(--color-ink-rgb), .18);
+  backdrop-filter: blur(14px);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: transform .28s ease, background .3s ease, color .3s ease, opacity .2s ease;
+}
+
+.details-share svg {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  fill: currentColor;
+  transition: color .2s ease, fill .2s ease;
+}
+
 .details-close:focus-visible {
   outline: none;
   box-shadow:
@@ -1455,6 +1491,25 @@ main.container {
   transform: translateY(-1px) rotate(90deg);
   background: rgba(var(--color-brand-rgb), .14);
   color: var(--primary);
+}
+
+.details-share:focus-visible {
+  outline: none;
+  box-shadow:
+    0 16px 32px rgba(var(--color-ink-rgb), .18),
+    0 0 0 3px rgba(var(--color-brand-rgb), .45);
+}
+
+.details-share:hover {
+  transform: translateY(-1px);
+  background: rgba(var(--color-brand-rgb), .2);
+  color: #fff;
+}
+
+.details-share[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 #contactPopover {

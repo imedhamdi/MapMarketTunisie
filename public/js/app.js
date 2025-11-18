@@ -1015,6 +1015,7 @@
     }
   }
 
+  let initialAdsPromise = null;
   let isLoadingAds = false;
   let pendingFilters = null;
   let currentFilters = {
@@ -6017,6 +6018,7 @@
   const detailsModal = document.getElementById('detailsModal');
   const detailsDialog = document.getElementById('detailsDialog');
   const closeDetailsBtn = document.getElementById('closeDetails');
+  const shareDetailsBtn = document.getElementById('shareDetails');
   const detailsCarouselTrack = document.getElementById('detailsCarouselTrack');
   const detailsCarouselDots = document.getElementById('detailsCarouselDots');
   const detailsPrev = document.getElementById('detailsPrev');
@@ -6059,6 +6061,37 @@
   let detailsDescFull = '';
   let detailsDescExpanded = false;
   let detailsSkeletonTimeout = null;
+  const deepLinkSkeletonSkipQueue = new Map();
+  function queueSkeletonSkipForAd(adId, passes = 1) {
+    const normalized = normalizeAdId(adId);
+    if (!normalized || passes <= 0) {
+      return;
+    }
+    deepLinkSkeletonSkipQueue.set(normalized, passes);
+  }
+  function consumeSkeletonSkipForAd(adId) {
+    const normalized = normalizeAdId(adId);
+    if (!normalized) {
+      return false;
+    }
+    if (!deepLinkSkeletonSkipQueue.has(normalized)) {
+      return false;
+    }
+    const remaining = deepLinkSkeletonSkipQueue.get(normalized) - 1;
+    if (remaining > 0) {
+      deepLinkSkeletonSkipQueue.set(normalized, remaining);
+    } else {
+      deepLinkSkeletonSkipQueue.delete(normalized);
+    }
+    return true;
+  }
+  function clearSkeletonSkipForAd(adId) {
+    const normalized = normalizeAdId(adId);
+    if (!normalized) {
+      return;
+    }
+    deepLinkSkeletonSkipQueue.delete(normalized);
+  }
   let lightboxActive = false;
   let lightboxLastFocus = null;
   let contactPopoverTimer = null;
@@ -6070,6 +6103,9 @@
   const CONTACT_COOLDOWN_MS = 3000;
   const CONTACT_FOCUS_SELECTOR =
     'button:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
+  let pendingDeepLinkAdId = null;
+  let activeDeepLinkAdId = null;
+  let deepLinkOpening = false;
 
   function buildGallery(ad) {
     const sources = Array.isArray(ad.gallery) && ad.gallery.length ? ad.gallery : [ad.img];
@@ -6083,14 +6119,20 @@
       clearTimeout(detailsSkeletonTimeout);
       detailsSkeletonTimeout = null;
     }
-    detailsSkeleton.classList.add('active');
+    const currentItemId = detailsDialog?.dataset?.itemId;
+    const shouldSkipSkeleton = consumeSkeletonSkipForAd(currentItemId);
+    if (!shouldSkipSkeleton) {
+      detailsSkeleton.classList.add('active');
+      detailsSkeletonTimeout = setTimeout(() => {
+        detailsSkeleton.classList.remove('active');
+        detailsSkeletonTimeout = null;
+      }, 1500);
+    } else {
+      detailsSkeleton.classList.remove('active');
+    }
     detailsCarouselTrack.innerHTML = '';
     detailsCarouselDots.innerHTML = '';
     let firstLoaded = false;
-    detailsSkeletonTimeout = setTimeout(() => {
-      detailsSkeleton.classList.remove('active');
-      detailsSkeletonTimeout = null;
-    }, 1500);
     images.forEach((src, index) => {
       const slide = document.createElement('div');
       slide.className = 'carousel-slide';
@@ -6125,7 +6167,9 @@
             detailsSkeletonTimeout = null;
           }
           firstLoaded = true;
-          detailsSkeleton.classList.remove('active');
+          if (!shouldSkipSkeleton) {
+            detailsSkeleton.classList.remove('active');
+          }
         }
       });
       slide.appendChild(img);
@@ -6209,6 +6253,7 @@
 
     detailsCurrentAd = ad;
     detailsDialog.dataset.itemId = String(ad.id ?? '');
+    updateShareButtonState(ad);
 
     detailsTitleEl.textContent = ad.title;
     detailsPriceEl.innerHTML = `<strong>${fmtPrice(ad.price)}</strong>`;
@@ -6251,6 +6296,147 @@
     }
 
     setDetailsLoading(false);
+  }
+
+  function getCurrentAdQueryParam() {
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('ad');
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function clearAdQueryParamIfNeeded({ force = false } = {}) {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('ad')) {
+        activeDeepLinkAdId = null;
+        return;
+      }
+      const currentParam = normalizeAdId(url.searchParams.get('ad'));
+      if (!force && activeDeepLinkAdId && currentParam && currentParam !== activeDeepLinkAdId) {
+        return;
+      }
+      url.searchParams.delete('ad');
+      const search = url.searchParams.toString();
+      const nextUrl = `${url.pathname}${search ? `?${search}` : ''}${url.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+      activeDeepLinkAdId = null;
+    } catch (error) {
+      appLogger.warn?.('clearAdQueryParamIfNeeded failed', error);
+      activeDeepLinkAdId = null;
+    }
+  }
+
+  function updateShareButtonState(ad) {
+    if (!shareDetailsBtn) {
+      return;
+    }
+    const normalizedId = normalizeAdId(ad?.id);
+    if (!normalizedId) {
+      shareDetailsBtn.disabled = true;
+      shareDetailsBtn.removeAttribute('data-share-url');
+      shareDetailsBtn.setAttribute('aria-label', 'Lien de partage indisponible');
+      shareDetailsBtn.title = 'Lien de partage indisponible';
+      return;
+    }
+    const shareUrl = buildAdShareUrl(normalizedId);
+    shareDetailsBtn.disabled = false;
+    shareDetailsBtn.dataset.shareUrl = shareUrl;
+    shareDetailsBtn.setAttribute('aria-label', 'Partager cette annonce');
+    shareDetailsBtn.title = 'Partager cette annonce';
+  }
+
+  function buildAdShareUrl(adId) {
+    const normalized = normalizeAdId(adId);
+    if (!normalized) {
+      return '';
+    }
+    try {
+      const origin =
+        window.location.origin || `${window.location.protocol}//${window.location.host}`;
+      const base = new URL(window.location.pathname || '/', origin);
+      base.search = '';
+      base.searchParams.set('ad', normalized);
+      base.hash = '';
+      return base.toString();
+    } catch (error) {
+      appLogger.warn?.('buildAdShareUrl fallback', error);
+      const origin = window.location.origin || '';
+      return `${origin || ''}/?ad=${encodeURIComponent(normalized)}`;
+    }
+  }
+
+  async function copyShareLink(value) {
+    if (!value) {
+      throw new Error('Missing share URL');
+    }
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    if (!success) {
+      throw new Error('execCommand copy failed');
+    }
+  }
+
+  async function handleShareDetailsClick() {
+    if (!shareDetailsBtn || shareDetailsBtn.disabled) {
+      return;
+    }
+    if (!detailsCurrentAd) {
+      showToast('Annonce introuvable');
+      return;
+    }
+    const normalizedId = normalizeAdId(detailsCurrentAd.id);
+    if (!normalizedId) {
+      showToast('Lien de partage indisponible');
+      return;
+    }
+    const shareUrl = shareDetailsBtn.dataset.shareUrl || buildAdShareUrl(normalizedId);
+    if (!shareUrl) {
+      showToast('Lien de partage indisponible');
+      return;
+    }
+    shareDetailsBtn.setAttribute('aria-busy', 'true');
+    shareDetailsBtn.disabled = true;
+    try {
+      if (typeof navigator?.share === 'function') {
+        try {
+          await navigator.share({
+            title: detailsCurrentAd.title || 'Annonce MapMarket',
+            text: detailsCurrentAd.desc?.slice?.(0, 120) || 'Découvrez cette annonce sur MapMarket',
+            url: shareUrl
+          });
+          showToast('Lien prêt à être partagé ✨');
+          return;
+        } catch (shareError) {
+          if (shareError?.name === 'AbortError') {
+            return;
+          }
+          appLogger.warn?.('navigator.share failed, fallback to copy', shareError);
+        }
+      }
+      await copyShareLink(shareUrl);
+      showToast('Lien copié dans le presse-papiers 📋');
+    } catch (error) {
+      appLogger.error('handleShareDetailsClick error', error);
+      showToast('Impossible de partager ce lien pour le moment');
+    } finally {
+      shareDetailsBtn.removeAttribute('aria-busy');
+      shareDetailsBtn.disabled = false;
+    }
   }
 
   function refreshOpenDetails(ad) {
@@ -7204,6 +7390,7 @@
     detailsSkeleton.classList.remove('active');
     detailsCurrentImages = [];
     detailsCurrentIndex = 0;
+    updateShareButtonState(null);
     if (detailsPriceEl) {
       detailsPriceEl.innerHTML = '<strong>—</strong>';
     }
@@ -7233,6 +7420,7 @@
         favModal._favScrollTop = 0;
       }
     }
+    clearAdQueryParamIfNeeded();
     if (detailsModal) {
       detailsModal._lastTrigger = null;
     }
@@ -7251,6 +7439,7 @@
     }
   });
   closeDetailsBtn.addEventListener('click', closeDetailsModal);
+  shareDetailsBtn?.addEventListener('click', handleShareDetailsClick);
   detailsModal.addEventListener('click', (e) => {
     if (e.target === detailsModal) {
       closeDetailsModal();
@@ -7549,19 +7738,20 @@
     }
   });
 
-  async function openDetailsById(id, fallback = null) {
+  async function openDetailsById(id, fallback = null, options = {}) {
     const normalizedId = normalizeAdId(id);
     if (!normalizedId) {
       return;
     }
-    const base = fallback || getItemById(normalizedId);
+    const { preferDeferredOpen = false } = options;
+    const base = fallback ?? getItemById(normalizedId);
     let hasOpened = false;
     let openedWithSkeleton = false;
     if (base) {
       const optimistic = optimisticIncrementAdViews(base) || base;
       openDetailsModal(optimistic);
       hasOpened = true;
-    } else {
+    } else if (!preferDeferredOpen) {
       showDetailsLoadingState(normalizedId);
       hasOpened = true;
       openedWithSkeleton = true;
@@ -7572,6 +7762,7 @@
         refreshOpenDetails(fetched);
       } else {
         openDetailsModal(fetched);
+        hasOpened = true;
       }
       // Tracker la vue de l'annonce pour les annonces récemment vues
       if (window.recentlyViewed && typeof window.recentlyViewed.trackAdView === 'function') {
@@ -7579,10 +7770,89 @@
       }
       return;
     }
-    if (!hasOpened || openedWithSkeleton) {
+    if (openedWithSkeleton) {
+      clearSkeletonSkipForAd(normalizedId);
       closeDetailsModal();
       showToast('Annonce introuvable');
+      return;
     }
+    if (!hasOpened) {
+      clearSkeletonSkipForAd(normalizedId);
+      if (preferDeferredOpen) {
+        clearAdQueryParamIfNeeded({ force: true });
+      }
+      showToast('Annonce introuvable');
+    }
+  }
+
+  function openPendingDeepLink(targetId) {
+    const normalized = normalizeAdId(targetId);
+    if (!normalized) {
+      return;
+    }
+    const fallbackAd = getItemById(normalized);
+    const preferDeferredOpen = !fallbackAd;
+    const skeletonSkips = preferDeferredOpen ? 1 : 2;
+    const alreadyOpenId = normalizeAdId(detailsDialog?.dataset?.itemId);
+    const modalVisible = detailsModal?.style?.display === 'flex';
+    if (modalVisible && alreadyOpenId === normalized) {
+      clearSkeletonSkipForAd(normalized);
+      activeDeepLinkAdId = normalized;
+      pendingDeepLinkAdId = null;
+      return;
+    }
+    if (deepLinkOpening) {
+      pendingDeepLinkAdId = normalized;
+      return;
+    }
+    deepLinkOpening = true;
+    activeDeepLinkAdId = normalized;
+    queueSkeletonSkipForAd(normalized, skeletonSkips);
+    const result = openDetailsById(normalized, fallbackAd, { preferDeferredOpen });
+    const handleFinal = () => {
+      deepLinkOpening = false;
+      clearSkeletonSkipForAd(normalized);
+      if (pendingDeepLinkAdId && pendingDeepLinkAdId !== normalized) {
+        const nextId = pendingDeepLinkAdId;
+        pendingDeepLinkAdId = null;
+        openPendingDeepLink(nextId);
+      }
+    };
+    if (result?.then) {
+      result
+        .catch((error) => {
+          appLogger.warn?.('Deep link opening failed', error);
+          activeDeepLinkAdId = null;
+          clearAdQueryParamIfNeeded({ force: true });
+        })
+        .finally(handleFinal);
+    } else {
+      handleFinal();
+    }
+  }
+
+  function scheduleDeepLinkOpen(adId) {
+    const normalized = normalizeAdId(adId);
+    if (!normalized) {
+      return;
+    }
+    pendingDeepLinkAdId = normalized;
+    const runOpen = () => {
+      if (pendingDeepLinkAdId !== normalized) {
+        return;
+      }
+      pendingDeepLinkAdId = null;
+      openPendingDeepLink(normalized);
+    };
+    if (initialAdsPromise && typeof initialAdsPromise.then === 'function') {
+      initialAdsPromise
+        .catch((error) => {
+          appLogger.warn?.('Initial ads load failed before deep link open', error);
+        })
+        .finally(runOpen);
+      return;
+    }
+    runOpen();
   }
 
   async function fetchAdById(id) {
@@ -7973,7 +8243,7 @@
   // Log startup info
 
   updateAuthUI();
-  loadAds();
+  initialAdsPromise = loadAds();
   hydrateAuthFromSession();
 
   try {
@@ -8012,6 +8282,10 @@
       currentUrl.searchParams.delete('verify');
       shouldReplace = true;
     }
+    const adParam = currentUrl.searchParams.get('ad');
+    if (adParam) {
+      scheduleDeepLinkOpen(adParam);
+    }
     if (shouldReplace) {
       const cleanedSearch = currentUrl.searchParams.toString();
       const nextUrl = `${currentUrl.pathname}${cleanedSearch ? `?${cleanedSearch}` : ''}${
@@ -8022,6 +8296,18 @@
   } catch (_error) {
     // Ignorer les erreurs d'URL (ex: environnements file://)
   }
+
+  window.addEventListener('popstate', () => {
+    const adParam = getCurrentAdQueryParam();
+    if (adParam) {
+      scheduleDeepLinkOpen(adParam);
+      return;
+    }
+    if (activeDeepLinkAdId && detailsModal?.style?.display === 'flex') {
+      activeDeepLinkAdId = null;
+      closeDetailsModal();
+    }
+  });
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {

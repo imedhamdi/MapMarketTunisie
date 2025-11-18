@@ -716,6 +716,28 @@
   <!-- DETAILS MODAL -->
   <div class="modal-backdrop details-backdrop" id="detailsModal" aria-hidden="true">
     <div class="details-dialog" id="detailsDialog" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+      <button
+        class="details-share"
+        id="shareDetails"
+        type="button"
+        aria-label="Partager"
+        title="Partager l'annonce"
+        disabled
+      >
+        <svg
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M14.4613 6.16913L14.4615 6.20097L7.5446 9.07413C7.01557 8.79113 6.41114 8.63067 5.76923 8.63067C3.68754 8.63067 2 10.3182 2 12.3999C2 14.4816 3.68754 16.1691 5.76923 16.1691C6.41112 16.1691 7.01554 16.0087 7.54456 15.7257L14.4615 18.5989C14.4614 18.6095 14.4613 18.6201 14.4613 18.6307C14.4613 20.7124 16.1489 22.3999 18.2306 22.3999C20.3123 22.3999 21.9998 20.7124 21.9998 18.6307C21.9998 16.549 20.3123 14.8614 18.2306 14.8614C16.8699 14.8614 15.6777 15.5824 15.015 16.6631L9.08232 14.1988C9.3732 13.6642 9.53846 13.0513 9.53846 12.3999C9.53846 11.7485 9.3732 11.1357 9.08233 10.6011L15.015 8.13671C15.6777 9.21743 16.87 9.93836 18.2306 9.93836C20.3123 9.93836 21.9998 8.25082 21.9998 6.16913C21.9998 4.08744 20.3123 2.3999 18.2306 2.3999C16.1489 2.3999 14.4613 4.08744 14.4613 6.16913ZM18.2306 4.3999C17.2534 4.3999 16.4613 5.19201 16.4613 6.16913C16.4613 6.29455 16.4744 6.41692 16.4992 6.53496C16.5118 6.57489 16.5217 6.61511 16.529 6.65544C16.7403 7.39609 17.4221 7.93836 18.2306 7.93836C19.2077 7.93836 19.9998 7.14625 19.9998 6.16913C19.9998 5.19201 19.2077 4.3999 18.2306 4.3999ZM6.8872 13.7712C7.28467 13.4468 7.53846 12.953 7.53846 12.3999C7.53846 11.8469 7.28478 11.3532 6.88745 11.0288C6.85405 11.0064 6.82192 10.982 6.79127 10.9556C6.50263 10.7509 6.14997 10.6307 5.76923 10.6307C4.79211 10.6307 4 11.4228 4 12.3999C4 13.377 4.79211 14.1691 5.76923 14.1691C6.15008 14.1691 6.50282 14.0488 6.79151 13.8441C6.82201 13.8178 6.85398 13.7935 6.8872 13.7712ZM16.4992 18.265C16.5118 18.225 16.5217 18.1847 16.529 18.1443C16.7403 17.4037 17.4221 16.8614 18.2306 16.8614C19.2077 16.8614 19.9998 17.6536 19.9998 18.6307C19.9998 19.6078 19.2077 20.3999 18.2306 20.3999C17.2534 20.3999 16.4613 19.6078 16.4613 18.6307C16.4613 18.5053 16.4744 18.383 16.4992 18.265Z"
+          ></path>
+        </svg>
+      </button>
+
       <button class="details-close" id="closeDetails" aria-label="Fermer">✕</button>
 
       <div class="details-media">
@@ -1003,7 +1025,8 @@
               <p class="chat-call-consent__hint" id="chatCallConsentHint" aria-live="polite">Activez les appels après accord mutuel.</p>
             </div>
             <div class="chat-panel__messages-wrapper">
-              <div class="chat-panel__messages" id="chatMessages" tabindex="0" aria-label="Historique des messages"></div>
+              <span id="chatMessagesLabel" class="sr-only">Historique des messages</span>
+              <div class="chat-panel__messages" id="chatMessages" tabindex="0" role="log" aria-live="polite" aria-relevant="additions text" aria-labelledby="chatMessagesLabel"></div>
               <div class="mm-typing" id="typingIndicator" hidden role="status" aria-live="polite">
                 <span class="mm-typing__avatar" aria-hidden="true"></span>
                 <div class="mm-typing__bubble">
@@ -1094,7 +1117,7 @@
         </button>
       </div>
     </div>
-    <audio id="voiceCallRemoteAudio" class="voice-call-remote-audio" autoplay playsinline></audio>
+  <audio id="voiceCallRemoteAudio" class="voice-call-remote-audio" autoplay></audio>
   </div>
 
   <!-- IMAGE VIEWER -->
@@ -1107,7 +1130,7 @@
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <img id="imageViewerImg" class="image-viewer__img" src="" alt="">
+  <img id="imageViewerImg" class="image-viewer__img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="">
     </div>
   </div>
 
@@ -1194,19 +1217,19 @@
                   alt="Utilisateur" 
                   class="join-community__avatar"
                   loading="lazy"
-                />
+                >
                 <img 
                   src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop" 
                   alt="Utilisateur" 
                   class="join-community__avatar"
                   loading="lazy"
-                />
+                >
                 <img 
                   src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop" 
                   alt="Utilisateur" 
                   class="join-community__avatar"
                   loading="lazy"
-                />
+                >
               </div>
             </div>
             
@@ -1409,15 +1432,15 @@
         <div class="profile-identity-card">
           <div class="profile-id">
             <button class="profile-avatar" id="profileAvatarBtn" aria-label="Changer l'avatar" type="button">
-              <img id="profileAvatarImg" src="/uploads/avatars/default.jpg" alt="Avatar utilisateur" loading="lazy" />
+              <img id="profileAvatarImg" src="/uploads/avatars/default.jpg" alt="Avatar utilisateur" loading="lazy">
               <span class="profile-avatar-overlay" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                   <circle cx="12" cy="13" r="4"></circle>
                 </svg>
               </span>
-              <input id="profileAvatarInput" type="file" accept="image/*" hidden />
             </button>
+            <input id="profileAvatarInput" type="file" accept="image/*" hidden>
             <div class="profile-meta">
               <div class="profile-meta__primary">
                 <h2 id="profileTitle" class="profile-name">Mon profil</h2>
@@ -1499,12 +1522,12 @@
               <form id="profileInfoForm" class="profile-form">
                 <div class="profile-form-group">
                   <label for="profileNameInput">Nom</label>
-                  <input type="text" id="profileNameInput" name="name" autocomplete="name" required />
+                  <input type="text" id="profileNameInput" name="name" autocomplete="name" required>
                   <span class="profile-form-hint" id="profileNameHint">Utilisez votre nom public. Minimum 2 caractères.</span>
                 </div>
                 <div class="profile-form-group">
                   <label for="profileEmailInput">Email</label>
-                  <input type="email" id="profileEmailInput" name="email" autocomplete="email" required readonly aria-readonly="true" aria-disabled="true" class="profile-input-locked" />
+                  <input type="email" id="profileEmailInput" name="email" autocomplete="email" required readonly aria-readonly="true" aria-disabled="true" class="profile-input-locked">
                   <p class="profile-field-lock" role="note"><span aria-hidden="true">🔒</span> Adresse vérifiée. Contactez l’équipe support pour la modifier.</p>
                 </div>
                 <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
@@ -1524,18 +1547,18 @@
               <form id="profilePasswordForm" class="profile-form">
                 <div class="profile-form-group">
                   <label for="profileCurrentPassword">Mot de passe actuel</label>
-                  <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required />
+                  <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required>
                   <span class="profile-form-error" id="currentPasswordError"></span>
                 </div>
                 <div class="profile-form-group">
                   <label for="profileNewPassword">Nouveau mot de passe</label>
-                  <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required />
+                  <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required>
                   <span class="profile-form-hint">Minimum 8 caractères</span>
                   <span class="profile-form-error" id="newPasswordError"></span>
                 </div>
                 <div class="profile-form-group">
                   <label for="profileConfirmPassword">Confirmer</label>
-                  <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required />
+                  <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required>
                   <span class="profile-form-error" id="confirmPasswordError"></span>
                 </div>
                 <p class="profile-form-feedback" id="profilePasswordFeedback" role="status" aria-live="polite"></p>
@@ -1620,7 +1643,7 @@
           </p>
         </div>
         <label class="mm-confirm__label" for="profileDeleteConfirmInput">Confirmez en tapant "SUPPRIMER"</label>
-        <input type="text" id="profileDeleteConfirmInput" class="mm-confirm__input" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="SUPPRIMER" aria-required="true" />
+  <input type="text" id="profileDeleteConfirmInput" class="mm-confirm__input" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SUPPRIMER" aria-required="true">
         <p class="profile-form-feedback mm-confirm__feedback" id="profileDeleteConfirmFeedback" role="status" aria-live="polite"></p>
         <div class="mm-confirm__actions">
           <button type="button" class="mm-confirm__btn mm-confirm__btn--ghost" id="profileDeleteCancelBtn" data-confirm-close>Annuler</button>
