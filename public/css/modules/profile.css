@@ -759,6 +759,87 @@
   gap: 6px;
 }
 
+.profile-input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profile-input-with-icon input {
+  flex: 1;
+  padding-right: 48px;
+}
+
+.profile-input-with-icon--double input {
+  padding-right: 88px;
+}
+
+.profile-input-with-icon input[readonly] {
+  background: var(--color-surface-alt, #f8fafc);
+  cursor: default;
+  border-color: var(--color-border-soft);
+}
+
+.profile-input-with-icon input[readonly]:focus {
+  box-shadow: none;
+  border-color: var(--color-border-soft);
+}
+
+.profile-input-icon-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.profile-input-icon-btn:hover {
+  background-color: var(--color-surface-alt, rgba(0, 0, 0, 0.05));
+}
+
+.profile-input-icon-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.profile-input-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-brand-600, #c026d3);
+  transition: color 0.2s ease;
+}
+
+.profile-input-icon-btn:hover .profile-input-icon {
+  color: var(--color-brand-700, #a21caf);
+}
+
+.profile-input-icon--save {
+  color: #15803d;
+}
+
+.profile-input-icon-btn:hover .profile-input-icon--save {
+  color: #14532d;
+}
+
+.profile-input-icon--cancel {
+  color: #dc2626;
+}
+
+.profile-input-icon-btn:hover .profile-input-icon--cancel {
+  color: #991b1b;
+}
+
+.profile-input-icon-btn--cancel {
+  right: 48px;
+}
+
 .profile-form-group label {
   font-weight: 600;
   font-size: 0.95rem;
@@ -781,18 +862,6 @@
   border-color: var(--color-brand-500, #f472b6);
   box-shadow: 0 0 0 3px rgba(var(--color-brand-rgb, 255, 107, 138), 0.25);
   outline: none;
-}
-
-.profile-input-locked {
-  background: var(--color-surface-alt, #f8fafc);
-  color: var(--color-text-secondary, #475569);
-  cursor: not-allowed;
-}
-
-.profile-field-lock {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--color-text-tertiary, #94a3b8);
 }
 
 .profile-form-hint {

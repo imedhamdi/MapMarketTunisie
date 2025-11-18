@@ -1515,23 +1515,27 @@
           <div class="profile-overview-grid">
             <article class="profile-card profile-card--form profile-card--accent">
               <div class="profile-card-head">
-                <span class="profile-card-kicker">Profil</span>
                 <h3 class="profile-section-title">Informations personnelles</h3>
-                <p class="profile-section-subtitle">Actualisez vos coordonnées publiques et votre email de contact.</p>
               </div>
               <form id="profileInfoForm" class="profile-form">
                 <div class="profile-form-group">
                   <label for="profileNameInput">Nom</label>
-                  <input type="text" id="profileNameInput" name="name" autocomplete="name" required>
+                  <div class="profile-input-with-icon">
+                    <input type="text" id="profileNameInput" name="name" autocomplete="name" required readonly>
+                    <button type="button" class="profile-input-icon-btn" id="profileNameEditBtn" aria-label="Modifier le nom" title="Modifier">
+                      <svg class="profile-input-icon profile-input-icon--edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <svg class="profile-input-icon profile-input-icon--save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </button>
+                  </div>
                   <span class="profile-form-hint" id="profileNameHint">Utilisez votre nom public. Minimum 2 caractères.</span>
                 </div>
-                <div class="profile-form-group">
-                  <label for="profileEmailInput">Email</label>
-                  <input type="email" id="profileEmailInput" name="email" autocomplete="email" required readonly aria-readonly="true" aria-disabled="true" class="profile-input-locked">
-                  <p class="profile-field-lock" role="note"><span aria-hidden="true">🔒</span> Adresse vérifiée. Contactez l’équipe support pour la modifier.</p>
-                </div>
                 <p class="profile-form-feedback" id="profileInfoFeedback" role="status" aria-live="polite"></p>
-                <div class="profile-actions">
+                <div class="profile-actions" style="display: none;">
                   <button type="button" class="profile-btn profile-btn--ghost" id="profileCancelBtn" aria-label="Annuler et fermer">Annuler</button>
                   <button type="submit" class="profile-btn" id="profileInfoSubmit">Enregistrer</button>
                 </div>
@@ -1540,29 +1544,44 @@
 
             <article class="profile-card profile-card--form profile-card--security">
               <div class="profile-card-head">
-                <span class="profile-card-kicker">Sécurité</span>
                 <h3 class="profile-section-title">Mot de passe</h3>
                 <p class="profile-section-subtitle">Gardez un compte sûr avec un mot de passe fort.</p>
               </div>
               <form id="profilePasswordForm" class="profile-form">
                 <div class="profile-form-group">
                   <label for="profileCurrentPassword">Mot de passe actuel</label>
-                  <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required>
+                  <div class="profile-input-with-icon profile-input-with-icon--double">
+                    <input type="password" id="profileCurrentPassword" name="currentPassword" autocomplete="current-password" required readonly>
+                    <button type="button" class="profile-input-icon-btn profile-input-icon-btn--cancel" id="profilePasswordCancelBtn" aria-label="Annuler" title="Annuler" style="display: none;">
+                      <svg class="profile-input-icon profile-input-icon--cancel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="profile-input-icon-btn" id="profilePasswordEditBtn" aria-label="Modifier le mot de passe" title="Modifier">
+                      <svg class="profile-input-icon profile-input-icon--edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <svg class="profile-input-icon profile-input-icon--save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </button>
+                  </div>
                   <span class="profile-form-error" id="currentPasswordError"></span>
                 </div>
-                <div class="profile-form-group">
+                <div class="profile-form-group" style="display: none;">
                   <label for="profileNewPassword">Nouveau mot de passe</label>
                   <input type="password" id="profileNewPassword" name="newPassword" minlength="8" autocomplete="new-password" required>
                   <span class="profile-form-hint">Minimum 8 caractères</span>
                   <span class="profile-form-error" id="newPasswordError"></span>
                 </div>
-                <div class="profile-form-group">
+                <div class="profile-form-group" style="display: none;">
                   <label for="profileConfirmPassword">Confirmer</label>
                   <input type="password" id="profileConfirmPassword" name="confirmPassword" minlength="8" autocomplete="new-password" required>
                   <span class="profile-form-error" id="confirmPasswordError"></span>
                 </div>
                 <p class="profile-form-feedback" id="profilePasswordFeedback" role="status" aria-live="polite"></p>
-                <button type="submit" class="profile-btn" id="profilePasswordSubmit">Changer le mot de passe</button>
               </form>
             </article>
 

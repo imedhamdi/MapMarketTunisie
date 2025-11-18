@@ -223,12 +223,17 @@ const infoForm = document.getElementById('profileInfoForm');
 const infoFeedback = document.getElementById('profileInfoFeedback');
 const infoSubmit = document.getElementById('profileInfoSubmit');
 const nameInput = document.getElementById('profileNameInput');
-const emailInput = document.getElementById('profileEmailInput');
 const cancelBtn = document.getElementById('profileCancelBtn');
+const nameEditBtn = document.getElementById('profileNameEditBtn');
+const profileActions = document.querySelector('.profile-actions');
 
 const passwordForm = document.getElementById('profilePasswordForm');
 const passwordFeedback = document.getElementById('profilePasswordFeedback');
-const passwordSubmit = document.getElementById('profilePasswordSubmit');
+const passwordEditBtn = document.getElementById('profilePasswordEditBtn');
+const passwordCancelBtn = document.getElementById('profilePasswordCancelBtn');
+const currentPasswordInput = document.getElementById('profileCurrentPassword');
+const newPasswordInput = document.getElementById('profileNewPassword');
+const confirmPasswordInput = document.getElementById('profileConfirmPassword');
 const currentPasswordError = document.getElementById('currentPasswordError');
 const newPasswordError = document.getElementById('newPasswordError');
 const confirmPasswordError = document.getElementById('confirmPasswordError');
@@ -268,6 +273,8 @@ const AD_STATUS_LABELS = Object.freeze({
 // === UX/Behavior ===
 let initialFormValues = null;
 let hasUnsavedChanges = false;
+let isNameEditing = false;
+let isPasswordEditing = false;
 
 // Cache TTL: 5 minutes
 const CACHE_TTL = 5 * 60 * 1000;
@@ -1097,13 +1104,271 @@ function renderAnalytics(analytics) {
 function renderSettings(user) {
   if (!user) return;
   if (nameInput) nameInput.value = user.name || '';
-  if (emailInput) emailInput.value = user.email || '';
   // capture initial values for dirty-checking
   initialFormValues = {
-    name: nameInput?.value || '',
-    email: emailInput?.value || ''
+    name: nameInput?.value || ''
   };
   hasUnsavedChanges = false;
+}
+
+// === Name Edit Toggle ===
+function toggleNameEdit() {
+  if (!nameInput || !nameEditBtn) return;
+
+  const editIcon = nameEditBtn.querySelector('.profile-input-icon--edit');
+  const saveIcon = nameEditBtn.querySelector('.profile-input-icon--save');
+
+  if (isNameEditing) {
+    // Save mode - trigger save
+    saveNameInline();
+  } else {
+    // Enable edit mode
+    isNameEditing = true;
+    nameInput.removeAttribute('readonly');
+    nameInput.focus();
+    
+    // Switch icons
+    if (editIcon) editIcon.style.display = 'none';
+    if (saveIcon) saveIcon.style.display = 'block';
+    
+    // Update button attributes
+    nameEditBtn.setAttribute('aria-label', 'Enregistrer le nom');
+    nameEditBtn.setAttribute('title', 'Enregistrer');
+  }
+}
+
+async function saveNameInline() {
+  if (!nameInput || !nameEditBtn) return;
+
+  const editIcon = nameEditBtn.querySelector('.profile-input-icon--edit');
+  const saveIcon = nameEditBtn.querySelector('.profile-input-icon--save');
+  
+  const newName = nameInput.value.trim();
+
+  // Validation
+  if (newName.length < 2) {
+    showFeedback(infoFeedback, 'Le nom doit contenir au moins 2 caractères', 'error');
+    return;
+  }
+
+  // Check if changed
+  if (newName === initialFormValues?.name) {
+    // No change, just exit edit mode
+    exitNameEditMode();
+    return;
+  }
+
+  // Disable button during save
+  nameEditBtn.disabled = true;
+  showFeedback(infoFeedback, '⏳ Enregistrement...', 'info');
+
+  try {
+    const payload = await apiRequest('/users/me', {
+      method: 'PATCH',
+      body: { name: newName }
+    });
+
+    showFeedback(infoFeedback, '✓ Nom mis à jour avec succès', 'success');
+    clearProfileCache();
+    
+    if (drawerState.data?.user) {
+      const updatedUser = payload?.user || {};
+      drawerState.data.user.name = updatedUser.name || newName;
+      renderHeader(drawerState.data.user);
+    }
+    
+    // Update initial values
+    initialFormValues = { name: newName };
+    hasUnsavedChanges = false;
+    
+    // Exit edit mode after showing success message
+    setTimeout(() => {
+      exitNameEditMode();
+      
+      // Clear success message after additional delay
+      setTimeout(() => {
+        if (infoFeedback && infoFeedback.classList.contains('success')) {
+          showFeedback(infoFeedback, '', 'info');
+        }
+      }, 2000);
+    }, 2000);
+    
+  } catch (err) {
+    logger.error('Error saving name:', err);
+    showFeedback(infoFeedback, `❌ ${err.message || 'Erreur réseau'}`, 'error');
+  } finally {
+    nameEditBtn.disabled = false;
+  }
+}
+
+function exitNameEditMode() {
+  if (!nameInput || !nameEditBtn) return;
+
+  const editIcon = nameEditBtn.querySelector('.profile-input-icon--edit');
+  const saveIcon = nameEditBtn.querySelector('.profile-input-icon--save');
+
+  isNameEditing = false;
+  nameInput.setAttribute('readonly', 'readonly');
+  
+  // Switch icons back
+  if (editIcon) editIcon.style.display = 'block';
+  if (saveIcon) saveIcon.style.display = 'none';
+  
+  // Update button attributes
+  nameEditBtn.setAttribute('aria-label', 'Modifier le nom');
+  nameEditBtn.setAttribute('title', 'Modifier');
+  
+  // Only clear feedback if it's not a success message
+  if (infoFeedback && !infoFeedback.classList.contains('success')) {
+    showFeedback(infoFeedback, '', 'info');
+  }
+}
+
+// === Password Edit Toggle ===
+function togglePasswordEdit() {
+  if (!currentPasswordInput || !passwordEditBtn) return;
+
+  const editIcon = passwordEditBtn.querySelector('.profile-input-icon--edit');
+  const saveIcon = passwordEditBtn.querySelector('.profile-input-icon--save');
+  const newPasswordGroup = newPasswordInput?.closest('.profile-form-group');
+  const confirmPasswordGroup = confirmPasswordInput?.closest('.profile-form-group');
+
+  if (isPasswordEditing) {
+    // Save mode - trigger change password
+    savePasswordInline();
+  } else {
+    // Enable edit mode
+    isPasswordEditing = true;
+    currentPasswordInput.removeAttribute('readonly');
+    currentPasswordInput.focus();
+    
+    // Show new password and confirm fields
+    if (newPasswordGroup) newPasswordGroup.style.display = 'flex';
+    if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'flex';
+    
+    // Show cancel button
+    if (passwordCancelBtn) passwordCancelBtn.style.display = 'flex';
+    
+    // Switch icons
+    if (editIcon) editIcon.style.display = 'none';
+    if (saveIcon) saveIcon.style.display = 'block';
+    
+    // Update button attributes
+    passwordEditBtn.setAttribute('aria-label', 'Enregistrer le mot de passe');
+    passwordEditBtn.setAttribute('title', 'Enregistrer');
+  }
+}
+
+async function savePasswordInline() {
+  if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput || !passwordEditBtn) return;
+
+  clearErrors();
+
+  const currentPassword = currentPasswordInput.value;
+  const newPassword = newPasswordInput.value;
+  const confirmPassword = confirmPasswordInput.value;
+
+  // Client-side validation
+  if (!currentPassword) {
+    showError(currentPasswordError, 'Champ requis');
+    return;
+  }
+  if (!newPassword || newPassword.length < 8) {
+    showError(newPasswordError, 'Minimum 8 caractères');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    showError(confirmPasswordError, 'Les mots de passe ne correspondent pas');
+    return;
+  }
+
+  // Disable button during save
+  passwordEditBtn.disabled = true;
+  showFeedback(passwordFeedback, '⏳ Changement en cours...', 'info');
+
+  try {
+    await apiRequest('/users/me/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword }
+    });
+
+    showFeedback(passwordFeedback, '✓ Mot de passe changé avec succès', 'success');
+    clearProfileCache();
+    
+    // Reset form and exit edit mode after showing success message
+    passwordForm.reset();
+    
+    // Delay exit to show success message
+    setTimeout(() => {
+      exitPasswordEditMode();
+      
+      // Clear success message after additional delay
+      setTimeout(() => {
+        if (passwordFeedback && passwordFeedback.classList.contains('success')) {
+          showFeedback(passwordFeedback, '', 'info');
+        }
+      }, 2000);
+    }, 2000);
+    
+  } catch (err) {
+    logger.error('Error changing password:', err);
+    const message = err?.message || 'Erreur réseau';
+    if (message.includes('actuel')) {
+      showError(currentPasswordError, message);
+    } else {
+      showFeedback(passwordFeedback, `❌ ${message}`, 'error');
+    }
+  } finally {
+    passwordEditBtn.disabled = false;
+  }
+}
+
+function exitPasswordEditMode() {
+  if (!currentPasswordInput || !passwordEditBtn) return;
+
+  const editIcon = passwordEditBtn.querySelector('.profile-input-icon--edit');
+  const saveIcon = passwordEditBtn.querySelector('.profile-input-icon--save');
+  const newPasswordGroup = newPasswordInput?.closest('.profile-form-group');
+  const confirmPasswordGroup = confirmPasswordInput?.closest('.profile-form-group');
+
+  isPasswordEditing = false;
+  currentPasswordInput.setAttribute('readonly', 'readonly');
+  
+  // Hide new password and confirm fields
+  if (newPasswordGroup) newPasswordGroup.style.display = 'none';
+  if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'none';
+  
+  // Hide cancel button
+  if (passwordCancelBtn) passwordCancelBtn.style.display = 'none';
+  
+  // Switch icons back
+  if (editIcon) editIcon.style.display = 'block';
+  if (saveIcon) saveIcon.style.display = 'none';
+  
+  // Update button attributes
+  passwordEditBtn.setAttribute('aria-label', 'Modifier le mot de passe');
+  passwordEditBtn.setAttribute('title', 'Modifier');
+  
+  // Clear errors only (keep success feedback if present)
+  clearErrors();
+  
+  // Only clear feedback if it's not a success message
+  if (passwordFeedback && !passwordFeedback.classList.contains('success')) {
+    showFeedback(passwordFeedback, '', 'info');
+  }
+}
+
+function cancelPasswordEdit() {
+  if (!passwordForm) return;
+  
+  // Reset form
+  passwordForm.reset();
+  
+  // Clear any errors
+  clearErrors();
+  
+  // Exit edit mode
+  exitPasswordEditMode();
 }
 
 // === Form Handlers ===
@@ -1120,12 +1385,10 @@ async function onSaveInfo(e) {
     const name = String(formData.get('name') || '')
       .trim()
       .replace(/\s{2,}/g, ' ');
-    const email = String(formData.get('email') || '').trim();
     const payload = await apiRequest('/users/me', {
       method: 'PATCH',
       body: {
-        name,
-        email
+        name
       }
     });
 
@@ -1134,11 +1397,10 @@ async function onSaveInfo(e) {
     if (drawerState.data?.user) {
       const updatedUser = payload?.user || {};
       drawerState.data.user.name = updatedUser.name || name;
-      drawerState.data.user.email = updatedUser.email || email;
       renderHeader(drawerState.data.user);
     }
     // reset dirty state
-    initialFormValues = { name: nameInput?.value || '', email: emailInput?.value || '' };
+    initialFormValues = { name: nameInput?.value || '' };
     hasUnsavedChanges = false;
   } catch (err) {
     logger.error('Error saving info:', err);
@@ -1146,54 +1408,6 @@ async function onSaveInfo(e) {
   } finally {
     infoSubmit.disabled = false;
     infoSubmit.textContent = 'Enregistrer';
-  }
-}
-
-async function onChangePassword(e) {
-  e.preventDefault();
-  clearErrors();
-  if (!passwordSubmit) return;
-
-  const currentPassword = document.getElementById('profileCurrentPassword')?.value;
-  const newPassword = document.getElementById('profileNewPassword')?.value;
-  const confirmPassword = document.getElementById('profileConfirmPassword')?.value;
-
-  // Client-side validation
-  if (!currentPassword) {
-    showError(currentPasswordError, 'Champ requis');
-    return;
-  }
-  if (!newPassword || newPassword.length < 8) {
-    showError(newPasswordError, 'Minimum 8 caractères');
-    return;
-  }
-  if (newPassword !== confirmPassword) {
-    showError(confirmPasswordError, 'Les mots de passe ne correspondent pas');
-    return;
-  }
-
-  passwordSubmit.disabled = true;
-  passwordSubmit.textContent = 'Changement...';
-
-  try {
-    await apiRequest('/users/me/change-password', {
-      method: 'POST',
-      body: { currentPassword, newPassword }
-    });
-
-    showFeedback(passwordFeedback, 'Mot de passe changé avec succès', 'success');
-    passwordForm.reset();
-  } catch (err) {
-    logger.error('Error changing password:', err);
-    const message = err?.message || 'Erreur lors du changement';
-    if (message.includes('actuel')) {
-      showError(currentPasswordError, message);
-    } else {
-      showFeedback(passwordFeedback, message, 'error');
-    }
-  } finally {
-    passwordSubmit.disabled = false;
-    passwordSubmit.textContent = 'Changer le mot de passe';
   }
 }
 
@@ -1312,10 +1526,9 @@ function onDeleteAccount() {
 function computeUnsavedChanges() {
   if (!initialFormValues) return false;
   const current = {
-    name: nameInput?.value || '',
-    email: emailInput?.value || ''
+    name: nameInput?.value || ''
   };
-  return current.name !== initialFormValues.name || current.email !== initialFormValues.email;
+  return current.name !== initialFormValues.name;
 }
 
 function canCloseDrawer() {
@@ -1548,6 +1761,24 @@ function init() {
 
   // Forms
   infoForm?.addEventListener('submit', onSaveInfo);
+  
+  // Name edit button (inline editing)
+  nameEditBtn?.addEventListener('click', toggleNameEdit);
+  
+  // Allow Enter key to save when editing name
+  nameInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && isNameEditing) {
+      e.preventDefault();
+      saveNameInline();
+    }
+    // Escape to cancel edit
+    if (e.key === 'Escape' && isNameEditing) {
+      e.preventDefault();
+      nameInput.value = initialFormValues?.name || '';
+      exitNameEditMode();
+    }
+  });
+  
   // realtime validation for name
   nameInput?.addEventListener('input', () => {
     const v = nameInput.value.trim();
@@ -1582,7 +1813,42 @@ function init() {
     }
   } catch {}
   cancelBtn?.addEventListener('click', closeProfileDrawer);
-  passwordForm?.addEventListener('submit', onChangePassword);
+  
+  // Password edit button (inline editing)
+  passwordEditBtn?.addEventListener('click', togglePasswordEdit);
+  
+  // Password cancel button
+  passwordCancelBtn?.addEventListener('click', cancelPasswordEdit);
+  
+  // Allow Enter key in password fields
+  currentPasswordInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && isPasswordEditing) {
+      e.preventDefault();
+      if (newPasswordInput && confirmPasswordInput) {
+        newPasswordInput.focus();
+      }
+    }
+    // Escape to cancel edit
+    if (e.key === 'Escape' && isPasswordEditing) {
+      e.preventDefault();
+      cancelPasswordEdit();
+    }
+  });
+  
+  newPasswordInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && isPasswordEditing) {
+      e.preventDefault();
+      confirmPasswordInput?.focus();
+    }
+  });
+  
+  confirmPasswordInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && isPasswordEditing) {
+      e.preventDefault();
+      savePasswordInline();
+    }
+  });
+  
   // realtime password validation
   const pwNew = document.getElementById('profileNewPassword');
   const pwConfirm = document.getElementById('profileConfirmPassword');
