@@ -18,6 +18,4 @@ const NewsletterContactSchema = new Schema(
   }
 );
 
-NewsletterContactSchema.index({ email: 1 }, { unique: true });
-
 export default mongoose.model('NewsletterContact', NewsletterContactSchema);
