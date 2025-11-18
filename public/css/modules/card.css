@@ -54,7 +54,8 @@
 .cat {
   position: absolute;
   left: 10px;
-  top: 10px;
+  top: auto;
+  bottom: 10px;
   color: var(--color-text-contrast);
   font-weight: 700;
   font-size: clamp(13px, 3.4vw, 14px);
