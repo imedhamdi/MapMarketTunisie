@@ -346,7 +346,19 @@
     if (owner.avatarUrl) {
       sellerAvatar = owner.avatarUrl;
     } else if (owner.avatar && !String(owner.avatar).startsWith('data:')) {
-      sellerAvatar = `/uploads/avatars/${owner.avatar}`;
+      const rawAvatar = String(owner.avatar).trim();
+      if (/^https?:\/\//i.test(rawAvatar)) {
+        sellerAvatar = rawAvatar;
+      } else if (rawAvatar.startsWith('/uploads/')) {
+        sellerAvatar = rawAvatar;
+      } else if (rawAvatar.startsWith('uploads/')) {
+        sellerAvatar = `/${rawAvatar}`;
+      } else {
+        const cleaned = rawAvatar
+          .replace(/^\/?uploads\/avatars\//i, '')
+          .replace(/^\/?avatars\//i, '');
+        sellerAvatar = `/uploads/avatars/${cleaned}`;
+      }
     }
     const sellerMemberSince = owner.memberSince || owner.createdAt || ad.createdAt;
     let chips = buildChipsFromAttributes(category, ad.attributes);
