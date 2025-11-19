@@ -1549,7 +1549,8 @@ async function fetchProfileData(options = {}) {
     const statsCacheKey = getScopedCacheKey(CACHE_KEYS.STATS);
     const analyticsCacheKey = getScopedCacheKey(CACHE_KEYS.ANALYTICS);
     const cachedStats = !forceRefresh && statsCacheKey ? getCacheData(statsCacheKey) : null;
-    const cachedAnalytics = !forceRefresh && analyticsCacheKey ? getCacheData(analyticsCacheKey) : null;
+    const cachedAnalytics =
+      !forceRefresh && analyticsCacheKey ? getCacheData(analyticsCacheKey) : null;
     let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
     let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
 
