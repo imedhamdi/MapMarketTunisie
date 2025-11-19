@@ -930,6 +930,20 @@ function renderListings(stats) {
   if (!listingsGrid) return;
 
   const listings = Array.isArray(stats?.recentActivity) ? stats.recentActivity : [];
+  if (listings.length) {
+    listings.sort((a, b) => {
+      const statusA = (a.status || '').toLowerCase();
+      const statusB = (b.status || '').toLowerCase();
+      const isActiveA = statusA === 'active';
+      const isActiveB = statusB === 'active';
+      if (isActiveA !== isActiveB) {
+        return isActiveA ? -1 : 1;
+      }
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }
   if (!listings.length) {
     listingsGrid.innerHTML = `
       <div class="profile-empty-state">
@@ -951,12 +965,14 @@ function renderListings(stats) {
       const favorites = numberFormatter.format(Number(ad.favorites) || 0);
       const thumbnail = resolveAdThumbnail(ad.thumbnail);
       const statusAttr = status || 'active';
+      const adId = ad.id || ad._id || '';
 
       const isArchived = status === 'archived' || status === 'inactive';
       const actionsMarkup = isArchived
         ? `
-            <button type="button" class="profile-listing-restore">
-              ↺ Remettre en ligne
+            <button type="button" class="profile-listing-restore" data-ad-id="${adId}">
+              <span class="profile-listing-restore-icon" aria-hidden="true">↺</span>
+              <span class="profile-listing-restore-label">Remettre en ligne</span>
             </button>
           `
         : `
@@ -996,9 +1012,9 @@ function renderListings(stats) {
           </div>
           <div class="profile-listing-body">
             <div class="profile-listing-meta">
+              <p class="profile-listing-title" title="${safeTitle}">${safeTitle}</p>
               <span class="profile-listing-price">${price}</span>
             </div>
-            <p class="profile-listing-title" title="${safeTitle}">${safeTitle}</p>
             <div class="profile-listing-bottom">
               ${actionsMarkup}
             </div>
@@ -1007,6 +1023,147 @@ function renderListings(stats) {
       `;
     })
     .join('');
+}
+
+function normalizeRecentActivityEntry(payload, fallback = {}) {
+  const base = fallback && typeof fallback === 'object' ? fallback : {};
+  if (!payload || typeof payload !== 'object') {
+    return {
+      ...base,
+      status: base.status || 'active'
+    };
+  }
+
+  const favoritesValue =
+    payload.favorites ?? payload.favoritesCount ?? payload.favoriteCount ?? base.favorites ?? 0;
+  const thumbnailSource =
+    payload.thumbnail ||
+    (Array.isArray(payload.thumbnails) && payload.thumbnails[0]) ||
+    (Array.isArray(payload.previews) && payload.previews[0]) ||
+    (Array.isArray(payload.images) && payload.images[0]) ||
+    base.thumbnail ||
+    null;
+
+  return {
+    ...base,
+    id: payload.id || payload._id || base.id || base._id || '',
+    title: payload.title ?? base.title ?? 'Annonce sans titre',
+    status: payload.status ?? base.status ?? 'active',
+    views: Number(payload.views ?? base.views ?? 0) || 0,
+    favorites: Number(favoritesValue) || 0,
+    price: payload.price ?? base.price ?? 0,
+    createdAt: payload.createdAt ?? base.createdAt ?? null,
+    updatedAt: payload.updatedAt ?? payload.modifiedAt ?? base.updatedAt ?? null,
+    thumbnail: thumbnailSource
+  };
+}
+
+function applyAdStatusUpdate(adId, updatedPayload) {
+  if (!drawerState.data?.stats) return;
+  const stats = drawerState.data.stats;
+  const activities = Array.isArray(stats.recentActivity) ? stats.recentActivity : [];
+  const normalizedId = String(adId);
+  const nextStatus = (updatedPayload?.status || 'active').toLowerCase();
+
+  let previousStatus = 'archived';
+  const index = activities.findIndex((item) => {
+    const itemId = item?.id || item?._id;
+    return itemId && String(itemId) === normalizedId;
+  });
+
+  if (index >= 0) {
+    previousStatus = (activities[index]?.status || '').toLowerCase() || 'archived';
+    activities[index] = normalizeRecentActivityEntry(updatedPayload, activities[index]);
+  } else if (updatedPayload) {
+    const normalizedEntry = normalizeRecentActivityEntry(updatedPayload, { id: normalizedId });
+    activities.unshift(normalizedEntry);
+  }
+
+  stats.recentActivity = activities;
+
+  if (stats.summary && nextStatus === 'active') {
+    const wasActive = previousStatus === 'active';
+    if (!wasActive) {
+      stats.summary.activeAds = Math.max(0, Number(stats.summary.activeAds || 0) + 1);
+      stats.summary.archivedAds = Math.max(0, Number(stats.summary.archivedAds || 0) - 1);
+    }
+  }
+}
+
+async function restoreArchivedAd(adId, button) {
+  if (!adId || !button || button.dataset.busy === 'true') {
+    return;
+  }
+
+  const labelEl = button.querySelector('.profile-listing-restore-label');
+  const originalLabel = labelEl ? labelEl.textContent : button.textContent;
+
+  button.dataset.busy = 'true';
+  button.classList.remove('has-error');
+  button.classList.add('is-loading');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  if (labelEl) {
+    labelEl.textContent = 'Remise en ligne…';
+  } else {
+    button.textContent = 'Remise en ligne…';
+  }
+
+  try {
+    const response = await apiRequest(`/ads/${adId}`, {
+      method: 'PATCH',
+      body: { status: 'active' }
+    });
+
+    const updatedPayload = response?.ad || response || { status: 'active' };
+    applyAdStatusUpdate(adId, updatedPayload);
+    clearProfileCache();
+    if (drawerState.data) {
+      renderOverview(drawerState.data);
+    }
+  } catch (error) {
+    logger.error('Error restoring ad:', error);
+    button.disabled = false;
+    button.classList.add('has-error');
+    const message = error?.message || 'Impossible de remettre en ligne';
+    button.setAttribute('title', message);
+    if (labelEl) {
+      labelEl.textContent = 'Réessayer';
+    } else {
+      button.textContent = 'Réessayer';
+    }
+  } finally {
+    button.dataset.busy = 'false';
+    if (button.isConnected) {
+      button.classList.remove('is-loading');
+      button.removeAttribute('aria-busy');
+      button.disabled = false;
+      if (!button.classList.contains('has-error')) {
+        if (labelEl) {
+          labelEl.textContent = originalLabel || 'Remettre en ligne';
+        } else {
+          button.textContent = originalLabel || 'Remettre en ligne';
+        }
+      }
+    }
+  }
+}
+
+function onListingsGridClick(event) {
+  const target = event.target;
+  const restoreButton = target?.closest('.profile-listing-restore');
+  if (!restoreButton || !listingsGrid?.contains(restoreButton)) {
+    return;
+  }
+
+  const adId = restoreButton.dataset.adId;
+  if (!adId) {
+    logger.warn('Restore button clicked without ad id');
+    return;
+  }
+
+  event.preventDefault();
+  restoreArchivedAd(adId, restoreButton);
 }
 
 function renderAnalytics(analytics) {
@@ -1771,6 +1928,9 @@ function init() {
     tab.addEventListener('click', onTabClick);
     tab.addEventListener('keydown', onTabKeydown);
   });
+
+  // Listings actions
+  listingsGrid?.addEventListener('click', onListingsGridClick);
 
   // Avatar upload
   avatarBtn?.addEventListener('click', () => avatarInput?.click());
