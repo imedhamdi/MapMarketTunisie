@@ -377,14 +377,23 @@ export async function deleteAd(req, res, next) {
       });
     }
 
-    // Archiver l'annonce au lieu de la supprimer
+    const adIdString = ad._id.toString();
+    const removalTargets = new Set([ad._id, adIdString]);
+    if (typeof id === 'string' && id.trim() && id.trim() !== adIdString) {
+      removalTargets.add(id.trim());
+    }
+    const removalValues = Array.from(removalTargets);
+
     ad.status = 'archived';
+    ad.favoritesCount = 0;
     await ad.save();
 
-    // Retirer l'annonce des favoris de tous les utilisateurs
-    await User.updateMany({ favorites: id }, { $pull: { favorites: id } });
+    await User.updateMany(
+      { favorites: { $in: removalValues } },
+      { $pull: { favorites: { $in: removalValues } } }
+    );
 
-    return sendSuccess(res, { message: 'Annonce supprimée' });
+    return sendSuccess(res, { message: 'Annonce archivée' });
   } catch (error) {
     next(error);
   }

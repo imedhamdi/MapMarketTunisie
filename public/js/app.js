@@ -5718,6 +5718,13 @@
         discardDraft();
       }
       await loadAds({ toastOnError: false });
+      document.dispatchEvent(
+        new CustomEvent('profile:invalidate-cache', {
+          detail: {
+            reason: editMode ? 'ad-updated' : 'ad-created'
+          }
+        })
+      );
       closePostModal({ reset: true });
       editMode = false;
       editingAdId = null;
@@ -6963,7 +6970,8 @@
   async function handleDeleteAd(ad) {
     const confirmed = await showConfirmDialog({
       title: "Supprimer l'annonce",
-      message: 'Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.',
+      message:
+        'Êtes-vous sûr de vouloir supprimer cette annonce ? Elle sera archivée et ne sera plus visible.',
       confirmLabel: 'Supprimer',
       cancelLabel: 'Annuler'
     });
@@ -6975,18 +6983,62 @@
     try {
       const response = await api.del(`/api/ads/${ad.id}`);
       if (response?.status === 'success') {
-        showToast('Annonce supprimée avec succès');
+        showToast('Annonce archivée avec succès');
         closeDetailsModal();
 
-        // Retirer l'annonce de la liste locale
-        const index = allItems.findIndex((item) => String(item.id) === String(ad.id));
-        if (index !== -1) {
-          allItems.splice(index, 1);
+        const normalizedId = normalizeAdId(ad.id ?? ad._id);
+        const removeById = (items) =>
+          Array.isArray(items)
+            ? items.filter((item) => normalizeAdId(item?.id ?? item?._id) !== normalizedId)
+            : [];
+
+        if (normalizedId) {
+          const nextAllItems = removeById(allItems);
+          if (nextAllItems.length !== allItems.length) {
+            allItems = nextAllItems;
+            rebuildAllItemsIndex();
+          }
+
+          const nextPageItems = removeById(paging.items);
+          if (nextPageItems.length !== paging.items.length) {
+            paging.items = nextPageItems;
+            filteredCache = paging.items;
+            cachePage(paging.page, {
+              items: paging.items,
+              nextCursor: paging.nextCursor,
+              hasNext: paging.hasNext
+            });
+          }
+
+          if (paging.cache?.size) {
+            paging.cache.forEach((entry, pageNumber) => {
+              if (!entry?.items) {
+                return;
+              }
+              const cleaned = removeById(entry.items);
+              if (cleaned.length !== entry.items.length) {
+                paging.cache.set(pageNumber, {
+                  ...entry,
+                  items: cleaned.map((item) => ({ ...item }))
+                });
+              }
+            });
+          }
+
+          if (typeof paging.total === 'number') {
+            paging.total = Math.max(0, paging.total - 1);
+            if (typeof paging.totalPages === 'number') {
+              const computedPages = Math.max(1, Math.ceil(Math.max(paging.total, 0) / PAGE_SIZE));
+              paging.totalPages = computedPages;
+            }
+          }
         }
 
-        // Rafraîchir la vue liste si elle existe
         if (typeof renderList === 'function') {
           renderList(true);
+        }
+        if (typeof renderMap === 'function') {
+          renderMap({ force: currentView === 'map', invalidate: currentView === 'map' });
         }
 
         // Retirer du store des favoris si présent
@@ -7000,6 +7052,15 @@
             renderFavSheet();
           }
         }
+
+        document.dispatchEvent(
+          new CustomEvent('profile:invalidate-cache', {
+            detail: {
+              reason: 'ad-deleted',
+              adId: normalizedId || adId
+            }
+          })
+        );
       } else {
         throw new Error('Échec de la suppression');
       }

@@ -167,7 +167,7 @@ export const updateAdSchema = Joi.object({
   latitude: locationSchema.extract('latitude').optional(),
   longitude: locationSchema.extract('longitude').optional(),
   attributes: Joi.object().unknown(true).optional(),
-  status: Joi.string().valid('active', 'archived', 'deleted', 'sold').optional()
+  status: Joi.string().valid('active', 'archived').optional()
 })
   .min(1)
   .custom((value, helpers) => {

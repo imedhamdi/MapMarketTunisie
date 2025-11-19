@@ -44,7 +44,7 @@ const AdSchema = new Schema(
     webpThumbnails: { type: [String], default: [] },
     status: {
       type: String,
-      enum: ['draft', 'active', 'archived', 'deleted'],
+      enum: ['active', 'archived'],
       default: 'active',
       index: true
     },

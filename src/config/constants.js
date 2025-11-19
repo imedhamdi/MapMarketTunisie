@@ -4,10 +4,8 @@
  */
 
 export const AD_STATUS = {
-  DRAFT: 'draft',
   ACTIVE: 'active',
-  ARCHIVED: 'archived',
-  DELETED: 'deleted'
+  ARCHIVED: 'archived'
 };
 
 export const AD_CATEGORY = {

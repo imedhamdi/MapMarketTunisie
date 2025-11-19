@@ -417,7 +417,7 @@ export async function deleteMe(req, res) {
         { _id: { $in: adIds } },
         {
           $set: {
-            status: 'deleted',
+            status: 'archived',
             favoritesCount: 0
           }
         }
@@ -477,9 +477,7 @@ export async function getUserStats(req, res) {
     const totals = {
       total: userAds.length,
       active: 0,
-      draft: 0,
-      archived: 0,
-      deleted: 0
+      archived: 0
     };
 
     let totalViews = 0;
@@ -516,7 +514,6 @@ export async function getUserStats(req, res) {
       summary: {
         totalAds: totals.total,
         activeAds: totals.active || 0,
-        draftAds: totals.draft || 0,
         archivedAds: totals.archived || 0,
         totalViews,
         totalFavorites,
@@ -723,12 +720,11 @@ export async function getUserAnalytics(req, res) {
 function buildAnalyticsInsights({ totals, averageViews, averageFavorites }) {
   const insights = [];
   const active = totals.get('active') || 0;
-  const draft = totals.get('draft') || 0;
   const archived = totals.get('archived') || 0;
   const total = Array.from(totals.values()).reduce((sum, value) => sum + value, 0) || 1;
 
-  if (active === 0 && draft > 0) {
-    insights.push('Vous avez des brouillons en attente. Publiez-les pour gagner en visibilité.');
+  if (active === 0 && archived > 0) {
+    insights.push('Toutes vos annonces sont archivées. Remettez-en en ligne pour rester visible.');
   }
 
   if (archived > active) {

@@ -261,12 +261,8 @@ const DEFAULT_AVATAR = '/uploads/avatars/default.jpg';
 const DEFAULT_AD_THUMBNAIL = '/icons/placeholder.svg';
 const AD_STATUS_LABELS = Object.freeze({
   active: 'En ligne',
-  published: 'En ligne',
-  draft: 'Brouillon',
-  pending: 'En attente',
-  paused: 'En pause',
   archived: 'Archivée',
-  inactive: 'Inactive'
+  inactive: 'Archivée'
 });
 
 // === UX/Behavior ===
@@ -292,7 +288,6 @@ const ANALYTICS_OVERVIEW_DEFAULTS = Object.freeze({
 const STATS_SUMMARY_DEFAULTS = Object.freeze({
   totalAds: 0,
   activeAds: 0,
-  draftAds: 0,
   archivedAds: 0,
   totalViews: 0,
   totalFavorites: 0,
@@ -1547,13 +1542,14 @@ function canCloseDrawer() {
 }
 
 // === Fetch Profile Data ===
-async function fetchProfileData() {
+async function fetchProfileData(options = {}) {
   try {
+    const { forceRefresh = false } = options || {};
     const authUser = window.authStore?.get();
     const statsCacheKey = getScopedCacheKey(CACHE_KEYS.STATS);
     const analyticsCacheKey = getScopedCacheKey(CACHE_KEYS.ANALYTICS);
-    const cachedStats = statsCacheKey ? getCacheData(statsCacheKey) : null;
-    const cachedAnalytics = analyticsCacheKey ? getCacheData(analyticsCacheKey) : null;
+    const cachedStats = !forceRefresh && statsCacheKey ? getCacheData(statsCacheKey) : null;
+    const cachedAnalytics = !forceRefresh && analyticsCacheKey ? getCacheData(analyticsCacheKey) : null;
     let stats = cachedStats ? normalizeStatsData(cachedStats) : null;
     let analytics = cachedAnalytics ? normalizeAnalyticsData(cachedAnalytics) : null;
 
@@ -1631,6 +1627,34 @@ async function fetchProfileData() {
     return null;
   }
 }
+
+async function refreshProfileDrawerData({ force = false } = {}) {
+  if (!drawerState.isOpen) {
+    return;
+  }
+
+  const profileData = await fetchProfileData({ forceRefresh: force });
+  if (!profileData) {
+    return;
+  }
+
+  drawerState.data = profileData;
+
+  renderHeader(profileData.user);
+  renderOverview(profileData);
+  renderAnalytics(profileData.analytics);
+
+  const isEditing = isNameEditing || isPasswordEditing || hasUnsavedChanges;
+  if (!isEditing) {
+    renderSettings(profileData.user);
+  }
+}
+
+document.addEventListener('profile:invalidate-cache', (event) => {
+  logger.info('profile:invalidate-cache received', event?.detail || {});
+  clearProfileCache();
+  refreshProfileDrawerData({ force: true });
+});
 
 // === Open/Close ===
 async function openProfileDrawer(data) {

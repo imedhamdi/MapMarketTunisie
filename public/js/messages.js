@@ -1513,7 +1513,7 @@
     dom.chatSubtitle.textContent = subtitleParts.join(' • ') || sellerName || adTitle || '';
     if (dom.chatAdStatus) {
       if (isAdDeleted) {
-        dom.chatAdStatus.textContent = 'Annonce supprimée';
+        dom.chatAdStatus.textContent = 'Annonce archivée';
         dom.chatAdStatus.removeAttribute('hidden');
       } else {
         dom.chatAdStatus.setAttribute('hidden', 'true');
@@ -1525,8 +1525,8 @@
       const adImage = getConversationAdPrimaryImage(ad);
 
       if (isAdDeleted) {
-        dom.chatAdThumb.title = 'Annonce supprimée';
-        dom.chatAdThumb.setAttribute('aria-label', 'Annonce supprimée');
+        dom.chatAdThumb.title = 'Annonce archivée';
+        dom.chatAdThumb.setAttribute('aria-label', 'Annonce archivée');
       } else {
         dom.chatAdThumb.title = `Voir l'annonce : ${adTitle}`;
         dom.chatAdThumb.setAttribute('aria-label', `Voir l'annonce : ${adTitle}`);
@@ -1595,7 +1595,7 @@
       dom.chatSubtitle.textContent = 'Vos messages apparaîtront ici.';
     }
     if (dom.chatAdStatus) {
-      dom.chatAdStatus.textContent = 'Annonce supprimée';
+      dom.chatAdStatus.textContent = 'Annonce archivée';
       dom.chatAdStatus.setAttribute('hidden', 'true');
     }
     if (dom.chatAdThumb) {

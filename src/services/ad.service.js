@@ -451,10 +451,11 @@ class AdService {
       throw createError.forbidden("Seul l'auteur peut supprimer cette annonce.");
     }
 
-    await ad.deleteOne();
+    ad.status = AD_STATUS.ARCHIVED;
+    await ad.save();
 
-    logger.logDB('deleteAd', 'ads', Date.now() - startTime);
-    logger.info('Annonce supprimée', { adId, userId });
+    logger.logDB('archiveAd', 'ads', Date.now() - startTime);
+    logger.info('Annonce archivée', { adId, userId });
 
     return ad;
   }
