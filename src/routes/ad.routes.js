@@ -9,6 +9,7 @@ import {
   cacheAd,
   invalidateAdsCache,
   invalidateAdCache,
+  invalidateUserCache,
   setCacheHeaders
 } from '../middlewares/cache.js';
 import { createAdLimiter } from '../middlewares/rateLimit.js';
@@ -28,6 +29,7 @@ router.post(
   createAdLimiter,
   validate(createAdSchema),
   invalidateAdsCache(),
+  invalidateUserCache(),
   createAd
 );
 router.patch(
@@ -36,8 +38,16 @@ router.patch(
   validate(updateAdSchema),
   invalidateAdsCache(),
   invalidateAdCache(),
+  invalidateUserCache(),
   updateAd
 );
-router.delete('/:id', authRequired, invalidateAdsCache(), invalidateAdCache(), deleteAd);
+router.delete(
+  '/:id',
+  authRequired,
+  invalidateAdsCache(),
+  invalidateAdCache(),
+  invalidateUserCache(),
+  deleteAd
+);
 
 export default router;

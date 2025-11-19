@@ -1279,6 +1279,33 @@
     }
   }
 
+  let adsStatusRefreshTimer = null;
+
+  function handleExternalAdStatusUpdate(event) {
+    const detail = event?.detail || {};
+    const payload = detail.ad || null;
+    if (payload) {
+      try {
+        const mapped = mapAdFromApi(payload);
+        if (mapped) {
+          upsertAd(mapped);
+        }
+      } catch (error) {
+        appLogger.warn('Impossible de mettre à jour la carte suite au statut', error);
+      }
+    }
+
+    if (adsStatusRefreshTimer) {
+      clearTimeout(adsStatusRefreshTimer);
+    }
+    adsStatusRefreshTimer = setTimeout(() => {
+      adsStatusRefreshTimer = null;
+      loadAds({ toastOnError: false });
+    }, 120);
+  }
+
+  document.addEventListener('ads:status-updated', handleExternalAdStatusUpdate);
+
   const favoriteMutations = new Map();
 
   async function setFavoriteState(id, shouldAdd, { feedback = true } = {}) {

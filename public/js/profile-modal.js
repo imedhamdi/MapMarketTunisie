@@ -1118,9 +1118,16 @@ async function restoreArchivedAd(adId, button) {
     const updatedPayload = response?.ad || response || { status: 'active' };
     applyAdStatusUpdate(adId, updatedPayload);
     clearProfileCache();
-    if (drawerState.data) {
-      renderOverview(drawerState.data);
-    }
+    await refreshProfileDrawerData({ force: true });
+    document.dispatchEvent(
+      new CustomEvent('ads:status-updated', {
+        detail: {
+          adId,
+          status: 'active',
+          ad: updatedPayload
+        }
+      })
+    );
   } catch (error) {
     logger.error('Error restoring ad:', error);
     button.disabled = false;
