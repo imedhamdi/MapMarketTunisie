@@ -56,9 +56,10 @@
 
 .why-mapmarket__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: 1fr;
   gap: var(--why-gap);
 }
+/* Les media queries sont dans responsive.css */
 
 /* Card avec glassmorphism */
 .why-mapmarket__card {

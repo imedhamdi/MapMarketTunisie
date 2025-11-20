@@ -25,3 +25,5 @@
 @import url("./modules/why-mapmarket.css");
 @import url("./modules/recently-viewed.css");
 @import url("./modules/footer.css");
+/* Media queries centralisées - DOIT être en dernier */
+@import url("./modules/responsive.css");

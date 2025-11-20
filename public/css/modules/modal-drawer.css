@@ -238,10 +238,11 @@
 .mm-modal .mm-card {
   display: grid;
   grid-template-rows: 180px 1fr;
-  width: min(360px, 100%);
+  width: 100%;
   height: 280px;
-  margin: 0 auto;
+  margin: 0;
 }
+/* Les media queries pour le responsive sont dans responsive.css */
 
 .mm-modal .mm-thumb {
   width: 100%;

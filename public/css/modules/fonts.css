@@ -7,8 +7,19 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Grian';
+  src: url('/fonts/Grian.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Apply to brand logo */
 .brand b {
-  font-family: 'Nazari', sans-serif;
+  font-family: 'Grian', sans-serif;
   font-weight: normal;
+  color: var(--primary);
+  font-size: 2rem;
+  letter-spacing: -0.02em;
 }
