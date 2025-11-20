@@ -23,14 +23,6 @@
   gap: 3rem;
   align-items: center;
   
-  @media (min-width: 768px) {
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-  }
-  
-  @media (min-width: 1024px) {
-    gap: 6rem;
-  }
 }
 
 /* ==========================================================================
@@ -267,43 +259,6 @@
    RESPONSIVE
    ========================================================================== */
 
-@media (max-width: 767px) {
-  .join-community__wrapper {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  
-  .join-community__content {
-    align-items: center;
-  }
-  
-  .join-community__features {
-    align-items: flex-start;
-    text-align: left;
-  }
-  
-  .join-community__cta {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 /* ==========================================================================
    REDUCED MOTION
    ========================================================================== */
-
-@media (prefers-reduced-motion: reduce) {
-  .join-community__content,
-  .join-community__visual,
-  .join-community__cta,
-  .join-community__card,
-  .join-community__avatar {
-    animation: none;
-    transition: none;
-  }
-  
-  .join-community__content,
-  .join-community__visual {
-    opacity: 1;
-  }
-}

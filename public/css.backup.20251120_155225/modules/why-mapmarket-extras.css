@@ -1,0 +1,103 @@
+/*
+ * DEMO CSS - Styles additionnels pour showcase
+ * À utiliser uniquement pour démonstration
+ */
+
+/* Animation de brillance sur le titre */
+@keyframes why-shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.why-mapmarket__title--animated {
+  background-size: 200% auto;
+  animation: why-shine 3s linear infinite;
+}
+
+/* Effet de ripple au clic */
+.why-mapmarket__card {
+  position: relative;
+  overflow: hidden;
+}
+
+.why-mapmarket__card-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 77, 109, 0.3);
+  transform: scale(0);
+  animation: why-ripple 0.6s ease-out;
+  pointer-events: none;
+}
+
+@keyframes why-ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Badge "NOUVEAU" pour stats */
+.why-mapmarket__new-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: linear-gradient(135deg, #ff4d6d, #ff3b6b);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+  animation: why-pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes why-pulse-badge {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(255, 77, 109, 0);
+  }
+}
+
+/* Particules décoratives */
+.why-mapmarket__particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.why-mapmarket__particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--color-brand-400);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: why-float-particle 20s infinite ease-in-out;
+}
+
+@keyframes why-float-particle {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(100px, -100px) rotate(90deg);
+  }
+  50% {
+    transform: translate(0, -200px) rotate(180deg);
+  }
+  75% {
+    transform: translate(-100px, -100px) rotate(270deg);
+  }
+}

@@ -1,0 +1,113 @@
+/* ========== SKELETON LOADER ========== */
+/* ============================================
+   SKELETON CARDS - MINIMAL & CLEAN DESIGN
+   ============================================ */
+.skeleton-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-faint);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(var(--color-text-primary-rgb), 0.04);
+}
+
+.skeleton-card__media {
+  width: 100%;
+  height: 220px;
+  background: var(--color-surface-ghost);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Effet shimmer subtil qui traverse l'image */
+.skeleton-card__media::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer-slow 3s ease-in-out infinite;
+}
+
+.skeleton-card__body {
+  padding: 18px;
+  display: grid;
+  gap: 11px;
+}
+
+.skeleton-chip {
+  width: 75px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--color-surface-alt);
+}
+
+.skeleton-price {
+  width: 95px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+}
+
+.skeleton-title {
+  width: 70%;
+  height: 18px;
+  border-radius: 6px;
+  background: var(--color-surface-alt);
+}
+
+.skeleton-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.skeleton-meta-item {
+  width: 55px;
+  height: 15px;
+  border-radius: 5px;
+  background: var(--color-surface-muted);
+}
+
+.skeleton-button {
+  width: 100%;
+  height: 38px;
+  border-radius: 10px;
+  margin-top: 10px;
+  background: var(--color-surface-ghost);
+}
+
+/* Animation shimmer lente et subtile */
+@keyframes shimmer-slow {
+  0% {
+    left: -150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+/* Animation de suppression pour les skeletons */
+.skeleton-card.fade-out {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}

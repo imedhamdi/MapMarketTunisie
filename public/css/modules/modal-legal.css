@@ -175,11 +175,3 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-
-@media (max-width: 640px) {
-  .mm-modal--legal .mm-modal__dialog {
-    margin: 8vh 4vw 0;
-    max-height: 82vh;
-  }
-}
-

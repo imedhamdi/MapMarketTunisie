@@ -1,0 +1,14 @@
+/* Custom Fonts */
+@font-face {
+  font-family: 'Nazari';
+  src: url('/fonts/NazariDemo-Demo.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Apply to brand logo */
+.brand b {
+  font-family: 'Nazari', sans-serif;
+  font-weight: normal;
+}

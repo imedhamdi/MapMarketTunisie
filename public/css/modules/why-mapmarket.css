@@ -260,37 +260,5 @@
 }
 
 /* Responsive adjustments */
-@media (min-width: 768px) {
-  .why-mapmarket__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .why-mapmarket__grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
 
 /* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  .why-mapmarket::before,
-  .why-mapmarket::after,
-  .why-mapmarket__card,
-  .why-mapmarket__icon,
-  .why-mapmarket__header {
-    animation: none !important;
-    transition: none !important;
-  }
-  
-  .why-mapmarket__card:hover {
-    transform: none;
-  }
-  
-  .why-mapmarket__card {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-

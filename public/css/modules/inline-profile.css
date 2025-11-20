@@ -111,7 +111,6 @@
   gap: 12px;
 }
 
-
 .profile-delete-account {
   margin: 32px 0 0 0;
   text-align: center;
@@ -199,19 +198,4 @@
   margin: 4px 0 0;
   color: var(--color-text-secondary);
   font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-  .profile-summary-card {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .profile-summary-card__actions {
-    justify-content: center;
-  }
-
-  .profile-avatar-wrapper {
-    margin: 0 auto;
-  }
 }

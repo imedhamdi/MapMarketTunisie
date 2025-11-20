@@ -148,12 +148,6 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
-  .chat-call-consent {
-    margin: 0 8px 12px;
-  }
-}
-
 /* Modal d'appel */
 .voice-call-modal {
   position: fixed;
@@ -511,34 +505,6 @@
 }
 
 /* Responsive */
-@media (max-width: 480px) {
-  .voice-call-content {
-    padding: 32px 24px;
-  }
-
-  .voice-call-avatar {
-    width: 100px;
-    height: 100px;
-  }
-
-  .voice-call-username {
-    font-size: 20px;
-  }
-
-  .voice-call-status {
-    font-size: 14px;
-  }
-
-  .voice-call-btn {
-    width: 56px;
-    height: 56px;
-  }
-
-  .voice-call-btn .messages-icon {
-    width: 24px;
-    height: 24px;
-  }
-}
 
 /* États désactivés */
 .voice-call-btn:disabled {

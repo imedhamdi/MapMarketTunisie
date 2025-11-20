@@ -1,0 +1,231 @@
+/* Card item */
+.ad {
+  position: relative;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  height: 100%;
+  transition: box-shadow .25s;
+}
+
+.ad::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0%;
+  background-color: var(--primary);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ad:hover::after {
+  width: 100%;
+}
+
+.ad:hover {
+  box-shadow: var(--shadow)
+}
+
+.thumb {
+  position: relative;
+  aspect-ratio: 4/3;
+  background: var(--color-info-soft);
+}
+
+.thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover
+}
+
+.grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(var(--color-text-primary-rgb), .45), transparent 60%)
+}
+
+.cat {
+  position: absolute;
+  left: 10px;
+  top: auto;
+  bottom: 10px;
+  color: var(--color-text-contrast);
+  font-weight: 700;
+  font-size: clamp(13px, 3.4vw, 14px);
+  border-radius: 999px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px
+}
+
+.immobilier {
+  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600))
+}
+
+.mode {
+  background: linear-gradient(135deg, var(--color-pink-500), var(--color-pink-600))
+}
+
+.hitech {
+  background: linear-gradient(135deg, var(--color-purple-500), var(--color-purple-600))
+}
+
+.auto {
+  background: linear-gradient(135deg, var(--color-warning-500), var(--color-warning-600))
+}
+
+.pieces {
+  background: #22c55e;
+}
+
+.loisirs {
+  background: linear-gradient(135deg, #a855f7, #9333ea)
+}
+
+.maison {
+  background: linear-gradient(135deg, var(--color-success-500), var(--color-success-600))
+}
+
+.fav {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(var(--color-surface-rgb), .9);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 18px rgba(var(--color-text-primary-rgb), .14);
+  border: none;
+  cursor: pointer
+}
+
+.fav svg {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-secondary)
+}
+
+.body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.titleprice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between
+}
+
+.title {
+  font-weight: 700;
+  font-size: clamp(16px, 4vw, 18px);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.price {
+  color: var(--primary);
+  font-weight: 800;
+  font-size: clamp(17px, 4.2vw, 19px);
+  white-space: nowrap
+}
+
+.ad .desc {
+  color: var(--color-text-subtle);
+  font-size: clamp(13px, 3.6vw, 14px);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px
+}
+
+.ad .chips {
+  display: none;
+}
+
+.chip {
+  background: var(--chip);
+  border: 1px solid var(--color-border-info);
+  color: var(--chip-text);
+  border-radius: 999px;
+  font-size: clamp(12px, 3vw, 13px);
+  padding: 4px 10px
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: clamp(12px, 3vw, 13px);
+  color: var(--color-text-secondary)
+}
+
+.loc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0
+}
+
+.loc svg {
+  width: 14px;
+  height: 14px
+}
+
+.state {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  white-space: nowrap
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+  color: var(--color-text-muted);
+}
+
+.thumb .stats {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  color: var(--color-text-contrast);
+  text-shadow: 0 1px 3px rgba(var(--color-text-primary-rgb), .3);
+}
+
+.time {
+  margin-top: -4px;
+  color: var(--color-text-muted);
+  font-size: clamp(12px, 3vw, 13px);
+}
+

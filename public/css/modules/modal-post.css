@@ -27,32 +27,6 @@
   position: relative;
 }
 
-@media (max-width: 768px) {
-  .post-dialog {
-    width: 100%;
-    height: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .post-header {
-    padding: max(20px, calc(16px + var(--safeTop))) 20px 20px;
-  }
-  
-  .post-content {
-    padding: 24px 20px max(100px, calc(96px + var(--safeBottom)));
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .post-footer {
-    padding-bottom: max(20px, calc(16px + var(--safeBottom)));
-  }
-}
-
 .post-header {
   padding: 20px 28px;
   border-bottom: 1px solid var(--color-border-soft);
@@ -104,32 +78,6 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-}
-
-@media (max-width: 768px) {
-  .post-dialog {
-    width: 100%;
-    height: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .post-header {
-    padding: max(20px, calc(16px + var(--safeTop))) 20px 20px;
-  }
-  
-  .post-content {
-    padding: 24px 20px max(100px, calc(96px + var(--safeBottom)));
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .post-footer {
-    padding-bottom: max(20px, calc(16px + var(--safeBottom)));
-  }
 }
 
 .post-section header {
@@ -584,8 +532,6 @@ button.nav-link {
   color: #fff;
   box-shadow: var(--shadow-brand-strong);
 }
-
-
 
 .avatar-btn:focus-visible {
   outline: 2px solid rgba(var(--color-brand-rgb), 0.6);

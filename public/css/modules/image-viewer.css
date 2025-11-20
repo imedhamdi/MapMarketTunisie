@@ -94,20 +94,3 @@
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
-  .image-viewer__content {
-    max-width: 95vw;
-    max-height: 95vh;
-  }
-
-  .image-viewer__close {
-    top: 15px;
-    right: 15px;
-    width: 36px;
-    height: 36px;
-  }
-
-  .image-viewer__img {
-    max-height: 85vh;
-  }
-}

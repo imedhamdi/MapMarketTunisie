@@ -1,0 +1,40 @@
+/* Modal base */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--color-ink-rgb), .55);
+  backdrop-filter: blur(6px);
+  z-index: var(--z-modal-overlay);
+  padding: var(--safeTop) var(--safeRight) var(--safeBottom) var(--safeLeft);
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: max(12px, var(--safeTop)) max(12px, var(--safeRight)) max(12px, var(--safeBottom)) max(12px, var(--safeLeft));
+  }
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 24px;
+  box-shadow: 0 24px 48px rgba(var(--color-ink-rgb), .28);
+  overflow: hidden;
+  max-height: calc(100vh - var(--safeTop) - var(--safeBottom) - 24px);
+}
+
+@media (max-width: 640px) {
+  .modal {
+    border-radius: 20px;
+    max-height: calc(100vh - max(12px, var(--safeTop)) - max(12px, var(--safeBottom)) - 24px);
+  }
+}
+
+.modal .pane {
+  padding: 22px;
+}
+

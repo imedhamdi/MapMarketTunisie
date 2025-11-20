@@ -239,7 +239,6 @@
 
 /* Profile Metrics Grid */
 
-
 /* Profile Insights */
 .profile-insights {
   background: var(--color-surface);
@@ -531,78 +530,3 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .profile-tab-content {
-    padding: 20px 16px;
-  }
-
-  .profile-summary-card {
-    padding: 20px;
-    grid-template-columns: 1fr;
-  }
-
-  .profile-summary-card__avatar {
-    justify-content: center;
-  }
-
-  .profile-summary-card__content {
-    text-align: center;
-    justify-items: center;
-  }
-
-  .profile-summary-card__header {
-    justify-content: center;
-  }
-
-  .profile-summary-card__meta {
-    justify-content: center;
-  }
-
-  .profile-summary-card__actions {
-    justify-content: center;
-  }
-
-  .profile-metric-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .analytics-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-ads-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-ads-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .profile-filter-btn {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .profile-header-info h2 {
-    font-size: 1rem;
-  }
-
-  .profile-header-subtitle {
-    font-size: 0.8rem;
-  }
-
-  .profile-avatar-mini-wrapper {
-    width: 38px;
-    height: 38px;
-  }
-
-  .profile-metric-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-summary-card__actions {
-    flex-direction: column;
-  }
-}

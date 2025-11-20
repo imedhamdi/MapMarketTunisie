@@ -14,14 +14,3 @@
   font-size: 14px;
   line-height: 1.4;
 }
-
-@media (max-width: 640px) {
-  .toast {
-    left: max(16px, calc(12px + var(--safeLeft)));
-    right: max(16px, calc(12px + var(--safeRight)));
-    bottom: max(20px, calc(16px + var(--safeBottom)));
-    font-size: 15px;
-    padding: 14px 18px;
-  }
-}
-

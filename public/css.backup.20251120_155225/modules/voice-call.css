@@ -1,0 +1,548 @@
+/* ==================== VOICE CALL STYLES ==================== */
+
+/* Bouton d'appel dans la barre d'en-tête */
+.messages-header__call-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary, #2563eb);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.messages-header__call-btn:hover {
+  background: var(--color-primary-dark, #1d4ed8);
+  transform: scale(1.05);
+}
+
+.messages-header__call-btn:active {
+  transform: scale(0.95);
+}
+
+.messages-header__call-btn:disabled {
+  background: var(--color-gray-300, #d1d5db);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.messages-header__call-btn .messages-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.chat-call-consent {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  background: var(--color-gray-50, #f9fafb);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-call-consent__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chat-call-consent__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-700, #374151);
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.chat-call-consent__pill.is-active {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+}
+
+.chat-call-consent__pill.is-waiting {
+  background: rgba(248, 113, 113, 0.16);
+  color: #b91c1c;
+}
+
+.chat-call-consent__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-flex;
+}
+
+.chat-call-consent__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--color-gray-800, #1f2937);
+}
+
+.chat-call-consent__checkbox {
+  appearance: none;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.chat-call-consent__switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-gray-300, #d1d5db);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.chat-call-consent__switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.chat-call-consent__checkbox:checked + .chat-call-consent__switch {
+  background: var(--color-primary, #2563eb);
+}
+
+.chat-call-consent__checkbox:checked + .chat-call-consent__switch::after {
+  transform: translateX(20px);
+}
+
+.chat-call-consent__text {
+  font-size: 14px;
+}
+
+.chat-call-consent__hint {
+  font-size: 12px;
+  color: var(--color-gray-600, #4b5563);
+  margin: 0;
+}
+
+.chat-call-consent.is-disabled {
+  opacity: 0.75;
+}
+
+.chat-call-consent.is-disabled .chat-call-consent__toggle {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .chat-call-consent {
+    margin: 0 8px 12px;
+  }
+}
+
+/* Modal d'appel */
+.voice-call-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+.voice-call-modal.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Contenu du modal */
+.voice-call-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Avatar de l'appelant/appelé */
+.voice-call-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin: 0 auto 24px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.voice-call-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Nom de l'utilisateur */
+.voice-call-username {
+  font-size: 24px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* État de l'appel */
+.voice-call-status {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 24px;
+  min-height: 24px;
+}
+
+.voice-call-status.ringing::after {
+  content: '...';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: '.';
+  }
+  40% {
+    content: '..';
+  }
+  60%, 100% {
+    content: '...';
+  }
+}
+
+/* Durée de l'appel */
+.voice-call-duration {
+  font-size: 18px;
+  font-weight: 500;
+  color: white;
+  margin-bottom: 32px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+/* Conteneur des boutons de contrôle */
+.voice-call-controls {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Boutons de contrôle */
+.voice-call-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.voice-call-btn:hover {
+  transform: scale(1.1);
+}
+
+.voice-call-btn:active {
+  transform: scale(0.95);
+}
+
+.voice-call-btn .messages-icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* Bouton répondre */
+.voice-call-btn--answer {
+  background: #10b981;
+  color: white;
+}
+
+.voice-call-btn--answer:hover {
+  background: #059669;
+}
+
+/* Bouton rejeter / terminer */
+.voice-call-btn--end {
+  background: #ef4444;
+  color: white;
+}
+
+.voice-call-btn--end:hover {
+  background: #dc2626;
+}
+
+/* Bouton mute */
+.voice-call-btn--mute {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.voice-call-btn--mute:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.voice-call-btn--mute.active {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.voice-call-btn--mute.active:hover {
+  background: rgba(239, 68, 68, 1);
+}
+
+/* Indicateur de micro coupé */
+.voice-call-btn--mute.active::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 40px;
+  background: white;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* Animation de connexion */
+.voice-call-connecting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.voice-call-connecting-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  animation: connecting 1.4s infinite;
+}
+
+.voice-call-connecting-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.voice-call-connecting-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes connecting {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+/* Notification d'appel (toast) */
+.voice-call-notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideInRight 0.3s ease;
+  max-width: 320px;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.voice-call-notification.hidden {
+  display: none;
+}
+
+.voice-call-notification__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.voice-call-notification__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.voice-call-notification__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.voice-call-notification__title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-gray-900, #111827);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-call-notification__text {
+  font-size: 13px;
+  color: var(--color-gray-600, #4b5563);
+}
+
+.voice-call-notification__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.voice-call-notification__btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.voice-call-notification__btn--answer {
+  background: #10b981;
+  color: white;
+}
+
+.voice-call-notification__btn--answer:hover {
+  background: #059669;
+}
+
+.voice-call-notification__btn--reject {
+  background: #ef4444;
+  color: white;
+}
+
+.voice-call-notification__btn--reject:hover {
+  background: #dc2626;
+}
+
+.voice-call-notification__btn .messages-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Audio element caché pour le flux distant */
+.voice-call-remote-audio {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .voice-call-content {
+    padding: 32px 24px;
+  }
+
+  .voice-call-avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .voice-call-username {
+    font-size: 20px;
+  }
+
+  .voice-call-status {
+    font-size: 14px;
+  }
+
+  .voice-call-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .voice-call-btn .messages-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* États désactivés */
+.voice-call-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}

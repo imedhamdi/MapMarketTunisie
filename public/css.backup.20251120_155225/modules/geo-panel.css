@@ -1,0 +1,149 @@
+/* === GEO PANEL (overlay dans la carte) =================================== */
+.geo-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  gap: 8px;
+  z-index: var(--z-map);
+}
+
+.geo-btn {
+  --geo-btn-w: 212px;
+  --geo-btn-h: 44px;
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-template-columns: 24px 1fr 20px 28px;
+  align-items: center;
+  gap: 8px;
+  width: var(--geo-btn-w);
+  height: var(--geo-btn-h);
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 6px 16px rgba(var(--color-brand-rgb), 0.12);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.geo-btn:hover {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 12px 26px rgba(var(--color-brand-rgb), 0.16);
+}
+
+.geo-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.geo-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.geo-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.geo-ico {
+  width: 18px;
+  text-align: center;
+  opacity: 0.9;
+  font-size: 16px;
+}
+
+.geo-label {
+  grid-column: 2;
+  grid-row: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  justify-self: start;
+  align-self: center;
+  transition: opacity 160ms ease;
+}
+
+.geo-spinner {
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+.geo-spinner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--color-text-primary-rgb), 0.18);
+  border-top-color: var(--primary);
+  animation: geo-spin 1s linear infinite;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.geo-btn[aria-busy="true"] .geo-spinner::after {
+  opacity: 1;
+}
+
+@keyframes geo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.geo-caret {
+  width: 28px;
+  height: 28px;
+  margin-right: -2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 160ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  justify-self: end;
+}
+
+.geo-caret:hover {
+  background: rgba(var(--color-ink-rgb), 0.08);
+}
+
+.geo-caret:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.geo-caret[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.geo-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 320px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(255, 77, 109, 0.05) 100%);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: 0 16px 32px rgba(var(--color-ink-rgb), 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.geo-dropdown[hidden] {
+  display: none;
+}
+

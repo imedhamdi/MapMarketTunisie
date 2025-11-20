@@ -1585,7 +1585,6 @@
     if (favSearch) {
       setTimeout(() => favSearch.focus(), 50);
     }
-    updateBottomNavState();
   }
 
   function closeFavSheet() {
@@ -1608,7 +1607,6 @@
       }
     }, 200);
     unlockBodyScroll();
-    updateBottomNavState();
   }
 
   openFavsBtn?.addEventListener('click', openFavSheet);
@@ -3472,8 +3470,6 @@
   const VERIFICATION_COOLDOWN_MS = 60000;
   const backToLogin = document.getElementById('backToLogin');
   const passwordToggles = document.querySelectorAll('.password-toggle');
-  const bottomNav = document.getElementById('bottomNav');
-  const bottomNavButtons = bottomNav ? Array.from(bottomNav.querySelectorAll('.bn-btn')) : [];
 
   const API_BASE = window.API_BASE || window.location.origin;
 
@@ -3699,84 +3695,6 @@
     }
     return 'Une erreur est survenue.';
   }
-
-  function updateBottomNavState() {
-    if (!bottomNavButtons.length) {
-      return;
-    }
-    const isMapActive = !!(viewWrapper && viewWrapper.classList.contains('show-map'));
-    const favPanelOpen = typeof isFavModalOpen === 'function' ? isFavModalOpen() : false;
-    bottomNavButtons.forEach((btn) => {
-      const action = btn.dataset.action;
-      let pressed = false;
-      if (action === 'home') {
-        pressed = !isMapActive;
-      } else if (action === 'favs') {
-        pressed = favPanelOpen;
-      }
-      btn.setAttribute('aria-pressed', String(pressed));
-      btn.classList.toggle('is-active', pressed);
-    });
-  }
-
-  if (bottomNav) {
-    bottomNav.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button || !bottomNav.contains(button)) {
-        return;
-      }
-      const action = button.dataset.action;
-      switch (action) {
-        case 'home':
-          animateTo('list');
-          window.scrollTo({ top: 0, behavior: prefersReducedMotion.matches ? 'auto' : 'smooth' });
-          break;
-        case 'messages':
-          if (navMessages) {
-            navMessages.click();
-          }
-          break;
-        case 'publish':
-          if (postBtn) {
-            postBtn.click();
-          }
-          break;
-        case 'favs':
-          if (openFavsBtn) {
-            openFavsBtn.click();
-          }
-          break;
-        case 'profile': {
-          ensureProfileModal()
-            .then(() => {
-              if (typeof window.openProfileModal === 'function') {
-                window.openProfileModal();
-              }
-            })
-            .catch(() => {
-              const avatarBtn = document.querySelector('#avatar button');
-              if (avatarBtn) {
-                avatarBtn.click();
-              }
-            });
-          break;
-        }
-        default:
-          break;
-      }
-      requestAnimationFrame(updateBottomNavState);
-    });
-  }
-
-  const bottomNavObserver =
-    viewWrapper && typeof MutationObserver !== 'undefined'
-      ? new MutationObserver(updateBottomNavState)
-      : null;
-  if (bottomNavObserver) {
-    bottomNavObserver.observe(viewWrapper, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  updateBottomNavState();
 
   const AUTH_FOCUSABLE_SELECTOR =
     'a[href], area[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';

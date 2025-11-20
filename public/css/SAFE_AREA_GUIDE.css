@@ -66,16 +66,6 @@
   max-height: calc(100vh - var(--safeTop) - var(--safeBottom));
 }
 
-@media (max-width: 640px) {
-  .example-modal {
-    /* Padding safe sur mobile */
-    padding: max(16px, calc(12px + var(--safeTop))) 
-             max(16px, var(--safeRight)) 
-             max(16px, calc(12px + var(--safeBottom))) 
-             max(16px, var(--safeLeft));
-  }
-}
-
 /* 5. TOAST/NOTIFICATIONS */
 .example-toast {
   position: fixed;
@@ -148,25 +138,12 @@
 */
 
 /* Small mobile (iPhone SE, etc.) */
-@media (max-width: 375px) {
-  /* Augmenter légèrement les tailles de texte */
-}
 
 /* Mobile standard */
-@media (max-width: 640px) {
-  /* Layout mobile, stacked elements */
-  /* Utiliser safe-area pour padding/position */
-}
 
 /* Tablet */
-@media (max-width: 768px) {
-  /* Layout intermédiaire */
-}
 
 /* Tablet landscape / Small desktop */
-@media (max-width: 1024px) {
-  /* Layout tablette paysage */
-}
 
 /*
   🧪 COMMENT TESTER

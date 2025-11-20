@@ -147,13 +147,3 @@
   color: var(--color-text-secondary);
   font-size: 0.85rem;
 }
-
-@media (max-width: 768px) {
-  .analytics-card {
-    padding: 18px;
-  }
-
-  .analytics-bar__label {
-    flex-basis: 100px;
-  }
-}

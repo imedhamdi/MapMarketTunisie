@@ -1,0 +1,205 @@
+/* ===========================================
+   GUIDE D'UTILISATION - SAFE AREA & RESPONSIVE
+   =========================================== */
+
+/*
+  🎯 VARIABLES DISPONIBLES
+  ========================
+  
+  Utilisez ces variables CSS pour respecter les zones sûres :
+*/
+
+:root {
+  /* Safe area insets - Adaptation automatique aux notches/encoches */
+  --safeTop: env(safe-area-inset-top, 0px);
+  --safeBottom: env(safe-area-inset-bottom, 0px);
+  --safeLeft: env(safe-area-inset-left, 0px);
+  --safeRight: env(safe-area-inset-right, 0px);
+  
+  /* Touch target minimum (Apple HIG & Material Design) */
+  --touch-target-min: 44px;
+}
+
+/*
+  📱 EXEMPLES D'UTILISATION
+  =========================
+*/
+
+/* 1. PADDING AVEC SAFE AREA */
+.example-padding {
+  /* Ajouter du padding en respectant la safe area */
+  padding-top: max(20px, calc(16px + var(--safeTop)));
+  padding-bottom: max(20px, calc(16px + var(--safeBottom)));
+  padding-left: max(16px, var(--safeLeft));
+  padding-right: max(16px, var(--safeRight));
+}
+
+/* 2. POSITIONNEMENT FIXED/STICKY */
+.example-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Hauteur incluant la safe area */
+  height: calc(60px + var(--safeTop));
+  padding-top: var(--safeTop);
+}
+
+.example-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: var(--safeBottom);
+}
+
+/* 3. ZONES CLIQUABLES (TOUCH TARGETS) */
+.example-button {
+  /* Assurer au minimum 44x44px pour faciliter le toucher */
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 12px 20px;
+}
+
+/* 4. MODALES PLEIN ÉCRAN SUR MOBILE */
+.example-modal {
+  max-height: calc(100vh - var(--safeTop) - var(--safeBottom));
+}
+
+@media (max-width: 640px) {
+  .example-modal {
+    /* Padding safe sur mobile */
+    padding: max(16px, calc(12px + var(--safeTop))) 
+             max(16px, var(--safeRight)) 
+             max(16px, calc(12px + var(--safeBottom))) 
+             max(16px, var(--safeLeft));
+  }
+}
+
+/* 5. TOAST/NOTIFICATIONS */
+.example-toast {
+  position: fixed;
+  bottom: max(16px, calc(12px + var(--safeBottom)));
+  right: max(16px, calc(12px + var(--safeRight)));
+  left: max(16px, calc(12px + var(--safeLeft)));
+}
+
+/*
+  📏 TAILLES DE POLICE RECOMMANDÉES
+  ==================================
+  
+  Utilisez clamp() pour une adaptation fluide :
+*/
+
+.text-small {
+  font-size: clamp(12px, 3vw, 13px);   /* Petits textes */
+}
+
+.text-body {
+  font-size: clamp(14px, 3.6vw, 16px); /* Corps de texte */
+}
+
+.text-large {
+  font-size: clamp(16px, 4vw, 18px);   /* Texte important */
+}
+
+.text-heading {
+  font-size: clamp(20px, 5vw, 28px);   /* Titres */
+}
+
+.text-hero {
+  font-size: clamp(28px, 7vw, 42px);   /* Hero sections */
+}
+
+/*
+  ⚠️ BONNES PRATIQUES
+  ====================
+*/
+
+/* ✅ BON : Utiliser max() pour garantir un minimum */
+.good-example {
+  padding-bottom: max(20px, var(--safeBottom));
+  /* Si safeBottom = 0, on a 20px
+     Si safeBottom = 34px (iPhone), on a 34px */
+}
+
+/* ❌ MAUVAIS : Juste ajouter sans max() */
+.bad-example {
+  padding-bottom: calc(20px + var(--safeBottom));
+  /* Sur desktop (safeBottom = 0), on a 20px ✓
+     Sur iPhone (safeBottom = 34px), on a 54px ✗ (trop!) */
+}
+
+/* ✅ BON : Touch target minimum */
+.good-touch {
+  min-width: var(--touch-target-min);  /* 44px */
+  min-height: var(--touch-target-min); /* 44px */
+}
+
+/* ❌ MAUVAIS : Trop petit */
+.bad-touch {
+  width: 32px;  /* Difficile à toucher */
+  height: 32px;
+}
+
+/*
+  🎨 MEDIA QUERIES STANDARDS
+  ==========================
+*/
+
+/* Small mobile (iPhone SE, etc.) */
+@media (max-width: 375px) {
+  /* Augmenter légèrement les tailles de texte */
+}
+
+/* Mobile standard */
+@media (max-width: 640px) {
+  /* Layout mobile, stacked elements */
+  /* Utiliser safe-area pour padding/position */
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  /* Layout intermédiaire */
+}
+
+/* Tablet landscape / Small desktop */
+@media (max-width: 1024px) {
+  /* Layout tablette paysage */
+}
+
+/*
+  🧪 COMMENT TESTER
+  =================
+  
+  1. Chrome DevTools :
+     - F12 → Toggle device toolbar
+     - Sélectionner iPhone 14 Pro / iPhone 15 Pro
+     - Tester en portrait et paysage
+  
+  2. Safari iOS :
+     - Développer → Simulateur iOS
+     - Tester sur iPhone avec encoche
+  
+  3. Test réel :
+     - Sur iPhone X ou plus récent
+     - Vérifier que rien ne passe sous la barre de statut
+     - Vérifier le geste de retour en bas d'écran
+  
+  4. Points à vérifier :
+     ✓ Header ne passe pas sous la barre de statut
+     ✓ Contenu défile sans être coupé
+     ✓ Boutons accessibles (pas sous le Home indicator)
+     ✓ Toast/notifications bien positionnés
+     ✓ Modales occupent bien l'espace disponible
+*/
+
+/*
+  📚 RESSOURCES
+  =============
+  
+  - Apple Human Interface Guidelines: 44pt minimum touch target
+  - Material Design: 48dp minimum touch target (≈ 44px)
+  - WCAG 2.1: Target Size (Level AAA) - 44×44 CSS pixels
+  - CSS env() safe-area: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
+*/

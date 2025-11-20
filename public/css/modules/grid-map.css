@@ -16,63 +16,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-
-  .view,
-  .auth-form,
-  .details-dialog,
-  .mm-modal,
-  .auth-dialog,
-  .carousel-track,
-  .carousel-dot,
-  .auth-indicator,
-  .filters-reset,
-  .tab,
-  .cta,
-  .details-actions button,
-  .password-toggle,
-  .fav {
-    transition: none !important;
-    transform: none !important;
-    animation: none !important;
-  }
-
-  .view-wrapper.is-animating {
-    height: auto !important;
-  }
-}
-
-@media (prefers-contrast: more) {
-
-  .card,
-  .filters-card,
-  .filter-control,
-  .grid .ad,
-  .mm-card,
-  .details-dialog,
-  .auth-dialog,
-  .bottom-nav,
-  .tabs,
-  .tab,
-  .cta,
-  .filters-reset {
-    border-color: rgba(var(--color-slate-rgb), .45) !important;
-    box-shadow: 0 0 0 1px rgba(var(--color-slate-rgb), .35), 0 18px 32px rgba(var(--color-ink-rgb), .16) !important;
-  }
-
-  body {
-    background: var(--color-surface-muted);
-  }
-}
-
 @container (min-width: 880px) {
   .grid {
     grid-template-columns: repeat(3, 1fr);
@@ -253,14 +196,3 @@
 .view-wrapper.is-animating {
   height: var(--vw-target-h, auto);
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .view {
-    transition: none !important;
-  }
-
-  .view-wrapper.is-animating {
-    height: auto !important;
-  }
-}
-
