@@ -34,6 +34,41 @@
   letter-spacing: -0.025em;
 }
 
+.recently-viewed-clear {
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  border-radius: 999px;
+  background-color: var(--color-surface, #fff);
+  color: var(--color-text-secondary, #475569);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.45rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.recently-viewed-clear:hover:not(:disabled) {
+  border-color: var(--color-brand-500, #ff4d6d);
+  color: var(--color-brand-500, #ff4d6d);
+  box-shadow: 0 2px 8px rgba(255, 77, 109, 0.12);
+}
+
+.recently-viewed-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.recently-viewed-clear[data-loading='true'] {
+  cursor: progress;
+}
+
+.recently-viewed-clear[hidden] {
+  display: none;
+}
+
 /* Carrousel */
 .recently-viewed-carousel {
   position: relative;
@@ -111,6 +146,68 @@
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid var(--color-border-soft, #e2e8f0);
+}
+
+.recently-viewed-carousel .carousel-card--skeleton {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .skeleton-block {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(110deg, var(--color-surface-ghost, #f1f5f9) 35%, #ffffff 50%, var(--color-surface-ghost, #f1f5f9) 65%);
+  background-size: 200% 100%;
+  animation: carousel-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .carousel-card__image-wrapper {
+  position: relative;
+  height: 180px;
+  padding: 0;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .carousel-card__image-wrapper .skeleton-block {
+  height: 100%;
+  border-radius: 0;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .carousel-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .skeleton-line {
+  height: 14px;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .skeleton-line--wide {
+  width: 80%;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .skeleton-line--narrow {
+  width: 55%;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .skeleton-line--price {
+  width: 40%;
+  height: 18px;
+}
+
+.recently-viewed-carousel .carousel-card--skeleton .carousel-card__footer {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+@keyframes carousel-skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .recently-viewed-carousel .carousel-card:hover {

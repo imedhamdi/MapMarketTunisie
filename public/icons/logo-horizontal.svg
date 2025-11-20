@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff4d6d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff6b8a;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- Pin de localisation stylisé -->
+  <g filter="url(#shadow)">
+    <path d="M40 15 C52 15 62 25 62 37 C62 50 52 62 40 75 C28 62 18 50 18 37 C18 25 28 15 40 15 Z" 
+          fill="url(#brandGradient)" 
+          stroke="#e11d48" 
+          stroke-width="2"/>
+    
+    <circle cx="40" cy="37" r="12" fill="white"/>
+    
+    <!-- Icône panier -->
+    <g transform="translate(40, 37)">
+      <path d="M-6 -4 L-4 2 L4 2 L6 -4 Z" 
+            fill="none" 
+            stroke="#ff4d6d" 
+            stroke-width="1.8" 
+            stroke-linejoin="round"/>
+      <line x1="-4" y1="-4" x2="-6" y2="-7" stroke="#ff4d6d" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="4" y1="-4" x2="6" y2="-7" stroke="#ff4d6d" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="-2" cy="4" r="1.2" fill="#ff4d6d"/>
+      <circle cx="2" cy="4" r="1.2" fill="#ff4d6d"/>
+    </g>
+  </g>
+  
+  <!-- Texte MapMarket -->
+  <text x="85" y="50" 
+        font-family="system-ui, -apple-system, sans-serif" 
+        font-size="32" 
+        font-weight="700" 
+        fill="#0f172a">
+    MapMarket
+  </text>
+  
+  <!-- Badge Tunisie -->
+  <g transform="translate(250, 30)">
+    <rect x="0" y="0" width="60" height="20" rx="10" fill="#ff4d6d" opacity="0.1"/>
+    <text x="30" y="14" 
+          font-family="system-ui, -apple-system, sans-serif" 
+          font-size="10" 
+          font-weight="600" 
+          text-anchor="middle" 
+          fill="#ff4d6d"
+          letter-spacing="0.5">
+      TUNISIE
+    </text>
+  </g>
+</svg>

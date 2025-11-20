@@ -63,6 +63,8 @@ const UserSchema = new Schema(
 );
 
 UserSchema.index({ 'location.coords': '2dsphere' });
+UserSchema.index({ 'recentlyViewed.adId': 1 });
+UserSchema.index({ 'recentlyViewed.viewedAt': -1 });
 
 UserSchema.pre('save', function normalizeLocationOnSave(next) {
   const current = this.get('location');

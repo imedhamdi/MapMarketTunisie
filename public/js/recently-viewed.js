@@ -64,7 +64,10 @@
   const track = section.querySelector(`#${TRACK_ID}`);
   const btnPrev = section.querySelector(`#${BTN_PREV_ID}`);
   const btnNext = section.querySelector(`#${BTN_NEXT_ID}`);
+  const btnClear = section.querySelector('#recentlyViewedClear');
   let listenersAttached = false;
+  const SKELETON_CARD_COUNT = 4;
+  const MIN_ADS_TO_DISPLAY = 5;
 
   if (!track || !btnPrev || !btnNext) {
     console.error(
@@ -77,6 +80,55 @@
     );
     return;
   }
+
+  function hideClearButton() {
+    if (!btnClear) {
+      return;
+    }
+    btnClear.hidden = true;
+    btnClear.disabled = true;
+    btnClear.removeAttribute('data-loading');
+    const defaultLabel = btnClear.dataset?.label;
+    if (defaultLabel) {
+      btnClear.textContent = defaultLabel;
+    }
+  }
+
+  function showClearButton() {
+    if (!btnClear) {
+      return;
+    }
+    btnClear.hidden = false;
+    btnClear.disabled = false;
+    btnClear.dataset.loading = 'false';
+    const defaultLabel = btnClear.dataset?.label;
+    if (defaultLabel) {
+      btnClear.textContent = defaultLabel;
+    }
+  }
+
+  function setClearButtonLoadingState(isButtonLoading) {
+    if (!btnClear) {
+      return;
+    }
+    if (isButtonLoading) {
+      btnClear.disabled = true;
+      btnClear.dataset.loading = 'true';
+      const loadingLabel = btnClear.dataset?.loadingLabel;
+      if (loadingLabel) {
+        btnClear.textContent = loadingLabel;
+      }
+    } else {
+      btnClear.disabled = false;
+      btnClear.dataset.loading = 'false';
+      const defaultLabel = btnClear.dataset?.label;
+      if (defaultLabel) {
+        btnClear.textContent = defaultLabel;
+      }
+    }
+  }
+
+  hideClearButton();
 
   // ========== FONCTIONS UTILITAIRES ==========
 
@@ -102,6 +154,57 @@
     return div.innerHTML;
   }
 
+  function stopLoadingState() {
+    track.removeAttribute('aria-busy');
+  }
+
+  function showSkeletonPlaceholders(count = SKELETON_CARD_COUNT) {
+    if (!track) {
+      return;
+    }
+    track.setAttribute('aria-busy', 'true');
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < count; i += 1) {
+      const skeleton = document.createElement('div');
+      skeleton.className = 'carousel-card carousel-card--skeleton';
+      skeleton.setAttribute('aria-hidden', 'true');
+      skeleton.innerHTML = `
+        <div class="carousel-card__image-wrapper">
+          <span class="skeleton-block"></span>
+        </div>
+        <div class="carousel-card__content">
+          <span class="skeleton-block skeleton-line skeleton-line--wide"></span>
+          <span class="skeleton-block skeleton-line skeleton-line--narrow"></span>
+          <div class="carousel-card__footer">
+            <span class="skeleton-block skeleton-line skeleton-line--price"></span>
+            <span class="skeleton-block skeleton-line skeleton-line--narrow"></span>
+          </div>
+        </div>
+      `;
+      fragment.appendChild(skeleton);
+    }
+    track.innerHTML = '';
+    track.setAttribute('role', 'list');
+    track.appendChild(fragment);
+    section.hidden = false;
+    hideClearButton();
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    setTimeout(updateButtons, 0);
+  }
+
+  function startLoading(options = {}) {
+    const { withSkeleton = true } = options;
+    if (withSkeleton) {
+      showSkeletonPlaceholders();
+    } else {
+      track.setAttribute('aria-busy', 'true');
+      if (btnClear) {
+        btnClear.disabled = true;
+      }
+    }
+  }
+
   // ========== GESTION DU CARROUSEL ==========
 
   /**
@@ -121,11 +224,13 @@
    * Réinitialiser le carrousel et masquer la section
    */
   function hideSectionAndReset() {
+    stopLoadingState();
     track.innerHTML = '';
     track.setAttribute('role', 'list');
     btnPrev.disabled = true;
     btnNext.disabled = true;
     section.hidden = true;
+    hideClearButton();
   }
 
   /**
@@ -198,21 +303,25 @@
   /**
    * Rendre les annonces dans le track
    */
-  function renderAds(ads) {
-    // ...existing code...
+  function renderAds(ads = []) {
+    stopLoadingState();
 
-    // Vider le track
+    if (!Array.isArray(ads) || ads.length < MIN_ADS_TO_DISPLAY) {
+      hideSectionAndReset();
+      return;
+    }
+
     track.innerHTML = '';
     track.setAttribute('role', 'list');
 
-    // Ajouter les cartes
-    ads.forEach((ad, _index) => {
-      // ...existing code...
+    ads.forEach((ad) => {
       const card = createAdCard(ad);
       track.appendChild(card);
     });
 
-    // Mettre à jour les boutons après le rendu
+    section.hidden = false;
+    showClearButton();
+
     setTimeout(updateButtons, 150);
   }
 
@@ -221,8 +330,13 @@
   /**
    * Charger les annonces récemment vues depuis l'API
    */
-  async function loadRecentlyViewedAds() {
-    // ...existing code...
+  async function loadRecentlyViewedAds(options = {}) {
+    if (!isUserLoggedIn()) {
+      hideSectionAndReset();
+      return;
+    }
+
+    startLoading(options);
 
     try {
       const response = await fetch(buildApiUrl('/users/me/recently-viewed'), {
@@ -230,7 +344,6 @@
       });
 
       if (!response.ok) {
-        // ...existing code...
         hideSectionAndReset();
         return;
       }
@@ -238,11 +351,8 @@
       const result = await response.json();
       const ads = result.data?.ads || [];
 
-      // ...existing code...
-
-      if (ads.length > 0) {
+      if (ads.length >= MIN_ADS_TO_DISPLAY) {
         renderAds(ads);
-        section.hidden = false;
       } else {
         hideSectionAndReset();
       }
@@ -256,19 +366,15 @@
    * Enregistrer une vue d'annonce (tracking)
    */
   async function trackAdView(adId) {
-    // Ignorer si flag actif
     if (window.__skipRecentlyViewedTracking) {
-      // ...existing code...
       return;
     }
 
-    // Ignorer si non connecté
     if (!isUserLoggedIn()) {
       return;
     }
 
     try {
-      // ...existing code...
       const response = await fetch(buildApiUrl('/users/me/recently-viewed'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,14 +383,41 @@
       });
 
       if (response.ok) {
-        // ...existing code...
-        // Recharger les annonces
-        loadRecentlyViewedAds();
+        loadRecentlyViewedAds({ withSkeleton: false });
       } else {
-        // ...existing code...
+        console.warn('[RecentlyViewed] Tracking non appliqué');
       }
     } catch (error) {
       console.error('[RecentlyViewed] Erreur tracking:', error);
+    }
+  }
+
+  async function clearRecentlyViewedHistory() {
+    if (!btnClear || btnClear.disabled) {
+      return;
+    }
+
+    setClearButtonLoadingState(true);
+
+    try {
+      const response = await fetch(buildApiUrl('/users/me/recently-viewed'), {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Réinitialisation impossible');
+      }
+
+      hideSectionAndReset();
+      if (typeof window.showToast === 'function') {
+        window.showToast('Historique supprimé.');
+      } else {
+        console.info("Historique 'Récemment vus' supprimé.");
+      }
+    } catch (error) {
+      console.error('[RecentlyViewed] Erreur suppression historique:', error);
+      setClearButtonLoadingState(false);
     }
   }
 
@@ -305,6 +438,10 @@
     btnPrev.addEventListener('click', scrollPrev);
     btnNext.addEventListener('click', scrollNext);
     track.addEventListener('scroll', updateButtons, { passive: true });
+
+    if (btnClear) {
+      btnClear.addEventListener('click', clearRecentlyViewedHistory);
+    }
 
     // ...existing code...
   }
@@ -352,7 +489,8 @@
 
   window.recentlyViewed = {
     trackAdView,
-    loadRecentlyViewedAds
+    loadRecentlyViewedAds,
+    clearRecentlyViewedHistory
   };
 
   // ========== DÉMARRAGE ==========

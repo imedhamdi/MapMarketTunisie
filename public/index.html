@@ -50,12 +50,7 @@
   <header class="header">
     <div class="container nav">
       <a class="brand" href="#">
-        <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
-          <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0" />
-          <circle cx="12" cy="10" r="3" />
-        </svg>
-        <b>MapMarket</b>
+        <img src="/icons/logo-horizontal.svg" alt="MapMarket" style="height: 40px; width: auto;">
       </a>
       <nav class="nav-actions">
         <a class="nav-link" href="#" id="navMessages"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -1138,6 +1133,16 @@
   <section class="recently-viewed-section" id="recentlyViewedSection" hidden>
     <div class="recently-viewed-header">
       <h2 class="recently-viewed-title">Vous avez récemment vu</h2>
+      <button
+        class="recently-viewed-clear"
+        type="button"
+        id="recentlyViewedClear"
+        data-label="Effacer l'historique"
+        data-loading-label="Nettoyage..."
+        hidden
+      >
+        Effacer l'historique
+      </button>
     </div>
     <div class="container">
       <div class="recently-viewed-carousel">

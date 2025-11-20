@@ -847,10 +847,27 @@ export async function getRecentlyViewed(req, res) {
     // Create a map for quick lookup
     const adsMap = new Map(ads.map((ad) => [ad._id.toString(), ad]));
 
-    // Maintain the order from recentlyViewed and filter out user's own ads
-    const orderedAds = adIds
-      .map((id) => adsMap.get(id.toString()))
-      .filter((ad) => ad !== undefined);
+    const orderedAds = [];
+    const invalidIds = [];
+
+    adIds.forEach((id) => {
+      const key = id.toString();
+      const ad = adsMap.get(key);
+      if (ad) {
+        orderedAds.push(ad);
+      } else {
+        invalidIds.push(id);
+      }
+    });
+
+    if (invalidIds.length > 0) {
+      await User.updateOne(
+        { _id: userId },
+        { $pull: { recentlyViewed: { adId: { $in: invalidIds } } } }
+      ).catch((error) => {
+        logger.warn('Échec du nettoyage des récemment vus', { error: error.message });
+      });
+    }
 
     return sendSuccess(res, {
       data: {
@@ -902,7 +919,9 @@ export async function addRecentlyViewed(req, res) {
     }
 
     // Check if ad exists and get its owner
-    const ad = await Ad.findById(adId).select('_id owner');
+    const adObjectId = new mongoose.Types.ObjectId(adId);
+
+    const ad = await Ad.findById(adObjectId).select('_id owner');
     if (!ad) {
       return sendError(res, {
         statusCode: 404,
@@ -918,8 +937,13 @@ export async function addRecentlyViewed(req, res) {
       });
     }
 
-    const user = await User.findById(userId);
-    if (!user) {
+    const baseQuery = { _id: userId };
+
+    const pullResult = await User.updateOne(baseQuery, {
+      $pull: { recentlyViewed: { adId: adObjectId } }
+    });
+
+    if (pullResult.matchedCount === 0) {
       return sendError(res, {
         statusCode: 404,
         code: 'USER_NOT_FOUND',
@@ -927,26 +951,15 @@ export async function addRecentlyViewed(req, res) {
       });
     }
 
-    // Initialize recentlyViewed if it doesn't exist
-    if (!user.recentlyViewed) {
-      user.recentlyViewed = [];
-    }
-
-    // Remove the ad if it already exists
-    user.recentlyViewed = user.recentlyViewed.filter((item) => item.adId.toString() !== adId);
-
-    // Add the ad at the beginning
-    user.recentlyViewed.unshift({
-      adId,
-      viewedAt: new Date()
+    await User.updateOne(baseQuery, {
+      $push: {
+        recentlyViewed: {
+          $each: [{ adId: adObjectId, viewedAt: new Date() }],
+          $position: 0,
+          $slice: 10
+        }
+      }
     });
-
-    // Keep only the last 10 viewed ads
-    if (user.recentlyViewed.length > 10) {
-      user.recentlyViewed = user.recentlyViewed.slice(0, 10);
-    }
-
-    await user.save();
 
     return sendSuccess(res, {
       message: 'Annonce ajoutée aux récemment vues'
@@ -959,6 +972,42 @@ export async function addRecentlyViewed(req, res) {
       statusCode: 500,
       code: 'SERVER_ERROR',
       message: "Erreur lors de l'ajout de l'annonce aux récemment vues"
+    });
+  }
+}
+
+export async function clearRecentlyViewed(req, res) {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return sendError(res, {
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Non authentifié'
+      });
+    }
+
+    const result = await User.updateOne({ _id: userId }, { $set: { recentlyViewed: [] } });
+
+    if (result.matchedCount === 0) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND',
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    return sendSuccess(res, {
+      message: "Historique 'Récemment vus' effacé"
+    });
+  } catch (error) {
+    logger.error("Erreur lors de l'effacement des récemment vus", {
+      error: error.message
+    });
+    return sendError(res, {
+      statusCode: 500,
+      code: 'SERVER_ERROR',
+      message: "Erreur lors de l'effacement des récemment vus"
     });
   }
 }
