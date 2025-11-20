@@ -10,7 +10,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; img-src 'self' https://images.unsplash.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://via.placeholder.com https://unpkg.com https://mapmarket-images.s3.eu-west-3.amazonaws.com data: blob:; media-src 'self' data: blob: https://mapmarket-images.s3.eu-west-3.amazonaws.com; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com; connect-src 'self' https://nominatim.openstreetmap.org ws://localhost:4000 wss://localhost:4000 http://localhost:4000; font-src 'self'; object-src 'none'; base-uri 'self'">
   <link rel="canonical" href="https://tondomaine.com/">
-  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
   <link rel="dns-prefetch" href="https://nominatim.openstreetmap.org">
@@ -50,7 +50,11 @@
   <header class="header">
     <div class="container nav">
       <a class="brand" href="#">
-        <img src="/icons/logo-horizontal.svg" alt="MapMarket" style="height: 40px; width: auto;">
+        <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <b>MapMarket</b>
       </a>
       <nav class="nav-actions">
         <a class="nav-link" href="#" id="navMessages"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
