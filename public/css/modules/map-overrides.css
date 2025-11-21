@@ -80,6 +80,10 @@
   border-radius: 12px;
 }
 
+.ad-card__media-wrapper {
+  position: relative;
+}
+
 .ad-card__media {
   display: block;
   width: 100%;
@@ -87,10 +91,17 @@
   object-fit: cover;
 }
 
-.ad-chip {
+.ad-card__badges {
   position: absolute;
   left: 12px;
-  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-chip {
   background: var(--color-surface-raised);
   color: var(--color-text-contrast-strong);
   font: 600 12px/1.6 system-ui, Segoe UI, Roboto, Arial;
@@ -99,14 +110,12 @@
 }
 
 .ad-price {
-  position: absolute;
-  right: 12px;
-  top: 12px;
   background: var(--color-brand-contrast);
   color: var(--color-text-contrast);
   font: 700 12px/1.6 system-ui;
   padding: 4px 10px;
   border-radius: 999px;
+  margin-left: auto;
 }
 
 .ad-body {
@@ -121,16 +130,35 @@
 
 .ad-meta {
   display: flex;
-  gap: 10px;
   align-items: center;
   color: var(--color-text-muted);
   font: 500 12px/1.4 system-ui;
   margin: 6px 0 12px;
+  gap: 10px;
+  justify-content: space-between;
 }
 
 .ad-meta svg {
   width: 14px;
   height: 14px;
+}
+
+.ad-meta__stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-meta__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ad-meta__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ad-cta {

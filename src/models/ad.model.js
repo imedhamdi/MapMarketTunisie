@@ -30,6 +30,11 @@ const AdSchema = new Schema(
       required: true,
       index: true
     },
+    transactionType: {
+      type: String,
+      enum: ['vente', 'location'],
+      required: false
+    },
     condition: { type: String, enum: ['new', 'very_good', 'good', 'fair'], required: true },
     price: { type: Number, required: true, min: 0.1, max: 9999999 },
     locationText: { type: String, required: true, trim: true },

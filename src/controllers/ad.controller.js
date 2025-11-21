@@ -161,6 +161,11 @@ export async function createAd(req, res, next) {
       favoritesCount: 0
     };
 
+    // Add transactionType for real estate
+    if (payload.category === 'immobilier' && payload.transactionType) {
+      adData.transactionType = payload.transactionType;
+    }
+
     const ad = await Ad.create(adData);
     await ad.populate('owner', 'name email avatar memberSince createdAt');
     if (ad.owner?._id) {
@@ -338,6 +343,14 @@ export async function updateAd(req, res, next) {
     if (payload.attributes) {
       ad.attributes = sanitizeAttributes(payload.attributes);
     }
+
+    // Update transactionType for real estate
+    if (payload.category === 'immobilier' || ad.category === 'immobilier') {
+      if (payload.transactionType) {
+        ad.transactionType = payload.transactionType;
+      }
+    }
+
     const categoryForNormalization = payload.category || ad.category;
     ad.attributesNormalized = buildNormalizedAttributes(categoryForNormalization, ad.attributes);
 

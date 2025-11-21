@@ -386,6 +386,7 @@
       img: images[0] || DEFAULT_IMAGE,
       gallery: images.length ? images : [DEFAULT_IMAGE],
       attributes: ad.attributes || {},
+      transactionType: ad.transactionType || null,
       chips,
       sellerName: owner.name || owner.email || `Vendeur ${cityGuess}`,
       sellerEmail: owner.email || '',
@@ -1516,10 +1517,19 @@
       item.img || item.imageUrl || 'https://via.placeholder.com/640x480?text=Favori';
     const favThumb = buildOptimizedImage(imageSource, 480, 70);
     const favSrcSet = buildSrcSet(imageSource, [320, 480, 640], 70);
+
+    // Generate transaction type icon for real estate
+    const isRealEstate = (item.catSlug || item.cat) === 'immobilier';
+    const transactionIcon =
+      isRealEstate && item.transactionType ? getTransactionTypeIcon(item.transactionType) : '';
+
     return `
   <article class="mm-card" role="listitem" data-id="${String(item.id)}" tabindex="-1">
     <button class="mm-remove" aria-label="Retirer ce favori" data-id="${String(item.id)}" title="Retirer">✕</button>
-    <div class="mm-thumb"><img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;"></div>
+    <div class="mm-thumb">
+      ${transactionIcon}
+      <img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;">
+    </div>
     <div class="mm-body">
       <div class="mm-title2">${item.title}</div>
       <div class="mm-meta"><span>${item.city || ''}</span><span class="mm-price">${priceLabel}</span></div>
@@ -1844,11 +1854,18 @@
       const thumbSrcSet = buildSrcSet(a.img, [320, 480, 640], 70);
       const idKey = normalizeAdId(a.id);
       const isFav = favStore.has(idKey);
+
+      // Generate transaction type icon for real estate
+      const isRealEstate = (a.catSlug || a.cat) === 'immobilier';
+      const transactionIcon =
+        isRealEstate && a.transactionType ? getTransactionTypeIcon(a.transactionType) : '';
+
       const art = document.createElement('article');
       art.className = 'ad';
       art.innerHTML = `
           <div class="ad-content" data-id="${String(a.id)}">
           <div class="thumb">
+            ${transactionIcon}
             <img width="370" height="278" loading="lazy" decoding="async" alt="${a.title}"
               src="${thumbSrc}"
               srcset="${thumbSrcSet}"
@@ -2231,10 +2248,10 @@
     const likeLabel = Number.isFinite(stats.likes) ? stats.likes : null;
     const statsMarkup = [
       viewLabel !== null
-        ? `<span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Zm11 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>${escapeHtml(viewLabel)}</span>`
+        ? `<span class="ad-meta__stat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Zm11 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>${escapeHtml(viewLabel)}</span>`
         : '',
       likeLabel !== null
-        ? `<span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>${escapeHtml(likeLabel)}</span>`
+        ? `<span class="ad-meta__stat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>${escapeHtml(likeLabel)}</span>`
         : ''
     ]
       .filter(Boolean)
@@ -2242,14 +2259,18 @@
     const imageSource = item.imageUrl || 'https://via.placeholder.com/640x480?text=Annonce';
     return `
         <article class="ad-card" role="dialog" aria-label="Aperçu ${escapeAttr(item.title)}">
-          <img class="ad-card__media" src="${escapeAttr(imageSource)}" alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">
-          <span class="ad-chip">${escapeHtml(item.category || 'Annonce')}</span>
-          <span class="ad-price">${escapeHtml(String(priceLabel))}</span>
+          <div class="ad-card__media-wrapper">
+            <img class="ad-card__media" src="${escapeAttr(imageSource)}" alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">
+            <div class="ad-card__badges">
+              <span class="ad-chip">${escapeHtml(item.category || 'Annonce')}</span>
+              <span class="ad-price">${escapeHtml(String(priceLabel))}</span>
+            </div>
+          </div>
           <div class="ad-body">
             <h3 class="ad-title">${escapeHtml(item.title)}</h3>
             <div class="ad-meta">
-              <span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>${escapeHtml(item.city || '')}</span>
-              ${statsMarkup}
+              <div class="ad-meta__stats">${statsMarkup}</div>
+              <span class="ad-meta__location"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>${escapeHtml(item.city || '')}</span>
             </div>
             <button class="ad-cta" type="button" data-action="open-details" data-id="${escapeAttr(item.id)}">Voir les détails</button>
           </div>
@@ -6582,6 +6603,17 @@
   function categorySymbol(cat) {
     const slug = mapCategoryLabelToSlug(cat);
     return CATEGORY_ICONS[slug] || '📦';
+  }
+
+  function getTransactionTypeIcon(transactionType) {
+    if (!transactionType) return '';
+
+    const iconPath =
+      transactionType === 'vente' ? '/icons/maison-a-vendre.svg' : '/icons/maison-a-louer.svg';
+
+    const label = transactionType === 'vente' ? 'À vendre' : 'À louer';
+
+    return `<img src="${iconPath}" alt="${label}" class="transaction-icon" loading="lazy" decoding="async" />`;
   }
 
   function renderDetailsMeta(ad) {

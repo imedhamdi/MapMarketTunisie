@@ -127,7 +127,17 @@ const baseAdSchema = Joi.object({
   locationText: locationSchema.extract('locationText'),
   latitude: locationSchema.extract('latitude'),
   longitude: locationSchema.extract('longitude'),
-  attributes: Joi.object().unknown(true).default({})
+  attributes: Joi.object().unknown(true).default({}),
+  transactionType: Joi.string()
+    .valid('vente', 'location')
+    .when('category', {
+      is: 'immobilier',
+      then: Joi.required().messages({
+        'any.required': 'Sélectionnez un type de transaction.',
+        'any.only': 'Le type de transaction doit être "vente" ou "location".'
+      }),
+      otherwise: Joi.optional()
+    })
 });
 
 export const createAdSchema = baseAdSchema
@@ -167,7 +177,8 @@ export const updateAdSchema = Joi.object({
   latitude: locationSchema.extract('latitude').optional(),
   longitude: locationSchema.extract('longitude').optional(),
   attributes: Joi.object().unknown(true).optional(),
-  status: Joi.string().valid('active', 'archived').optional()
+  status: Joi.string().valid('active', 'archived').optional(),
+  transactionType: Joi.string().valid('vente', 'location').optional()
 })
   .min(1)
   .custom((value, helpers) => {
