@@ -4755,6 +4755,8 @@
   const postDraftResume = document.getElementById('postDraftResume');
   const postDraftDiscard = document.getElementById('postDraftDiscard');
   const closePostBtn = document.getElementById('closePost');
+  
+  let postTransactionType = null; // Dynamic field for real estate transaction type
 
   populateCategorySelect(cat, { placeholderLabel: 'Toutes catégories', placeholderValue: '' });
   populateCategorySelect(postCategory, { placeholderLabel: 'Sélectionnez', placeholderValue: '' });
@@ -5050,6 +5052,38 @@
       return;
     }
     postAttributes.innerHTML = '';
+    
+    // Handle transaction type field for immobilier category
+    postTransactionType = null;
+    if (category === 'immobilier') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'field';
+      wrapper.dataset.attribute = 'transactionType';
+      
+      const label = document.createElement('label');
+      label.setAttribute('for', 'postTransactionType');
+      label.textContent = 'Type de transaction *';
+      wrapper.appendChild(label);
+      
+      const select = document.createElement('select');
+      select.id = 'postTransactionType';
+      select.name = 'transactionType';
+      select.required = true;
+      select.innerHTML = '<option value="">Sélectionnez</option>' +
+                        '<option value="vente">Vente</option>' +
+                        '<option value="location">Location</option>';
+      wrapper.appendChild(select);
+      
+      const error = document.createElement('p');
+      error.className = 'field-error';
+      error.dataset.errorFor = 'postTransactionType';
+      wrapper.appendChild(error);
+      
+      postAttributes.appendChild(wrapper);
+      select.addEventListener('input', queueDraftSave);
+      postTransactionType = select;
+    }
+    
     const def = categoryDefinitions[category];
     if (!def) {
       return;
@@ -5138,6 +5172,15 @@
       setFieldError('postPhotos', 'Ajoutez au moins une photo.');
       valid = false;
     }
+    
+    // Validate transaction type for immobilier category
+    if (postCategory.value === 'immobilier' && postTransactionType) {
+      if (!postTransactionType.value) {
+        setFieldError('postTransactionType', 'Sélectionnez un type de transaction.');
+        valid = false;
+      }
+    }
+    
     const def = categoryDefinitions[postCategory.value];
     if (def) {
       def.fields.forEach((field) => {
@@ -5212,7 +5255,8 @@
         }
       });
     }
-    return {
+    
+    const payload = {
       title: postTitleInput.value.trim(),
       category: postCategory.value,
       condition: postCondition.value,
@@ -5224,6 +5268,13 @@
       attributes,
       images: postPhotos.map((file) => file.preview)
     };
+    
+    // Add transactionType for immobilier category
+    if (postCategory.value === 'immobilier' && postTransactionType) {
+      payload.transactionType = postTransactionType.value || null;
+    }
+    
+    return payload;
   }
 
   function saveDraft(data) {
@@ -5264,6 +5315,12 @@
     if (draft.condition) {
       postCondition.value = draft.condition;
     }
+    
+    // Restore transaction type for immobilier category
+    if (draft.category === 'immobilier' && draft.transactionType && postTransactionType) {
+      postTransactionType.value = draft.transactionType;
+    }
+    
     if (draft.price) {
       postPrice.value = draft.price;
     }
@@ -5492,6 +5549,12 @@
     if (ad.condition) {
       postCondition.value = ad.condition;
     }
+    
+    // Restore transaction type for immobilier category
+    if (ad.category === 'immobilier' && ad.transactionType && postTransactionType) {
+      postTransactionType.value = ad.transactionType;
+    }
+    
     if (ad.price != null) {
       postPrice.value = ad.price;
     }
