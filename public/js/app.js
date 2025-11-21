@@ -6935,11 +6935,114 @@
     statsRoot.innerHTML = stats.join('');
   }
 
+  function buildDetailsTagItems(ad) {
+    if (!ad) {
+      return [];
+    }
+    const attrs = ad.attributes || {};
+    const category = String(ad.catSlug || ad.category || '').toLowerCase();
+
+    if (category === 'auto') {
+      const items = [];
+      if (attrs.year) {
+        items.push({ type: 'year', label: String(attrs.year).trim() });
+      }
+      if (attrs.mileage != null && String(attrs.mileage).trim() !== '') {
+        const mileageNumber = Number(attrs.mileage);
+        const formattedMileage = Number.isFinite(mileageNumber)
+          ? `${mileageNumber.toLocaleString('fr-FR')} km`
+          : `${String(attrs.mileage).trim()}`;
+        items.push({ type: 'mileage', label: formattedMileage });
+      }
+      if (attrs.fuel) {
+        items.push({ type: 'fuel', label: capitalize(String(attrs.fuel)) });
+      }
+      if (attrs.gearbox) {
+        items.push({ type: 'gearbox', label: capitalize(String(attrs.gearbox)) });
+      }
+      return items;
+    }
+
+    const chips = Array.isArray(ad.chips) ? ad.chips : [];
+    return chips
+      .map((label, index) => ({
+        type: 'default',
+        key: `chip-${index}`,
+        label: typeof label === 'string' ? label : String(label ?? '')
+      }))
+      .filter((item) => item.label.trim().length);
+  }
+
+  function getDetailsTagIcon(type) {
+    switch (type) {
+      case 'year':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="3" y="4.5" width="18" height="16.5" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M3 9h18" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'mileage':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="13" r="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 13l3.2-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M5 6.5l2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M19 6.5l-2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M12 6V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'fuel':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3.5c-3 3-4.5 5.4-4.5 7.5a4.5 4.5 0 0 0 9 0c0-2.1-1.5-4.5-4.5-7.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M18 6.5l2 2v7.5a2 2 0 0 1-2 2h-.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M7 21h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'gearbox':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M7 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M17 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M7 12h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="7" cy="6" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <circle cx="17" cy="6" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <circle cx="7" cy="18" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <circle cx="17" cy="18" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
+          </svg>
+        `;
+      default:
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 8v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="12" cy="17" r="1" fill="currentColor" />
+          </svg>
+        `;
+    }
+  }
+
   function renderDetailsTags(ad) {
-    const tags = Array.isArray(ad.chips) ? ad.chips : [];
-    if (tags.length) {
+    const items = buildDetailsTagItems(ad);
+    if (items.length) {
       detailsTags.style.display = 'flex';
-      detailsTags.innerHTML = tags.map((tag) => `<span class="details-tag">${tag}</span>`).join('');
+      detailsTags.innerHTML = items
+        .map((tag) => {
+          const dataType = typeof tag.type === 'string' ? tag.type.toLowerCase().replace(/[^a-z0-9-]/g, '') : 'default';
+          const label = escapeHtml(tag.label || '');
+          const icon = getDetailsTagIcon(dataType || 'default');
+          return `
+            <span class="details-tag" data-tag-type="${dataType}" aria-label="${label}">
+              <span class="details-tag__icon" aria-hidden="true">${icon}</span>
+              <span class="details-tag__label">${label}</span>
+            </span>
+          `;
+        })
+        .join('');
     } else {
       detailsTags.style.display = 'none';
       detailsTags.innerHTML = '';
