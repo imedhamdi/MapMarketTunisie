@@ -471,6 +471,12 @@
   gap: 18px;
 }
 
+@media (min-width: 640px) {
+  .profile-listings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .profile-listings-grid .profile-empty-state {
   margin: 0;
   grid-column: 1 / -1;

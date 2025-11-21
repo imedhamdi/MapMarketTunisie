@@ -413,6 +413,118 @@
     syncAdStats(ad);
   }
 
+  function replaceAdInCollection(collection, ad) {
+    if (!Array.isArray(collection)) {
+      return false;
+    }
+    const targetId = normalizeAdId(ad?.id);
+    if (!targetId) {
+      return false;
+    }
+    let updated = false;
+    for (let index = 0; index < collection.length; index += 1) {
+      const current = collection[index];
+      if (normalizeAdId(current?.id) === targetId) {
+        collection[index] = { ...ad };
+        updated = true;
+      }
+    }
+    return updated;
+  }
+
+  function syncPagingCollectionsWithAd(ad) {
+    const updatedCurrentPage = replaceAdInCollection(paging.items, ad);
+    if (updatedCurrentPage) {
+      filteredCache = paging.items;
+    }
+    if (paging.cache && paging.cache.size) {
+      paging.cache.forEach((entry, pageNumber) => {
+        if (!entry || !Array.isArray(entry.items)) {
+          return;
+        }
+        if (replaceAdInCollection(entry.items, ad)) {
+          paging.cache.set(pageNumber, {
+            ...entry,
+            items: entry.items.map((item) => ({ ...item }))
+          });
+        }
+      });
+    }
+    return updatedCurrentPage;
+  }
+
+  function updateMarkerWithAd(ad) {
+    if (!ad) {
+      return false;
+    }
+    const marker = markerIndex.get(String(ad.id));
+    if (!marker) {
+      return false;
+    }
+    marker._item = {
+      ...(marker._item || {}),
+      id: ad.id,
+      title: ad.title,
+      city: ad.city,
+      price: ad.price,
+      imageUrl: buildOptimizedImage(ad.img, 480, 70),
+      img: ad.img,
+      category: ad.cat || ad.category,
+      catSlug: ad.catSlug || mapCategoryLabelToSlug(ad.cat || ad.category),
+      transactionType: ad.transactionType || null,
+      stats: {
+        views: ad.views ?? 0,
+        likes: ad.likes ?? 0
+      }
+    };
+    marker._itemData = { ...ad };
+    if (hoverCard && hoverCard._sourceMarker === marker) {
+      hoverCard.setContent(renderMiniCard(marker._item));
+      hoverCard.update();
+    }
+    return true;
+  }
+
+  function integrateServerAd(rawAd, { preserveScroll = true } = {}) {
+    if (!rawAd) {
+      return null;
+    }
+    const mappedAd = mapAdFromApi(rawAd);
+    if (!mappedAd) {
+      return null;
+    }
+    upsertAd(mappedAd);
+
+    const normalizedId = normalizeAdId(mappedAd.id);
+    const previousScrollTop = listView ? listView.scrollTop : null;
+    const updatedCurrent = syncPagingCollectionsWithAd(mappedAd);
+
+    if (normalizedId && favStore.has(normalizedId)) {
+      favDataCache.set(String(mappedAd.id), mappedAd);
+    }
+
+    if (updatedCurrent && listView) {
+      renderList(true, {
+        preserveFocus: true,
+        preserveScroll: preserveScroll,
+        scrollTop: preserveScroll ? (previousScrollTop ?? 0) : 0
+      });
+      if (preserveScroll && typeof previousScrollTop === 'number') {
+        listView.scrollTop = previousScrollTop;
+      }
+    }
+
+    if (!updateMarkerWithAd(mappedAd) && typeof renderMap === 'function') {
+      renderMap({ force: currentView === 'map', invalidate: currentView === 'map' });
+    }
+
+    refreshOpenDetails(mappedAd);
+    updateAdCardDisplay(mappedAd);
+    syncAllFavoriteButtons();
+
+    return mappedAd;
+  }
+
   function buildAdWithIncrementedViews(ad, increment = 1) {
     if (!ad) {
       return null;
@@ -2069,7 +2181,10 @@
     }
   }
 
-  function renderList(reset) {
+  function renderList(reset, options = {}) {
+    const preserveScroll = Boolean(options?.preserveScroll);
+    const preserveFocus = Boolean(options?.preserveFocus);
+    const targetScrollTop = options?.scrollTop;
     // Use paging.items instead of client-side filtering
     filteredCache = paging.items;
     updateFavBadge();
@@ -2115,8 +2230,12 @@
       renderAdsPage(paging.items);
       updatePaginationControls();
 
-      // Focus on first ad for keyboard navigation
-      if (reset) {
+      if (reset && preserveScroll && typeof targetScrollTop === 'number') {
+        listView.scrollTop = targetScrollTop;
+      }
+
+      // Focus on first ad for keyboard navigation when not preserving focus
+      if (reset && !preserveFocus) {
         const firstAd = listView.querySelector('.ad-content');
         if (firstAd) {
           firstAd.setAttribute('tabindex', '-1');
@@ -2244,6 +2363,12 @@
   function renderMiniCard(item) {
     const priceLabel = typeof item.price === 'number' ? fmtDT.format(item.price) : item.price || '';
     const stats = item.stats || {};
+    const slug = String(item.catSlug || item.category || '').toLowerCase();
+    const isRealEstate = slug === 'immobilier';
+    const transactionIcon =
+      isRealEstate && item.transactionType
+        ? getTransactionTypeIcon(item.transactionType, { extraClass: 'ad-card__transaction' })
+        : '';
     const viewLabel = Number.isFinite(stats.views) ? stats.views : null;
     const likeLabel = Number.isFinite(stats.likes) ? stats.likes : null;
     const statsMarkup = [
@@ -2256,10 +2381,12 @@
     ]
       .filter(Boolean)
       .join('');
-    const imageSource = item.imageUrl || 'https://via.placeholder.com/640x480?text=Annonce';
+    const imageSource =
+      item.imageUrl || item.img || 'https://via.placeholder.com/640x480?text=Annonce';
     return `
         <article class="ad-card" role="dialog" aria-label="Aperçu ${escapeAttr(item.title)}">
           <div class="ad-card__media-wrapper">
+            ${transactionIcon}
             <img class="ad-card__media" src="${escapeAttr(imageSource)}" alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">
             <div class="ad-card__badges">
               <span class="ad-chip">${escapeHtml(item.category || 'Annonce')}</span>
@@ -2643,7 +2770,10 @@
         city: a.city,
         price: a.price,
         imageUrl: buildOptimizedImage(a.img, 480, 70),
+        img: a.img,
         category: a.cat || a.category,
+        catSlug: a.catSlug || mapCategoryLabelToSlug(a.cat || a.category),
+        transactionType: a.transactionType || null,
         stats: { views: a.views ?? 0, likes: a.likes ?? 0 }
       };
       marker._item = hoverData;
@@ -5747,6 +5877,13 @@
         showToast(response?.message || 'Annonce publiée ✅');
         discardDraft();
       }
+
+      const serverAd =
+        response?.data?.ad || response?.ad || response?.data?.data?.ad || response?.updatedAd;
+      if (serverAd) {
+        integrateServerAd(serverAd, { preserveScroll: currentView === 'list' });
+      }
+
       await loadAds({ toastOnError: false });
       document.dispatchEvent(
         new CustomEvent('profile:invalidate-cache', {
@@ -6605,15 +6742,21 @@
     return CATEGORY_ICONS[slug] || '📦';
   }
 
-  function getTransactionTypeIcon(transactionType) {
-    if (!transactionType) return '';
+  function getTransactionTypeIcon(transactionType, { extraClass = '' } = {}) {
+    if (!transactionType) {
+      return '';
+    }
 
     const iconPath =
       transactionType === 'vente' ? '/icons/maison-a-vendre.svg' : '/icons/maison-a-louer.svg';
 
     const label = transactionType === 'vente' ? 'À vendre' : 'À louer';
+    const classes = ['transaction-icon'];
+    if (extraClass) {
+      classes.push(extraClass);
+    }
 
-    return `<img src="${iconPath}" alt="${label}" class="transaction-icon" loading="lazy" decoding="async" />`;
+    return `<img src="${iconPath}" alt="${label}" class="${classes.join(' ')}" loading="lazy" decoding="async" />`;
   }
 
   function renderDetailsMeta(ad) {
