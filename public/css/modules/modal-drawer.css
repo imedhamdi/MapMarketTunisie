@@ -1708,7 +1708,7 @@ main.container {
   align-self: flex-start;
   border: none;
   background: none;
-  color: var(--primary);
+  color: var(--color-text-dim);
   font-weight: 600;
   cursor: pointer;
   display: none;
@@ -1719,7 +1719,7 @@ main.container {
 }
 
 .details-readmore:hover {
-  color: var(--primary-600);
+  color: var(--color-text-secondary);
 }
 
 .details-readmore.visible {
