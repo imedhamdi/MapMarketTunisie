@@ -7032,7 +7032,10 @@
       detailsTags.style.display = 'flex';
       detailsTags.innerHTML = items
         .map((tag) => {
-          const dataType = typeof tag.type === 'string' ? tag.type.toLowerCase().replace(/[^a-z0-9-]/g, '') : 'default';
+          const dataType =
+            typeof tag.type === 'string'
+              ? tag.type.toLowerCase().replace(/[^a-z0-9-]/g, '')
+              : 'default';
           const label = escapeHtml(tag.label || '');
           const icon = getDetailsTagIcon(dataType || 'default');
           return `
