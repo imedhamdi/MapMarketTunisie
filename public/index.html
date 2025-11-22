@@ -1680,5 +1680,68 @@
   
   <!-- Recently Viewed Script -->
   <script src="/js/recently-viewed.js"></script>
+
+  <!-- Mobile Bottom Navigation (visible uniquement sur mobile) -->
+  <nav class="mobile-bottom-nav" aria-label="Navigation principale mobile">
+    <div class="mobile-bottom-nav__container">
+      <!-- Messages -->
+      <a href="#" class="mobile-bottom-nav__item" id="mobileNavMessages" aria-label="Messages">
+        <span class="mobile-bottom-nav__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+          </svg>
+        </span>
+        <span class="mobile-bottom-nav__label">Messages</span>
+        <span class="mobile-bottom-nav__badge" id="mobileMessagesNavBadge" hidden>0</span>
+      </a>
+
+      <!-- Favoris -->
+      <button type="button" class="mobile-bottom-nav__item" id="mobileOpenFavs" aria-label="Favoris">
+        <span class="mobile-bottom-nav__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+        </span>
+        <span class="mobile-bottom-nav__label">Favoris</span>
+        <span class="mobile-bottom-nav__badge" id="mobileFavCount" hidden>0</span>
+      </button>
+
+      <!-- Déposer une annonce (CTA principal) -->
+      <button type="button" class="mobile-bottom-nav__item mobile-bottom-nav__item--primary" id="mobilePostBtn" aria-label="Déposer une annonce">
+        <span class="mobile-bottom-nav__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
+        </span>
+        <span class="mobile-bottom-nav__label">Publier</span>
+      </button>
+
+      <!-- Recherche/Carte -->
+      <button type="button" class="mobile-bottom-nav__item mobile-bottom-nav__item--active" id="mobileNavExplore" aria-label="Explorer" aria-current="page">
+        <span class="mobile-bottom-nav__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </span>
+        <span class="mobile-bottom-nav__label">Explorer</span>
+      </button>
+
+      <!-- Profil -->
+      <button type="button" class="mobile-bottom-nav__item" id="mobileNavProfile" aria-label="Mon profil">
+        <span class="mobile-bottom-nav__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </span>
+        <span class="mobile-bottom-nav__label">Profil</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Bottom Navigation Script -->
+  <script src="/js/mobile-bottom-nav.js"></script>
 </body>
 </html>

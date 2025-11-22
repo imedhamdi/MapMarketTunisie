@@ -11,6 +11,43 @@
    ========================================================================== */
 
 /* ==========================================================================
+   LAYOUT GLOBAL - Adaptation mobile avec bottom navigation
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  /* Assurer que le contenu principal ne soit pas caché par la navbar bottom */
+  main.container {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(100vh - 56px - 80px);
+  }
+
+  /* Ajuster les sections pour éviter le chevauchement */
+  .hero,
+  .filters-card,
+  .grid-map-layout,
+  .footer {
+    margin-bottom: 0;
+  }
+
+  /* Footer avec espace supplémentaire sur mobile */
+  .footer {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Assurer que les modals plein écran ne cachent pas la navbar */
+  .modal-backdrop,
+  .details-backdrop,
+  .messages-layout {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Grid des annonces - Optimisation mobile */
+  .grid-map-layout {
+    padding-bottom: 20px;
+  }
+}
+
+/* ==========================================================================
    GRID - Cartes d'annonces (Liste des résultats)
    ========================================================================== */
 
@@ -70,6 +107,398 @@
    HEADER - Navigation principale
    ========================================================================== */
 
+/* Mobile: Header minimaliste avec logo uniquement */
+@media (max-width: 767px) {
+  .header {
+    background: var(--color-surface);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+
+  .nav {
+    height: 56px;
+    padding: 0 16px;
+    justify-content: flex-start;
+  }
+
+  /* Logo à gauche */
+  .brand {
+    gap: 8px;
+    font-size: 1.125rem;
+  }
+
+  .brand .pin {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Cacher toutes les actions du header sur mobile */
+  .nav-actions {
+    display: none !important;
+  }
+
+  /* Réafficher le menu user quand déclenché depuis le bouton mobile */
+  .nav-actions.nav-actions--mobile-menu {
+    display: flex !important;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-actions.nav-actions--mobile-menu > *:not(.header-user) {
+    display: none !important;
+  }
+
+  .nav-actions.nav-actions--mobile-menu .header-user {
+    display: flex;
+  }
+
+  /* Positionner le menu utilisateur près de la bottom nav */
+  .user-menu.user-menu--mobile {
+    position: fixed;
+    top: auto;
+    right: auto;
+    left: 50%;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    transform: translate(-50%, 12px);
+    width: min(420px, calc(100vw - 16px));
+    max-height: 70vh;
+    overflow: hidden;
+    border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 4px 10px rgba(15, 23, 42, 0.12);
+    z-index: 1400;
+  }
+
+  .user-menu.user-menu--mobile[data-open="true"] {
+    transform: translate(-50%, 0);
+  }
+
+  /* Très petits écrans : centrer et élargir pour éviter le hors-champ */
+  @media (max-width: 540px) {
+    .user-menu.user-menu--mobile {
+      left: 50% !important;
+      width: calc(100vw - 14px);
+      max-width: 440px;
+      bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  /* Navigation sticky en bas - Modern Bottom Navigation Bar */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--color-surface);
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 
+      0 -4px 12px rgba(15, 23, 42, 0.06),
+      0 -1px 3px rgba(15, 23, 42, 0.04);
+    backdrop-filter: saturate(180%) blur(20px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .mobile-bottom-nav__container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: stretch;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .mobile-bottom-nav__item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 64px;
+    padding: 8px 4px 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--color-text-tertiary);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mobile-bottom-nav__item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 32px;
+    height: 3px;
+    background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
+    border-radius: 0 0 3px 3px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-bottom-nav__item:active {
+    transform: scale(0.95);
+  }
+
+  .mobile-bottom-nav__item--active {
+    color: var(--color-brand-500);
+  }
+
+  .mobile-bottom-nav__item--active::before {
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  /* Effet de ripple moderne au touch */
+  .mobile-bottom-nav__item::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 12px;
+    background: var(--color-brand-500);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .mobile-bottom-nav__item:active::after {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+
+  .mobile-bottom-nav__icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-bottom-nav__item--active .mobile-bottom-nav__icon {
+    transform: translateY(-2px);
+  }
+
+  .mobile-bottom-nav__icon svg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-bottom-nav__item--active .mobile-bottom-nav__icon svg {
+    stroke-width: 2.5;
+    filter: drop-shadow(0 2px 4px rgba(255, 77, 109, 0.25));
+  }
+
+  .mobile-bottom-nav__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-bottom-nav__item--active .mobile-bottom-nav__label {
+    font-weight: 700;
+    transform: scale(1.05);
+  }
+
+  /* Badge de notification */
+  .mobile-bottom-nav__badge {
+    position: absolute;
+    top: 6px;
+    right: 50%;
+    transform: translateX(14px);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 
+      0 2px 8px rgba(255, 77, 109, 0.4),
+      0 0 0 2px var(--color-surface);
+    animation: pulse-badge 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .mobile-bottom-nav__badge[hidden] {
+    display: none;
+  }
+
+  @keyframes pulse-badge {
+    0%, 100% {
+      transform: translateX(14px) scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: translateX(14px) scale(1.08);
+      opacity: 0.9;
+    }
+  }
+
+  /* Bouton CTA principal (Déposer une annonce) */
+  .mobile-bottom-nav__item--primary {
+    position: relative;
+  }
+
+  .mobile-bottom-nav__item--primary .mobile-bottom-nav__icon {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
+    border-radius: 16px;
+    box-shadow: 
+      0 8px 24px rgba(255, 77, 109, 0.35),
+      0 4px 12px rgba(255, 77, 109, 0.25);
+    margin-top: -24px;
+    border: 4px solid var(--color-surface);
+  }
+
+  .mobile-bottom-nav__item--primary .mobile-bottom-nav__icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: #fff;
+    stroke-width: 2.5;
+  }
+
+  .mobile-bottom-nav__item--primary:active .mobile-bottom-nav__icon {
+    transform: translateY(-22px) scale(0.95);
+  }
+
+  .mobile-bottom-nav__item--primary .mobile-bottom-nav__label {
+    font-size: 0.625rem;
+    margin-top: 2px;
+    color: var(--color-text-secondary);
+  }
+
+  .mobile-bottom-nav__item--primary::before {
+    display: none;
+  }
+
+  /* Hover states pour les devices tactiles */
+  @media (hover: hover) {
+    .mobile-bottom-nav__item:hover {
+      color: var(--color-brand-500);
+    }
+
+    .mobile-bottom-nav__item:hover .mobile-bottom-nav__icon {
+      transform: translateY(-2px);
+    }
+
+    .mobile-bottom-nav__item--primary:hover .mobile-bottom-nav__icon {
+      transform: translateY(-26px) scale(1.02);
+      box-shadow: 
+        0 12px 32px rgba(255, 77, 109, 0.4),
+        0 6px 16px rgba(255, 77, 109, 0.3);
+    }
+  }
+
+  /* Adaptation pour très petits écrans */
+  @media (max-width: 375px) {
+    .mobile-bottom-nav__item {
+      min-height: 60px;
+      padding: 6px 2px 8px;
+      gap: 3px;
+    }
+
+    .mobile-bottom-nav__icon {
+      width: 26px;
+      height: 26px;
+    }
+
+    .mobile-bottom-nav__icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .mobile-bottom-nav__label {
+      font-size: 0.625rem;
+    }
+
+    .mobile-bottom-nav__item--primary .mobile-bottom-nav__icon {
+      width: 48px;
+      height: 48px;
+      margin-top: -20px;
+    }
+
+    .mobile-bottom-nav__item--primary .mobile-bottom-nav__icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .mobile-bottom-nav__badge {
+      min-width: 16px;
+      height: 16px;
+      font-size: 9px;
+    }
+  }
+
+  /* Support pour les encoches (notch) */
+  @supports (padding: max(0px)) {
+    .mobile-bottom-nav {
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+  }
+
+  /* Améliorer la performance */
+  .mobile-bottom-nav,
+  .mobile-bottom-nav__item {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Réduire les animations si l'utilisateur le demande */
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-bottom-nav__item,
+    .mobile-bottom-nav__icon,
+    .mobile-bottom-nav__label,
+    .mobile-bottom-nav__badge {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    .mobile-bottom-nav__item::before,
+    .mobile-bottom-nav__item::after {
+      transition: none !important;
+    }
+  }
+}
+
+/* Tablette: Afficher une version simplifiée du header */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav {
+    height: 60px;
+  }
+
+  .nav-actions {
+    gap: 10px;
+  }
+
+  .nav-link span,
+  .cta .hide-sm {
+    display: none;
+  }
+
+  .mobile-bottom-nav {
+    display: none;
+  }
+}
+
 /* Desktop: Afficher le menu complet */
 @media (min-width: 1024px) {
   .header__nav {
@@ -77,6 +506,10 @@
   }
   
   .header__menu-toggle {
+    display: none;
+  }
+
+  .mobile-bottom-nav {
     display: none;
   }
 }

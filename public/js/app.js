@@ -4050,6 +4050,20 @@
     }
   }
 
+  window.toggleUserMenu = function toggleUserMenu() {
+    const button = document.getElementById('userMenuButton');
+    if (!button) {
+      return;
+    }
+
+    if (button.__menuToggleHandler) {
+      button.__menuToggleHandler();
+      return;
+    }
+
+    button.click();
+  };
+
   function initUserMenu(auth) {
     const button = document.getElementById('userMenuButton');
     const menu = document.getElementById('userMenu');
@@ -4066,6 +4080,24 @@
     }
 
     let isOpen = false;
+    const setMenuOrigin = (origin) => {
+      if (!menu) return;
+      const headerUser = document.querySelector('.header-user');
+      if (origin === 'mobile') {
+        if (menu.parentElement !== document.body) {
+          document.body.appendChild(menu);
+        }
+        menu.dataset.origin = 'mobile';
+        menu.classList.add('user-menu--mobile');
+      } else {
+        if (headerUser && menu.parentElement !== headerUser) {
+          headerUser.appendChild(menu);
+        }
+        delete menu.dataset.origin;
+        menu.classList.remove('user-menu--mobile');
+        menu.style.removeProperty('--user-menu-anchor');
+      }
+    };
 
     const handleDocumentClick = (event) => {
       if (menu.contains(event.target) || button.contains(event.target)) {
@@ -4117,6 +4149,9 @@
       if (isOpen) {
         return;
       }
+      if (menu.dataset.origin !== 'mobile') {
+        setMenuOrigin(null);
+      }
       isOpen = true;
       menu.hidden = false;
       requestAnimationFrame(() => {
@@ -4140,6 +4175,7 @@
           menu.hidden = true;
         }
       }, 180);
+      setMenuOrigin(null);
       document.removeEventListener('click', handleDocumentClick, { capture: true });
       document.removeEventListener('keydown', handleKeydown);
       if (restoreFocus) {
