@@ -5013,7 +5013,14 @@
           max: 4096,
           required: true
         },
-        { id: 'brand', label: 'Marque', type: 'text', required: true }
+        { id: 'brand', label: 'Marque', type: 'text', required: true },
+        {
+          id: 'grade',
+          label: 'État',
+          type: 'select',
+          options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'],
+          required: true
+        }
       ]
     },
     pieces: {
