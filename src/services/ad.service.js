@@ -95,7 +95,17 @@ class AdService {
    * Construire la query MongoDB pour la recherche d'annonces
    */
   buildSearchQuery(filters = {}) {
-    const { category, owner, status, search, condition, minPrice, maxPrice, city } = filters;
+    const {
+      category,
+      owner,
+      status,
+      search,
+      condition,
+      minPrice,
+      maxPrice,
+      city,
+      transactionType
+    } = filters;
 
     const query = {};
 
@@ -114,6 +124,9 @@ class AdService {
     }
     if (condition) {
       query.condition = condition;
+    }
+    if (transactionType) {
+      query.transactionType = transactionType;
     }
 
     // Recherche textuelle
@@ -297,6 +310,7 @@ class AdService {
         filters.minPrice ||
         filters.maxPrice ||
         filters.city ||
+        filters.transactionType ||
         (filters.status && !statusIsDefault) ||
         (filters.search && filters.search.trim())
     );

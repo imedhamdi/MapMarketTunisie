@@ -181,20 +181,20 @@
           </div>
         </div>
 
-        <div class="filter-field">
-          <label class="filter-label" for="etat">État</label>
+        <div class="filter-field" id="transactionTypeField" hidden>
+          <label class="filter-label" for="transactionType">Type de transaction</label>
           <div class="filter-control">
             <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 14 8 10 12 14 16 10 20 14" />
-              <polyline points="4 8 8 4 12 8 16 4 20 8" />
+              <path d="M17 2l4 4-4 4" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <path d="M7 22l-4-4 4-4" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
-            <select id="etat" title="État">
-              <option value="">Tous états</option>
-              <option>Neuf</option>
-              <option>Très bon état</option>
-              <option>Bon état</option>
-              <option>Correct</option>
+            <select id="transactionType" title="Type de transaction">
+              <option value="">Tous les types</option>
+              <option value="location">Location</option>
+              <option value="vente">Vente</option>
             </select>
             <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -203,61 +203,85 @@
           </div>
         </div>
 
-        <div class="filter-field">
-          <label class="filter-label" for="sort">Tri</label>
-          <div class="filter-control">
-            <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h11" />
-              <path d="M3 12h7" />
-              <path d="M3 18h3" />
-              <path d="m15 18 6-6-6-6" />
-            </svg>
-            <select id="sort" title="Tri">
-              <option value="recent">Plus récent</option>
-              <option value="priceAsc">Prix croissant</option>
-              <option value="priceDesc">Prix décroissant</option>
-            </select>
-            <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+        <div class="filters-inline">
+          <div class="filter-field">
+            <label class="filter-label" for="etat">État</label>
+            <div class="filter-control">
+              <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 14 8 10 12 14 16 10 20 14" />
+                <polyline points="4 8 8 4 12 8 16 4 20 8" />
+              </svg>
+              <select id="etat" title="État">
+                <option value="">Tous états</option>
+                <option>Neuf</option>
+                <option>Très bon état</option>
+                <option>Bon état</option>
+                <option>Correct</option>
+              </select>
+              <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </div>
-        </div>
 
-        <div class="filter-field">
-          <label class="filter-label" for="pmin">Prix minimum (€)</label>
-          <div class="filter-control">
-            <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v18" />
-              <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
-            </svg>
-            <input id="pmin" type="number" min="0" inputmode="numeric" placeholder="Ex. 100">
+          <div class="filter-field">
+            <label class="filter-label" for="sort">Tri</label>
+            <div class="filter-control">
+              <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h11" />
+                <path d="M3 12h7" />
+                <path d="M3 18h3" />
+                <path d="m15 18 6-6-6-6" />
+              </svg>
+              <select id="sort" title="Tri">
+                <option value="recent">Plus récent</option>
+                <option value="priceAsc">Prix croissant</option>
+                <option value="priceDesc">Prix décroissant</option>
+              </select>
+              <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </div>
-        </div>
 
-        <div class="filter-field">
-          <label class="filter-label" for="pmax">Prix maximum (€)</label>
-          <div class="filter-control">
-            <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v18" />
-              <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
-            </svg>
-            <input id="pmax" type="number" min="0" inputmode="numeric" placeholder="Ex. 500">
+          <div class="filter-field">
+            <label class="filter-label" for="pmin">Prix minimum (€)</label>
+            <div class="filter-control">
+              <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v18" />
+                <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
+              </svg>
+              <input id="pmin" type="number" min="0" inputmode="numeric" placeholder="Ex. 100">
+            </div>
           </div>
-        </div>
 
-        <div class="filter-field">
-          <label class="filter-label" for="city">Ville</label>
-          <div class="filter-control">
-            <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <input id="city" type="text" placeholder="Ex. Paris" autocomplete="off">
+          <div class="filter-field">
+            <label class="filter-label" for="pmax">Prix maximum (€)</label>
+            <div class="filter-control">
+              <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v18" />
+                <path d="M17 7H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H7" />
+              </svg>
+              <input id="pmax" type="number" min="0" inputmode="numeric" placeholder="Ex. 500">
+            </div>
+          </div>
+
+          <div class="filter-field">
+            <label class="filter-label" for="city">Ville</label>
+            <div class="filter-control">
+              <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <input id="city" type="text" placeholder="Ex. Paris" autocomplete="off">
+            </div>
           </div>
         </div>
       </div>

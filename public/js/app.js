@@ -940,8 +940,25 @@
   const pmin = document.getElementById('pmin');
   const pmax = document.getElementById('pmax');
   const city = document.getElementById('city');
+  const transactionTypeField = document.getElementById('transactionTypeField');
+  const transactionType = document.getElementById('transactionType');
   const resetBtn = document.getElementById('resetBtn');
   const viewState = { userAdjustedView: false };
+
+  function toggleTransactionTypeVisibility() {
+    if (!transactionTypeField) {
+      return false;
+    }
+    const shouldShow = cat?.value === 'immobilier';
+    transactionTypeField.hidden = !shouldShow;
+    if (!shouldShow && transactionType && transactionType.value) {
+      transactionType.value = '';
+      return true;
+    }
+    return false;
+  }
+
+  toggleTransactionTypeVisibility();
 
   function getFiltered() {
     // Server-side pagination: filters are applied by API
@@ -974,7 +991,15 @@
   if (search) {
     search.addEventListener('input', () => scheduleAdsReload({ immediate: false }));
   }
-  [cat, etat, sort, pmin, pmax, city].forEach((el) =>
+
+  if (cat) {
+    cat.addEventListener('change', () => {
+      toggleTransactionTypeVisibility();
+      scheduleAdsReload({ immediate: true });
+    });
+  }
+
+  [etat, sort, pmin, pmax, city, transactionType].forEach((el) =>
     el?.addEventListener('change', () => scheduleAdsReload({ immediate: true }))
   );
   [pmin, pmax, city].forEach((el) =>
@@ -982,7 +1007,7 @@
   );
 
   resetBtn.addEventListener('click', () => {
-    [search, cat, etat, sort, pmin, pmax, city].forEach((el) => {
+    [search, cat, etat, sort, pmin, pmax, city, transactionType].forEach((el) => {
       if (!el) {
         return;
       }
@@ -992,6 +1017,7 @@
         el.value = '';
       }
     });
+    toggleTransactionTypeVisibility();
     viewState.userAdjustedView = false;
     loadAds({ filters: getFilterValues() });
   });
@@ -1001,7 +1027,7 @@
   const btnPublishFromEmpty = document.getElementById('btnPublishFromEmpty');
 
   btnResetFilters?.addEventListener('click', () => {
-    [search, cat, etat, sort, pmin, pmax, city].forEach((el) => {
+    [search, cat, etat, sort, pmin, pmax, city, transactionType].forEach((el) => {
       if (!el) {
         return;
       }
@@ -1011,6 +1037,7 @@
         el.value = '';
       }
     });
+    toggleTransactionTypeVisibility();
     viewState.userAdjustedView = false;
     loadAds({ filters: getFilterValues() });
   });
@@ -1173,6 +1200,7 @@
   let currentFilters = {
     search: '',
     category: '',
+    transactionType: '',
     condition: '',
     minPrice: '',
     maxPrice: '',
@@ -1184,6 +1212,7 @@
     return {
       search: search?.value?.trim() || '',
       category: cat?.value || '',
+      transactionType: transactionType?.value || '',
       condition: etat?.value || '',
       minPrice: pmin?.value || '',
       maxPrice: pmax?.value || '',
@@ -1265,6 +1294,12 @@
       params.delete('category');
     }
 
+    if (currentFilters.transactionType) {
+      params.set('transactionType', currentFilters.transactionType);
+    } else {
+      params.delete('transactionType');
+    }
+
     if (currentFilters.condition) {
       params.set('condition', mapConditionToSlug(currentFilters.condition));
     } else {
@@ -1337,6 +1372,9 @@
       }
       if (currentFilters.category) {
         params.set('category', mapCategoryLabelToSlug(currentFilters.category));
+      }
+      if (currentFilters.transactionType) {
+        params.set('transactionType', currentFilters.transactionType);
       }
       if (currentFilters.condition) {
         params.set('condition', mapConditionToSlug(currentFilters.condition));
@@ -2138,6 +2176,9 @@
     }
     if (currentFilters.category) {
       params.set('category', mapCategoryLabelToSlug(currentFilters.category));
+    }
+    if (currentFilters.transactionType) {
+      params.set('transactionType', currentFilters.transactionType);
     }
     if (currentFilters.condition) {
       params.set('condition', mapConditionToSlug(currentFilters.condition));

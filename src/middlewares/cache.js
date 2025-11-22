@@ -105,7 +105,8 @@ export function cacheAds(ttl = 300) {
       minPrice,
       maxPrice,
       city,
-      condition
+      condition,
+      transactionType
     } = req.query;
 
     return [
@@ -121,7 +122,8 @@ export function cacheAds(ttl = 300) {
       `condition:${condition || 'all'}`,
       `min:${minPrice || 'none'}`,
       `max:${maxPrice || 'none'}`,
-      `city:${city || 'all'}`
+      `city:${city || 'all'}`,
+      `tx:${transactionType || 'all'}`
     ].join(':');
   });
 }

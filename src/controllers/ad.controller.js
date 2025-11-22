@@ -186,6 +186,7 @@ export async function createAd(req, res, next) {
 export async function listAds(req, res, next) {
   try {
     const {
+      cursor,
       category,
       owner,
       status,
@@ -195,7 +196,7 @@ export async function listAds(req, res, next) {
       maxPrice,
       city,
       sort,
-      cursor,
+      transactionType,
       after,
       before,
       limit
@@ -210,7 +211,8 @@ export async function listAds(req, res, next) {
       minPrice,
       maxPrice,
       city,
-      sort
+      sort,
+      transactionType
     };
 
     const pagination = {

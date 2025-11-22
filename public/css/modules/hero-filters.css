@@ -193,6 +193,24 @@
   grid-column: span 2;
 }
 
+.filters-inline {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+
+.filters-inline .filter-field {
+  flex: 1 1 clamp(160px, 18vw, 220px);
+  min-width: 160px;
+}
+
+@media (min-width: 1024px) {
+  .filters-inline {
+    flex-wrap: nowrap;
+  }
+}
+
 /* Clear button positioning for global search (reuse shared style) */
 .filter-search .filter-control { position: relative; }
 .filter-search .filter-control input[type="search"] { padding-right: 40px; }
