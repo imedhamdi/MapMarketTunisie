@@ -968,14 +968,30 @@ function renderListings(stats) {
       const adId = ad.id || ad._id || '';
 
       const isArchived = status === 'archived' || status === 'inactive';
-      const actionsMarkup = isArchived
-        ? `
+      const isActive = status === 'active';
+      let actionsMarkup;
+
+      if (isArchived) {
+        actionsMarkup = `
             <button type="button" class="profile-listing-restore" data-ad-id="${adId}">
               <span class="profile-listing-restore-icon" aria-hidden="true">↺</span>
               <span class="profile-listing-restore-label">Remettre en ligne</span>
             </button>
-          `
-        : `
+          `;
+      } else if (isActive) {
+        actionsMarkup = `
+            <button type="button" class="profile-listing-view" data-ad-id="${adId}" aria-label="Voir l'annonce ${safeTitle}">
+              <span class="profile-listing-view-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </span>
+              <span class="profile-listing-view-label">Voir l'annonce</span>
+            </button>
+          `;
+      } else {
+        actionsMarkup = `
             <div class="profile-listing-actions" role="group" aria-label="Actions sur l'annonce">
               <button type="button" class="profile-listing-action" aria-label="Voir l'annonce" title="Voir">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -999,6 +1015,7 @@ function renderListings(stats) {
               </button>
             </div>
           `;
+      }
 
       return `
         <article class="profile-listing-card" role="listitem" data-status="${statusAttr}">
@@ -1156,8 +1173,49 @@ async function restoreArchivedAd(adId, button) {
   }
 }
 
+function handleListingViewClick(adId) {
+  if (!adId) {
+    logger.warn('View button clicked without ad id');
+    return;
+  }
+
+  if (typeof window.openDetailsById === 'function') {
+    try {
+      const result = window.openDetailsById(adId);
+      if (result && typeof result.then === 'function') {
+        result
+          .catch((error) => logger.warn('openDetailsById rejected', error))
+          .finally(() => closeProfileDrawer());
+      } else {
+        closeProfileDrawer();
+      }
+      return;
+    } catch (error) {
+      logger.warn('openDetailsById threw', error);
+      // Continue with fallback navigation when the drawer is not available.
+    }
+  }
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('ad', adId);
+    window.location.assign(currentUrl.toString());
+  } catch (error) {
+    logger.warn('Fallback navigation failed', error);
+    window.location.assign(`/?ad=${encodeURIComponent(adId)}`);
+  }
+}
+
 function onListingsGridClick(event) {
   const target = event.target;
+  const viewButton = target?.closest('.profile-listing-view');
+  if (viewButton && listingsGrid?.contains(viewButton)) {
+    event.preventDefault();
+    const adId = viewButton.dataset.adId;
+    handleListingViewClick(adId);
+    return;
+  }
+
   const restoreButton = target?.closest('.profile-listing-restore');
   if (!restoreButton || !listingsGrid?.contains(restoreButton)) {
     return;
