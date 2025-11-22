@@ -89,7 +89,6 @@ const attributeSchemas = {
   immobilier: Joi.object({
     surface: Joi.number().min(5).max(1000).required(),
     rooms: Joi.number().integer().min(1).max(20).required(),
-    dpe: Joi.string().valid('A', 'B', 'C', 'D', 'E', 'F', 'G').required(),
     furnished: Joi.boolean().optional(),
     floor: Joi.number().integer().min(0).max(50).allow(null, '')
   }),

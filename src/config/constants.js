@@ -44,7 +44,6 @@ export const CATEGORY_ATTRIBUTES = {
     fields: [
       { id: 'surface', type: 'number', required: false },
       { id: 'rooms', type: 'number', required: false },
-      { id: 'dpe', type: 'string', required: false },
       { id: 'furnished', type: 'boolean', required: false },
       { id: 'floor', type: 'number', required: false }
     ]

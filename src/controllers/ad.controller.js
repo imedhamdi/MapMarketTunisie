@@ -20,7 +20,6 @@ const categoryDefinitions = {
     fields: [
       { id: 'surface', type: 'number' },
       { id: 'rooms', type: 'number' },
-      { id: 'dpe', type: 'string' },
       { id: 'furnished', type: 'boolean' },
       { id: 'floor', type: 'number' }
     ]

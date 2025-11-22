@@ -261,11 +261,17 @@
         if (attr.rooms) {
           chips.push(`${attr.rooms} pièce${attr.rooms > 1 ? 's' : ''}`);
         }
-        if (attr.dpe) {
-          chips.push(`DPE ${attr.dpe}`);
-        }
         if (attr.furnished != null) {
           chips.push(attr.furnished ? 'Meublé' : 'Non meublé');
+        }
+        if (attr.floor != null && attr.floor !== '') {
+          const floorNumber = Number(attr.floor);
+          const floorLabel = Number.isFinite(floorNumber)
+            ? floorNumber === 0
+              ? 'RDC'
+              : `Étage ${floorNumber}`
+            : `Étage ${attr.floor}`;
+          chips.push(floorLabel);
         }
         break;
       }
@@ -4955,13 +4961,6 @@
       fields: [
         { id: 'surface', label: 'Surface (m²)', type: 'number', min: 5, max: 1000, required: true },
         { id: 'rooms', label: 'Nombre de pièces', type: 'number', min: 1, max: 20, required: true },
-        {
-          id: 'dpe',
-          label: 'DPE',
-          type: 'select',
-          options: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-          required: true
-        },
         { id: 'furnished', label: 'Meublé', type: 'boolean', required: false },
         { id: 'floor', label: 'Étage', type: 'number', min: 0, max: 50, required: false }
       ]
@@ -6963,6 +6962,52 @@
       return items;
     }
 
+    if (category === 'immobilier') {
+      const items = [];
+      if (attrs.surface != null && String(attrs.surface).trim() !== '') {
+        const surfaceRaw = String(attrs.surface).trim();
+        const surfaceNumber = Number(surfaceRaw);
+        const label = Number.isFinite(surfaceNumber)
+          ? `${surfaceNumber.toLocaleString('fr-FR')} m²`
+          : /m²|m2/i.test(surfaceRaw)
+            ? surfaceRaw
+            : `${surfaceRaw} m²`;
+        items.push({ type: 'surface', label });
+      }
+      if (attrs.rooms != null && String(attrs.rooms).trim() !== '') {
+        const roomsRaw = String(attrs.rooms).trim();
+        const roomsNumber = Number(roomsRaw);
+        const plural = Number.isFinite(roomsNumber) ? roomsNumber > 1 : !/^1\s*$/.test(roomsRaw);
+        const label = /pi[eè]ce/i.test(roomsRaw)
+          ? roomsRaw
+          : Number.isFinite(roomsNumber)
+            ? `${roomsNumber} pièce${roomsNumber > 1 ? 's' : ''}`
+            : `${roomsRaw} pièce${plural ? 's' : ''}`;
+        items.push({ type: 'rooms', label });
+      }
+      if (attrs.furnished != null && attrs.furnished !== '') {
+        const isFurnished =
+          String(attrs.furnished).toLowerCase() === 'true' || attrs.furnished === true;
+        items.push({ type: 'furnished', label: isFurnished ? 'Meublé' : 'Non meublé' });
+      }
+      if (attrs.floor != null && attrs.floor !== '') {
+        const floorRaw = String(attrs.floor).trim();
+        const floorNumber = Number(floorRaw);
+        let label;
+        if (Number.isFinite(floorNumber)) {
+          label = floorNumber === 0 ? 'Rez-de-chaussée' : `Étage ${floorNumber}`;
+        } else if (/rez|rdc/i.test(floorRaw)) {
+          label = 'Rez-de-chaussée';
+        } else if (/étage|etage/i.test(floorRaw)) {
+          label = floorRaw;
+        } else {
+          label = `Étage ${floorRaw}`;
+        }
+        items.push({ type: 'floor', label });
+      }
+      return items;
+    }
+
     const chips = Array.isArray(ad.chips) ? ad.chips : [];
     return chips
       .map((label, index) => ({
@@ -7013,6 +7058,41 @@
             <circle cx="17" cy="6" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
             <circle cx="7" cy="18" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
             <circle cx="17" cy="18" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4" />
+          </svg>
+        `;
+      case 'surface':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="4.5" y="4.5" width="15" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M9 4.5v6M4.5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M19.5 15h-6M15 19.5v-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'rooms':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="5" y="6" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M5 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="9" cy="10" r="1" fill="currentColor" />
+            <circle cx="15" cy="16" r="1" fill="currentColor" />
+          </svg>
+        `;
+      case 'furnished':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M5 14a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v5H5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M7 11v-1.5a2.5 2.5 0 0 1 2.5-2.5h5A2.5 2.5 0 0 1 17 9.5V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M5 19v2M19 19v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'floor':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 4.5h12V21H6Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M6 9.5h12M6 14.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M9.5 4.5V21M14.5 4.5V21" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M4 21h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           </svg>
         `;
       default:
