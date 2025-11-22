@@ -1094,10 +1094,27 @@
       return;
     }
     const activeSet = new Set(favStore.values().map(String));
+    const currentUser =
+      window.authStore && typeof window.authStore.get === 'function'
+        ? window.authStore.get()
+        : null;
+    const currentUserId = currentUser?._id ? String(currentUser._id) : null;
 
     // Synchroniser les boutons dans la liste
     listView.querySelectorAll('.fav').forEach((btn) => {
       const id = btn.dataset.id;
+      const adData = getItemById(id);
+      const ownerId = adData?.ownerId ? String(adData.ownerId) : null;
+      const isOwner = Boolean(currentUserId && ownerId && currentUserId === ownerId);
+
+      btn.hidden = isOwner;
+      if (isOwner) {
+        btn.setAttribute('aria-hidden', 'true');
+        btn.setAttribute('aria-pressed', 'false');
+        updateFavIcon(btn.querySelector('svg'), false);
+        return;
+      }
+      btn.removeAttribute('aria-hidden');
       const isFav = activeSet.has(String(id));
       btn.setAttribute('aria-pressed', String(isFav));
       updateFavIcon(btn.querySelector('svg'), isFav);
@@ -1105,7 +1122,23 @@
 
     // Synchroniser le bouton dans le modal de détail
     const detailsSaveBtn = document.getElementById('detailsSave');
-    if (detailsSaveBtn && detailsSaveBtn.dataset.id) {
+    const detailsOwnerId = detailsCurrentAd?.ownerId ? String(detailsCurrentAd.ownerId) : null;
+    const isDetailsOwner = Boolean(
+      currentUserId && detailsOwnerId && currentUserId === detailsOwnerId
+    );
+
+    if (detailsSaveBtn) {
+      detailsSaveBtn.hidden = isDetailsOwner;
+      if (isDetailsOwner) {
+        detailsSaveBtn.setAttribute('aria-hidden', 'true');
+      } else {
+        detailsSaveBtn.removeAttribute('aria-hidden');
+      }
+    }
+
+    if (isDetailsOwner) {
+      setDetailsSaveState(false);
+    } else if (detailsSaveBtn && detailsSaveBtn.dataset.id) {
       const isFav = activeSet.has(String(detailsSaveBtn.dataset.id));
       setDetailsSaveState(isFav);
     } else if (detailsCurrentAd) {
@@ -1960,12 +1993,24 @@
   // Render ads from paging.items (server-side paginated data)
   function renderAdsPage(items) {
     const fragment = document.createDocumentFragment();
+    const currentUser =
+      window.authStore && typeof window.authStore.get === 'function'
+        ? window.authStore.get()
+        : null;
 
     for (const a of items) {
       const thumbSrc = buildOptimizedImage(a.img, 480, 70);
       const thumbSrcSet = buildSrcSet(a.img, [320, 480, 640], 70);
       const idKey = normalizeAdId(a.id);
       const isFav = favStore.has(idKey);
+      const currentUserId = currentUser?._id ? String(currentUser._id) : null;
+      const ownerId = a.ownerId ? String(a.ownerId) : null;
+      const isOwner = Boolean(currentUserId && ownerId && currentUserId === ownerId);
+      const favButton = isOwner
+        ? ''
+        : `<button class="fav" title="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-pressed="${isFav}" data-id="${String(a.id)}">
+              <svg viewBox="0 0 24 24" fill="${isFav ? THEME.favorite : 'none'}" stroke="${isFav ? THEME.favorite : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </button>`;
 
       // Generate transaction type icon for real estate
       const isRealEstate = (a.catSlug || a.cat) === 'immobilier';
@@ -1986,9 +2031,7 @@
             <div class="grad"></div>
             <div class="cat ${categoryClass(a.catSlug || a.cat)}">${categorySymbol(a.catSlug || a.cat)} <span>${a.cat}</span></div>
             <div class="stats"><span class="row">👁️ ${a.views}</span><span class="row">❤ ${a.likes}</span></div>
-            <button class="fav" title="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-pressed="${isFav}" data-id="${String(a.id)}">
-              <svg viewBox="0 0 24 24" fill="${isFav ? THEME.favorite : 'none'}" stroke="${isFav ? THEME.favorite : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-            </button>
+            ${favButton}
           </div>
           <div class="body">
             <div class="titleprice"><div class="title">${a.title}</div><div class="price">${fmtPrice(a.price)}</div></div>
@@ -4847,6 +4890,7 @@
 
   document.addEventListener('auth:change', () => {
     updateAuthUI();
+    syncAllFavoriteButtons();
   });
 
   async function hydrateAuthFromSession() {
