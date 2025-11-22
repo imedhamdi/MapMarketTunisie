@@ -3455,8 +3455,7 @@
     applySearch();
     updateUnreadBadge();
 
-    const shouldOpen =
-      dom.modal?.classList.contains('mm-open') || detail?.autoOpen;
+    const shouldOpen = dom.modal?.classList.contains('mm-open') || detail?.autoOpen;
     pendingSelectConversationId = conversation.id;
     if (shouldOpen) {
       openModal({ conversationId: conversation.id });
