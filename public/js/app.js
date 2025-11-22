@@ -1636,16 +1636,10 @@
     const favThumb = buildOptimizedImage(imageSource, 480, 70);
     const favSrcSet = buildSrcSet(imageSource, [320, 480, 640], 70);
 
-    // Generate transaction type icon for real estate
-    const isRealEstate = (item.catSlug || item.cat) === 'immobilier';
-    const transactionIcon =
-      isRealEstate && item.transactionType ? getTransactionTypeIcon(item.transactionType) : '';
-
     return `
   <article class="mm-card" role="listitem" data-id="${String(item.id)}" tabindex="-1">
     <button class="mm-remove" aria-label="Retirer ce favori" data-id="${String(item.id)}" title="Retirer">✕</button>
     <div class="mm-thumb">
-      ${transactionIcon}
       <img src="${favThumb}" srcset="${favSrcSet}" sizes="(max-width: 520px) 90vw, 320px" alt="${item.title}" loading="lazy" decoding="async" width="320" height="240" style="aspect-ratio: 4 / 3; width: 100%; height: auto;">
     </div>
     <div class="mm-body">
@@ -4975,14 +4969,7 @@
           max: 4096,
           required: true
         },
-        { id: 'brand', label: 'Marque', type: 'text', required: true },
-        {
-          id: 'grade',
-          label: 'Grade',
-          type: 'select',
-          options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'],
-          required: true
-        }
+        { id: 'brand', label: 'Marque', type: 'text', required: true }
       ]
     },
     pieces: {
@@ -7008,6 +6995,46 @@
       return items;
     }
 
+    if (category === 'electroniques') {
+      const items = [];
+      const brandRaw = String(attrs.brand || '').trim();
+      if (brandRaw) {
+        items.push({ type: 'electronics-brand', label: capitalize(brandRaw) });
+      }
+      const storageRaw = attrs.storage ?? attrs.capacity ?? '';
+      const storageText = String(storageRaw).trim();
+      if (storageText) {
+        const storageNumber = Number(storageText);
+        const label = Number.isFinite(storageNumber)
+          ? `${storageNumber} Go`
+          : /go|gb|tb/i.test(storageText)
+            ? storageText
+            : `${storageText} Go`;
+        items.push({ type: 'electronics-storage', label });
+      }
+      const gradeSource = String(attrs.grade || '').trim();
+      let conditionLabel = gradeSource;
+      if (!conditionLabel && ad?.state) {
+        conditionLabel = String(ad.state)
+          .trim()
+          .replace(/\s+état$/i, '');
+      }
+      if (!conditionLabel && ad?.condition) {
+        const conditionMap = CONDITION_LABELS[ad.condition];
+        if (conditionMap) {
+          conditionLabel = String(conditionMap)
+            .trim()
+            .replace(/\s+état$/i, '');
+        }
+      }
+      if (conditionLabel) {
+        items.push({ type: 'electronics-condition', label: capitalize(conditionLabel) });
+      }
+      if (items.length) {
+        return items;
+      }
+    }
+
     if (category === 'mode') {
       const items = [];
       const brand = String(attrs.brand || '').trim();
@@ -7134,6 +7161,31 @@
             <circle cx="12" cy="9.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
             <path d="M7 19a5 5 0 0 1 10 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             <path d="M17 5h3M18.5 3.5v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'electronics-brand':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M3.5 11.5V5a2.5 2.5 0 0 1 2.5-2.5h6.3a2 2 0 0 1 1.4.6l7.3 7.3a2 2 0 0 1 0 2.8l-5.1 5.1a2 2 0 0 1-2.8 0l-7.3-7.3a2 2 0 0 1-.6-1.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            <circle cx="9.2" cy="7.2" r="1.2" fill="currentColor" />
+          </svg>
+        `;
+      case 'electronics-storage':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="4.5" y="6" width="15" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M4.5 10h15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            <circle cx="9" cy="14" r="1" fill="currentColor" />
+            <circle cx="12" cy="14" r="1" fill="currentColor" />
+            <circle cx="15" cy="14" r="1" fill="currentColor" />
+          </svg>
+        `;
+      case 'electronics-condition':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3.5 5.5 6v6.3c0 3.7 2.4 7.1 6.5 8.7 4.1-1.6 6.5-5 6.5-8.7V6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="m9.4 11.6 2.1 1.9 3.1-3.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9.8 19.2 12 18l2.2 1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         `;
       default:
