@@ -1,19 +1,25 @@
 /* Hero */
 .hero {
-  padding: 24px 0 4px;
-  text-align: center
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 18px);
+  padding: clamp(32px, 6vw, 56px) 0 clamp(16px, 4vw, 32px);
+  text-align: center;
 }
 
 .hero h1 {
   font-size: clamp(30px, 7vw, 40px);
-  line-height: 1.1;
-  margin: 0 0 10px;
+  line-height: 1.08;
+  margin: 0;
 }
 
 .hero p {
   color: var(--color-text-muted);
   margin: 0;
   font-size: clamp(15px, 3.6vw, 17px);
+  max-width: clamp(280px, 62vw, 520px);
 }
 
 /* Filters card */

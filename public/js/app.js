@@ -7008,6 +7008,24 @@
       return items;
     }
 
+    if (category === 'mode') {
+      const items = [];
+      const brand = String(attrs.brand || '').trim();
+      const size = String(attrs.size || '').trim();
+      const gender = String(attrs.gender || '').trim();
+
+      if (brand) {
+        items.push({ type: 'fashion-brand', label: brand });
+      }
+      if (size) {
+        items.push({ type: 'fashion-size', label: size.toUpperCase() });
+      }
+      if (gender) {
+        items.push({ type: 'fashion-gender', label: capitalize(gender) });
+      }
+      return items;
+    }
+
     const chips = Array.isArray(ad.chips) ? ad.chips : [];
     return chips
       .map((label, index) => ({
@@ -7093,6 +7111,29 @@
             <path d="M6 9.5h12M6 14.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             <path d="M9.5 4.5V21M14.5 4.5V21" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
             <path d="M4 21h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'fashion-brand':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="6" y="9" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 9V7.5a4 4 0 0 1 8 0V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9.5 12h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'fashion-size':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 4.5 12 6.2 15 4.5 18 7.5 16 8.7V19H8V8.7L6 7.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10 12.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'fashion-gender':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="9.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M7 19a5 5 0 0 1 10 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M17 5h3M18.5 3.5v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           </svg>
         `;
       default:
@@ -7203,19 +7244,16 @@
           <button class="cta-primary" id="detailsContact" type="button" aria-label="Contacter le vendeur" disabled style="opacity: 0.5; cursor: not-allowed;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M22 12h-4" />
-              <path d="M2 12h4" />
-              <path d="M12 2v4" />
-              <path d="M12 22v-4" />
-              <rect x="7" y="7" width="10" height="10" rx="2" />
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="m3 7 9 6 9-6" />
             </svg>
             <span>Contacter</span>
           </button>
           <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte" disabled style="opacity: 0.5; cursor: not-allowed;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M12 19V6" />
-              <path d="m5 12 7-7 7 7" />
+              <path d="M12 21s-6-5.5-6-10.5A6 6 0 0 1 12 4a6 6 0 0 1 6 6.5C18 15.5 12 21 12 21Z" />
+              <circle cx="12" cy="10.5" r="2.5" />
             </svg>
             <span>Voir sur la carte</span>
           </button>
@@ -7246,8 +7284,8 @@
           <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M12 19V6" />
-              <path d="m5 12 7-7 7 7" />
+              <path d="M12 21s-6-5.5-6-10.5A6 6 0 0 1 12 4a6 6 0 0 1 6 6.5C18 15.5 12 21 12 21Z" />
+              <circle cx="12" cy="10.5" r="2.5" />
             </svg>
             <span>Voir sur la carte</span>
           </button>
@@ -7282,19 +7320,16 @@
           <button class="cta-primary" id="detailsContact" type="button" aria-label="Contacter le vendeur">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M22 12h-4" />
-              <path d="M2 12h4" />
-              <path d="M12 2v4" />
-              <path d="M12 22v-4" />
-              <rect x="7" y="7" width="10" height="10" rx="2" />
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="m3 7 9 6 9-6" />
             </svg>
             <span>Contacter</span>
           </button>
           <button class="cta-secondary" id="detailsVisit" type="button" aria-label="Voir sur la carte">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M12 19V6" />
-              <path d="m5 12 7-7 7 7" />
+              <path d="M12 21s-6-5.5-6-10.5A6 6 0 0 1 12 4a6 6 0 0 1 6 6.5C18 15.5 12 21 12 21Z" />
+              <circle cx="12" cy="10.5" r="2.5" />
             </svg>
             <span>Voir sur la carte</span>
           </button>
