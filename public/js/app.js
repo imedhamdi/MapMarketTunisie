@@ -4975,13 +4975,6 @@
     pieces: {
       fields: [
         { id: 'compatible', label: 'Compatible avec', type: 'text', required: true },
-        {
-          id: 'grade',
-          label: 'État',
-          type: 'select',
-          options: ['neuf', 'comme neuf', 'très bon', 'bon', 'correct'],
-          required: true
-        },
         { id: 'reference', label: 'Référence', type: 'text', required: false }
       ]
     },

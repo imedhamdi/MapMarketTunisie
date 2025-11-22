@@ -99,7 +99,6 @@ const attributeSchemas = {
   }),
   pieces: Joi.object({
     compatible: Joi.string().trim().min(2).max(120).required(),
-    grade: Joi.string().valid('neuf', 'comme neuf', 'très bon', 'bon', 'correct').required(),
     reference: Joi.string().trim().max(120).allow('', null)
   }),
   mode: Joi.object({
