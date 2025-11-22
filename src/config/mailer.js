@@ -1,7 +1,23 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import env from './env.js';
 import logger from './logger.js';
 
 const MAILGUN_USER = 'api';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const brandLogoSvgPath = path.resolve(__dirname, '../../public/icons/logo-email.svg');
+let brandLogoBase64 = '';
+
+try {
+  const svgBuffer = fs.readFileSync(brandLogoSvgPath, 'utf8');
+  brandLogoBase64 = `data:image/svg+xml;base64,${Buffer.from(svgBuffer).toString('base64')}`;
+} catch (error) {
+  logger.error('Impossible de charger le logo email', { error: error.message });
+}
 
 function buildUrlWithToken(baseUrl, token) {
   try {
@@ -75,8 +91,7 @@ async function sendMailgunMessage({ to, subject, text, html }) {
 }
 
 export async function sendTemporaryPasswordEmail(to, password, name = '') {
-  const logoBase64 =
-    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgODAiIGZpbGw9Im5vbmUiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJicmFuZEdyYWRpZW50IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I2ZmNGQ2ZDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmY2YjhhO3N0b3Atb3BhY2l0eToxIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxmaWx0ZXIgaWQ9InNoYWRvdyI+CiAgICAgIDxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjIiIGZsb29kLW9wYWNpdHk9IjAuMiIvPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgogIAogIDwhLS0gUGluIGRlIGxvY2FsaXNhdGlvbiBzdHlsaXPDqSAtLT4KICA8ZyBmaWx0ZXI9InVybCgjc2hhZG93KSI+CiAgICA8cGF0aCBkPSJNNDAgMTUgQzUyIDE1IDYyIDI1IDYyIDM3IEM2MiA1MCA1MiA2MiA0MCA3NSBDMjggNjIgMTggNTAgMTggMzcgQzE4IDI1IDI4IDE1IDQwIDE1IFoiIAogICAgICAgICAgZmlsbD0idXJsKCNicmFuZEdyYWRpZW50KSIgCiAgICAgICAgICBzdHJva2U9IiNlMTFkNDgiIAogICAgICAgICAgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICAKICAgIDxjaXJjbGUgY3g9IjQwIiBjeT0iMzciIHI9IjEyIiBmaWxsPSJ3aGl0ZSIvPgogICAgCiAgICA8IS0tIEljw7RuZSBwYW5pZXIgLS0+CiAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MCwgMzcpIj4KICAgICAgPHBhdGggZD0iTS02IC00IEwtNCAyIEw0IDIgTDYgLTQgWiIgCiAgICAgICAgICAgIGZpbGw9Im5vbmUiIAogICAgICAgICAgICBzdHJva2U9IiNmZjRkNmQiIAogICAgICAgICAgICBzdHJva2Utd2lkdGg9IjEuOCIgCiAgICAgICAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICAgICAgPGxpbmUgeDE9Ii00IiB5MT0iLTQiIHgyPSItNiIgeTI9Ii03IiBzdHJva2U9IiNmZjRkNmQiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgICAgPGxpbmUgeDE9IjQiIHkxPSItNCIgeDI9IjYiIHkyPSItNyIgc3Ryb2tlPSIjZmY0ZDZkIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgICAgIDxjaXJjbGUgY3g9Ii0yIiBjeT0iNCIgcj0iMS4yIiBmaWxsPSIjZmY0ZDZkIi8+CiAgICAgIDxjaXJjbGUgY3g9IjIiIGN5PSI0IiByPSIxLjIiIGZpbGw9IiNmZjRkNmQiLz4KICAgIDwvZz4KICA8L2c+CiAgCiAgPCEtLSBUZXh0ZSBNYXBNYXJrZXQgLS0+CiAgPHRleHQgeD0iODUiIHk9IjUwIiAKICAgICAgICBmb250LWZhbWlseT0ic3lzdGVtLXVpLCAtYXBwbGUtc3lzdGVtLCBzYW5zLXNlcmlmIiAKICAgICAgICBmb250LXNpemU9IjMyIiAKICAgICAgICBmb250LXdlaWdodD0iNzAwIiAKICAgICAgICBmaWxsPSIjMGYxNzJhIj4KICAgIE1hcE1hcmtldAogIDwvdGV4dD4KICAKICA8IS0tIEJhZGdlIFR1bmlzaWUgLS0+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjUwLCAzMCkiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjIwIiByeD0iMTAiIGZpbGw9IiNmZjRkNmQiIG9wYWNpdHk9IjAuMSIvPgogICAgPHRleHQgeD0iMzAiIHk9IjE0IiAKICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sIHNhbnMtc2VyaWYiIAogICAgICAgICAgZm9udC1zaXplPSIxMCIgCiAgICAgICAgICBmb250LXdlaWdodD0iNjAwIiAKICAgICAgICAgIHRleHQtYW5jaG9yPSJtaWRkbGUiIAogICAgICAgICAgZmlsbD0iI2ZmNGQ2ZCIKICAgICAgICAgIGxldHRlci1zcGFjaW5nPSIwLjUiPgogICAgICBUVU5JU0lFCiAgICA8L3RleHQ+CiAgPC9nPgo8L3N2Zz4=';
+  const logoSrc = brandLogoBase64 || '';
 
   const text = `Bonjour ${name || ''},
 
@@ -104,7 +119,7 @@ L'équipe MapMarket Tunisie`;
           <!-- Header blanc avec logo -->
           <tr>
             <td style="background-color:#ffffff;padding:30px 40px;text-align:center;border-bottom:1px solid #f0f0f0">
-              <img src="${logoBase64}" alt="MapMarket" width="180" style="display:block;margin:0 auto" />
+              <img src="${logoSrc}" alt="MapMarket" width="180" style="display:block;margin:0 auto" />
             </td>
           </tr>
           
@@ -170,8 +185,7 @@ L'équipe MapMarket Tunisie`;
 }
 
 export async function sendEmailVerificationEmail(to, token, name = '') {
-  const logoBase64 =
-    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgODAiIGZpbGw9Im5vbmUiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJicmFuZEdyYWRpZW50IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I2ZmNGQ2ZDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmY2YjhhO3N0b3Atb3BhY2l0eToxIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxmaWx0ZXIgaWQ9InNoYWRvdyI+CiAgICAgIDxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjIiIGZsb29kLW9wYWNpdHk9IjAuMiIvPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgogIAogIDwhLS0gUGluIGRlIGxvY2FsaXNhdGlvbiBzdHlsaXPDqSAtLT4KICA8ZyBmaWx0ZXI9InVybCgjc2hhZG93KSI+CiAgICA8cGF0aCBkPSJNNDAgMTUgQzUyIDE1IDYyIDI1IDYyIDM3IEM2MiA1MCA1MiA2MiA0MCA3NSBDMjggNjIgMTggNTAgMTggMzcgQzE4IDI1IDI4IDE1IDQwIDE1IFoiIAogICAgICAgICAgZmlsbD0idXJsKCNicmFuZEdyYWRpZW50KSIgCiAgICAgICAgICBzdHJva2U9IiNlMTFkNDgiIAogICAgICAgICAgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICAKICAgIDxjaXJjbGUgY3g9IjQwIiBjeT0iMzciIHI9IjEyIiBmaWxsPSJ3aGl0ZSIvPgogICAgCiAgICA8IS0tIEljw7RuZSBwYW5pZXIgLS0+CiAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MCwgMzcpIj4KICAgICAgPHBhdGggZD0iTS02IC00IEwtNCAyIEw0IDIgTDYgLTQgWiIgCiAgICAgICAgICAgIGZpbGw9Im5vbmUiIAogICAgICAgICAgICBzdHJva2U9IiNmZjRkNmQiIAogICAgICAgICAgICBzdHJva2Utd2lkdGg9IjEuOCIgCiAgICAgICAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICAgICAgPGxpbmUgeDE9Ii00IiB5MT0iLTQiIHgyPSItNiIgeTI9Ii03IiBzdHJva2U9IiNmZjRkNmQiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgICAgPGxpbmUgeDE9IjQiIHkxPSItNCIgeDI9IjYiIHkyPSItNyIgc3Ryb2tlPSIjZmY0ZDZkIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgICAgIDxjaXJjbGUgY3g9Ii0yIiBjeT0iNCIgcj0iMS4yIiBmaWxsPSIjZmY0ZDZkIi8+CiAgICAgIDxjaXJjbGUgY3g9IjIiIGN5PSI0IiByPSIxLjIiIGZpbGw9IiNmZjRkNmQiLz4KICAgIDwvZz4KICA8L2c+CiAgCiAgPCEtLSBUZXh0ZSBNYXBNYXJrZXQgLS0+CiAgPHRleHQgeD0iODUiIHk9IjUwIiAKICAgICAgICBmb250LWZhbWlseT0ic3lzdGVtLXVpLCAtYXBwbGUtc3lzdGVtLCBzYW5zLXNlcmlmIiAKICAgICAgICBmb250LXNpemU9IjMyIiAKICAgICAgICBmb250LXdlaWdodD0iNzAwIiAKICAgICAgICBmaWxsPSIjMGYxNzJhIj4KICAgIE1hcE1hcmtldAogIDwvdGV4dD4KICAKICA8IS0tIEJhZGdlIFR1bmlzaWUgLS0+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjUwLCAzMCkiPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjIwIiByeD0iMTAiIGZpbGw9IiNmZjRkNmQiIG9wYWNpdHk9IjAuMSIvPgogICAgPHRleHQgeD0iMzAiIHk9IjE0IiAKICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sIHNhbnMtc2VyaWYiIAogICAgICAgICAgZm9udC1zaXplPSIxMCIgCiAgICAgICAgICBmb250LXdlaWdodD0iNjAwIiAKICAgICAgICAgIHRleHQtYW5jaG9yPSJtaWRkbGUiIAogICAgICAgICAgZmlsbD0iI2ZmNGQ2ZCIKICAgICAgICAgIGxldHRlci1zcGFjaW5nPSIwLjUiPgogICAgICBUVU5JU0lFCiAgICA8L3RleHQ+CiAgPC9nPgo8L3N2Zz4=';
+  const logoSrc = brandLogoBase64 || '';
 
   const verifyUrl = buildUrlWithToken(env.verifyEmailBaseUrl, token);
   const text = `Bonjour ${name || ''},
@@ -199,7 +213,7 @@ L'équipe MapMarket Tunisie`;
           <!-- Header blanc avec logo -->
           <tr>
             <td style="background-color:#ffffff;padding:30px 40px;text-align:center;border-bottom:1px solid #f0f0f0">
-              <img src="${logoBase64}" alt="MapMarket" width="180" style="display:block;margin:0 auto" />
+              <img src="${logoSrc}" alt="MapMarket" width="180" style="display:block;margin:0 auto" />
             </td>
           </tr>
           

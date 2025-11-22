@@ -946,6 +946,12 @@
   height: 20px;
 }
 
+@media (min-width: 961px) {
+  .chat-panel__back {
+    display: none;
+  }
+}
+
 .chat-panel__ad-thumb {
   width: 56px;
   height: 56px;

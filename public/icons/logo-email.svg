@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" role="img" aria-labelledby="brandTitle">
+  <title id="brandTitle">MapMarket</title>
+  <defs>
+    <style type="text/css"><![CDATA[
+      @font-face {
+        font-family: 'GrianEmail';
+        src: url(data:font/woff2;base64,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) format('woff2');
+        font-weight: 400;
+        font-style: normal;
+      }
+      .brand-text {
+        font-family: 'GrianEmail', 'Grian', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 28px;
+        fill: #f43f5e;
+        letter-spacing: -0.02em;
+      }
+      .brand-icon {
+        fill: none;
+        stroke: #f43f5e;
+        stroke-width: 2.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .brand-pin-fill {
+        fill: #f43f5e;
+      }
+    ]]></style>
+  </defs>
+  <g transform="translate(18 10) scale(1.7)">
+    <path class="brand-icon" d="M20 10c0 5-5.54 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.2 4 15 4 10a8 8 0 0 1 16 0" />
+    <circle class="brand-pin-fill" cx="12" cy="10" r="3.2" />
+  </g>
+  <text class="brand-text" x="72" y="40">MapMarket</text>
+</svg>
