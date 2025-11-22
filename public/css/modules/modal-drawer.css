@@ -1864,14 +1864,17 @@ main.container {
 }
 
 .cta-secondary {
-  background: linear-gradient(135deg, var(--color-success-500), var(--color-success-600));
+  background: linear-gradient(135deg, #10B981, #059669);
   color: var(--color-text-contrast);
-  box-shadow: 0 16px 34px rgba(var(--color-success-rgb), .28);
-  font-size: clamp(14px, 3.6vw, 16px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, .28);
 }
 
 .details-actions button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+}
+
+.cta-secondary:hover {
+  box-shadow: 0 8px 20px rgba(16, 185, 129, .35);
 }
 
 /* Optimisations pour écrans iPhone 11 Pro et similaires (375px) */

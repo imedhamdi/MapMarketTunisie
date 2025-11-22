@@ -497,29 +497,24 @@
 
   .details-actions {
     position: sticky;
-    bottom: -1px;
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 10px));
-    margin: 10px -6px 0;
-    background:
-      linear-gradient(180deg, rgba(var(--color-surface-rgb), 0) 0%, rgba(var(--color-surface-rgb), .95) 34%, rgba(var(--color-surface-rgb), 1) 100%);
-    border-radius: 16px 16px 0 0;
-    border: 1px solid rgba(var(--color-border-soft-rgb), .85);
-    box-shadow: 0 -10px 24px rgba(var(--color-ink-rgb), .12);
-    backdrop-filter: blur(8px);
+    bottom: 0;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 12px));
+    margin: 20px -16px 0;
+    background: 
+      linear-gradient(180deg, 
+        rgba(var(--color-surface-rgb), 0) 0%, 
+        rgba(var(--color-surface-rgb), .98) 20%, 
+        rgba(var(--color-surface-rgb), 1) 100%);
+    border-top: 1px solid rgba(var(--color-border-soft-rgb), .3);
+    box-shadow: 
+      0 -8px 16px rgba(var(--color-ink-rgb), .04),
+      0 -1px 3px rgba(var(--color-ink-rgb), .08);
+    backdrop-filter: blur(12px);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
     align-items: stretch;
-  }
-
-  .details-actions::before {
-    content: '';
-    grid-column: 1 / -1;
-    justify-self: center;
-    width: 46px;
-    height: 4px;
-    border-radius: 999px;
-    background: rgba(var(--color-ink-rgb), .12);
+    z-index: 10;
   }
 
   .details-actions > * {
@@ -527,16 +522,79 @@
   }
 
   .details-actions button {
-    width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     min-width: 0;
-    min-height: 52px;
+    min-height: 56px;
     height: auto;
-    border-radius: 14px;
-    gap: 8px;
-    font-size: 13px;
-    line-height: 1.2;
-    letter-spacing: .01em;
-    padding: 0 8px;
+    border-radius: 12px;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: .02em;
+    padding: 10px 6px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+  }
+
+  .details-actions button svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .details-actions button span {
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .details-actions .cta-outline {
+    background: rgba(var(--color-surface-rgb), .9);
+    border: 1px solid rgba(var(--color-slate-300-rgb), .35);
+    color: var(--color-neutral-800);
+  }
+
+  .details-actions .cta-outline.active {
+    border-color: rgba(var(--color-brand-rgb), .5);
+    color: var(--primary);
+    box-shadow: 0 8px 20px rgba(var(--color-brand-rgb), .15);
+  }
+
+  .details-actions .cta-outline:active {
+    transform: scale(0.97);
+    background: rgba(var(--color-slate-100-rgb), .9);
+  }
+
+  .details-actions .cta-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-600));
+    box-shadow: 0 4px 12px rgba(var(--color-brand-rgb), .28);
+    color: #fff;
+  }
+
+  .details-actions .cta-primary:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(var(--color-brand-rgb), .35);
+  }
+
+  .details-actions .cta-secondary {
+    background: linear-gradient(135deg, #10B981, #059669);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, .28);
+    color: #fff;
+  }
+
+  .details-actions .cta-secondary:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, .35);
   }
 }
 
@@ -593,11 +651,19 @@
 
   .details-actions {
     gap: 8px;
+    padding: 12px 12px calc(14px + env(safe-area-inset-bottom, 12px));
   }
 
   .details-actions button {
-    min-height: 50px;
-    font-size: 12px;
+    min-height: 54px;
+    font-size: 10.5px;
+    gap: 5px;
+    padding: 8px 4px;
+  }
+
+  .details-actions button svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -641,5 +707,23 @@
   .details-meta.details-meta-category .cat {
     padding: 6px 10px;
     font-size: 12px;
+  }
+
+  .details-actions {
+    gap: 6px;
+    padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 12px));
+  }
+
+  .details-actions button {
+    min-height: 52px;
+    font-size: 10px;
+    gap: 4px;
+    padding: 8px 3px;
+    border-radius: 10px;
+  }
+
+  .details-actions button svg {
+    width: 17px;
+    height: 17px;
   }
 }
