@@ -539,7 +539,6 @@ export async function getUserStats(req, res) {
       recentActivity: userAds
         .slice()
         .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-        .slice(0, 6)
         .map((ad) => ({
           id: ad._id,
           title: ad.title,
