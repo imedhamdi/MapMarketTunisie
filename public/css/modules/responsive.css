@@ -453,28 +453,31 @@
   }
 
   .details-tags {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px;
-    padding: 10px 0 4px;
-    margin: 6px 0 16px;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    margin: 0 0 12px;
     width: 100%;
-    max-width: 100%;
   }
 
   .details-tag {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    width: 100%;
-    justify-content: flex-start;
-    padding: 10px 12px;
-    border: 1px solid rgba(var(--color-border-soft-rgb), .9);
-    background: rgba(var(--color-surface-ghost-rgb), .95);
-    color: var(--color-text-primary);
-    box-shadow: 0 4px 10px rgba(var(--color-ink-rgb), .08);
-    white-space: normal;
-    line-height: 1.2;
+    gap: 5px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: rgba(var(--color-slate-300-rgb), .16);
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .details-tag__icon {
+    width: 16px;
+    height: 16px;
   }
 
   .details-section {
