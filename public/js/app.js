@@ -7035,6 +7035,55 @@
       }
     }
 
+    if (category === 'loisirs') {
+      const items = [];
+      const activityRaw = String(attrs.activity || '').trim();
+      if (activityRaw) {
+        const activity = activityRaw.toLowerCase();
+        let activityType = 'leisure-activity';
+        if (activity.includes('vélo') || activity.includes('velo')) {
+          activityType = 'leisure-activity-bike';
+        } else if (activity.includes('trott')) {
+          activityType = 'leisure-activity-scooter';
+        } else if (activity.includes('plein air') || activity.includes('plein-air')) {
+          activityType = 'leisure-activity-outdoor';
+        } else if (activity.includes('sport')) {
+          activityType = 'leisure-activity-sport';
+        }
+        items.push({ type: activityType, label: capitalize(activityRaw) });
+      }
+      const brandRaw = String(attrs.brand || '').trim();
+      if (brandRaw) {
+        items.push({ type: 'leisure-brand', label: brandRaw });
+      }
+      const modelRaw = String(attrs.model || '').trim();
+      if (modelRaw) {
+        items.push({ type: 'leisure-model', label: modelRaw });
+      }
+      if (items.length) {
+        return items;
+      }
+    }
+
+    if (category === 'pieces') {
+      const items = [];
+      const compatibleRaw = String(attrs.compatible || '').trim();
+      if (compatibleRaw) {
+        items.push({ type: 'parts-compatible', label: compatibleRaw });
+      }
+      const gradeRaw = String(attrs.grade || '').trim();
+      if (gradeRaw) {
+        items.push({ type: 'parts-grade', label: capitalize(gradeRaw) });
+      }
+      const referenceRaw = String(attrs.reference || '').trim();
+      if (referenceRaw) {
+        items.push({ type: 'parts-reference', label: referenceRaw });
+      }
+      if (items.length) {
+        return items;
+      }
+    }
+
     if (category === 'mode') {
       const items = [];
       const brand = String(attrs.brand || '').trim();
@@ -7186,6 +7235,99 @@
             <path d="M12 3.5 5.5 6v6.3c0 3.7 2.4 7.1 6.5 8.7 4.1-1.6 6.5-5 6.5-8.7V6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
             <path d="m9.4 11.6 2.1 1.9 3.1-3.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M9.8 19.2 12 18l2.2 1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        `;
+      case 'leisure-activity-bike':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="7" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="17" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M7 14h4l3-4h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 7.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="m10 10 2 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'leisure-activity-scooter':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="8" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="19" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 15.5h7a2.5 2.5 0 0 0 2.5-2.5V6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M17.5 6H21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M8 12 6 6H4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        `;
+      case 'leisure-activity-outdoor':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 19h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M7 19 12 7l5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10 14h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M5 9.5 7 11l2-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        `;
+      case 'leisure-activity-sport':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M14.5 9.5 18 12l-2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9.5 9.5 6 12l2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9 14l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9 17.5 7.5 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M15 17.5 16.5 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'leisure-activity':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8.5 12.5c.8 0 1.5-.7 1.5-1.5S9.3 9.5 8.5 9.5 7 10.2 7 11s.7 1.5 1.5 1.5Z" fill="currentColor" />
+            <path d="M15.5 14.5c.8 0 1.5-.7 1.5-1.5s-.7-1.5-1.5-1.5-1.5.7-1.5 1.5.7 1.5 1.5 1.5Z" fill="currentColor" />
+            <path d="M9.5 15.5a6 6 0 0 0 4.4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'leisure-brand':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M5 6h14v12H5Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 6.5V5a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M9 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'leisure-model':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4.5 7h15v10h-15Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M4.5 10h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M8 13.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M12 7V5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'parts-compatible':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4.5 13.5h11.5l1.5-3.5h-6l-1.5-2.5H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="8" cy="17.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="17" cy="17.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M14.5 6.5 18 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M16.8 3.2 19 5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        `;
+      case 'parts-grade':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3.5 6.5 6v6.5c0 3.6 2.2 6.9 5.5 8l5.5-2V6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M12 8.5 13.2 11h2.3l-1.9 1.4.7 2.3-2.3-1.4-2.3 1.4.7-2.3L8.5 11h2.3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          </svg>
+        `;
+      case 'parts-reference':
+        return `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 4.5h12v15H6Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M9 8h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M9 11.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M9 15h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M6 4.5V3h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           </svg>
         `;
       default:
